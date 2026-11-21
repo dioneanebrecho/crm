@@ -1,0 +1,12 @@
+# Mínimo para publicar as Edge Functions pela CLI. O callback do Bling é aberto pelo navegador (sem JWT);
+# a proteção dele é o `state` de uso único gerado pelo painel (api.iniciar_oauth).
+project_id = "gikudypnbnnugduphbpb"
+
+[functions.bling-oauth-callback]
+verify_jwt = false
+
+[functions.integracao-salvar-segredo]
+verify_jwt = true
+
+[functions.integracao-testar]
+verify_jwt = true
