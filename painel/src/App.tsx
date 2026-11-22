@@ -16,6 +16,7 @@ import NotasBling from './pages/NotasBling'
 import Parceiros from './pages/Parceiros'
 import Conhecimento from './pages/Conhecimento'
 import Assistente from './pages/Assistente'
+import Etiquetas from './pages/Etiquetas'
 import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
 
@@ -40,6 +41,7 @@ const GRUPOS = [{ rotulo: 'Catálogo' }, { rotulo: 'Relacionamento' }, { rotulo:
 const ITENS = [
   { id: 'pecas', rotulo: 'Peças', grupo: 'Catálogo', icone: <IPecas /> },
   { id: 'estoque', rotulo: 'Estoque', grupo: 'Catálogo', icone: <IEstoque /> },
+  { id: 'etiquetas', rotulo: 'Etiquetas', grupo: 'Catálogo', icone: <IEstoque /> },
   { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Catálogo', icone: <IPecas /> },
   { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Catálogo', icone: <IEstoque /> },
   { id: 'clientes', rotulo: 'Clientes', grupo: 'Relacionamento', icone: <IClientes /> },
@@ -236,6 +238,7 @@ function Painel() {
         <main key={atual.id}>
           {abaAtual === 'pecas' && <Pecas ctx={ctx} />}
           {abaAtual === 'estoque' && <Unidades ctx={ctx} />}
+          {abaAtual === 'etiquetas' && <Etiquetas ctx={ctx} />}
           {abaAtual === 'saneamento' && <ProdutosBling ctx={ctx} />}
           {abaAtual === 'fiscal' && <NotasBling key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'fiscal' ? atalho.q : undefined} />}
           {abaAtual === 'clientes' && <Clientes key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'clientes' ? atalho.q : undefined} />}
