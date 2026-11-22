@@ -15,7 +15,7 @@ export interface PecaLinha {
 export interface UnidadeDet { id: string; codigo: string; estado: string; local_id: string; local_nome: string; observacao: string | null }
 export interface PecaDetalhe {
   peca: { id: string; codigo: string; nome: string; descricao: string | null; categoria: string | null; marca: string | null
-          condicao: 'nova' | 'usada'; custo: number | null; preco_tabela: number | null; atualizado_em: string }
+          condicao: 'nova' | 'usada'; custo: number | null; preco_tabela: number | null; fotos?: unknown; atualizado_em: string }
   variacoes: { id: string; tamanho: string; codigo: string; unidades: UnidadeDet[] }[]
 }
 export interface UnidadeLinha {
@@ -31,10 +31,11 @@ export class ApiError extends Error {
   constructor(message: string, public code?: string) { super(message) }
 }
 
-async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
+export async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.rpc(fn, args)
   if (error) {
-    if (error.code === 'PGRST106' || error.code === 'PGRST202' || /schema must be one of/i.test(error.message)) {
+    if (error.code === 'PGRST202') throw new ApiError(`A função "${fn}" ainda não existe no banco (migration pendente).`, error.code)
+    if (error.code === 'PGRST106' || /schema must be one of/i.test(error.message)) {
       throw new ApiError('O Data API do Supabase ainda não expõe o schema "api". Ative em Project Settings → API → Exposed schemas.', error.code)
     }
     throw new ApiError(error.message, error.code)
@@ -115,4 +116,137 @@ export const apiIntegracoes = {
   salvarSegredo: (empresa: string, integracao: string, nome: string, valor: string) =>
     funcao<{ ok: boolean }>('integracao-salvar-segredo', { empresa, integracao, nome, valor }),
   testar: (empresa: string, integracao: string) => funcao<ResultadoTeste>('integracao-testar', { empresa, integracao }),
+  modelos: (empresa: string, integracao: string) => funcao<{ ok: boolean; mensagem: string; modelos: string[] }>('integracao-testar', { empresa, integracao, acao: 'modelos' }),
+}
+
+// ---------------------------------------------------------------- Assistente e permissões por tela
+export interface ConfigAssistente { retencao_dias: number; usar_whatsapp: boolean; usar_instagram_dm: boolean; exigir_consentimento: boolean; atualizado_em: string | null }
+export type NivelTela = 'nenhum' | 'ver' | 'editar'
+export interface TelaDef { tela: string; rotulo: string; grupo: string; ordem: number; situacao: 'ativa' | 'planejada'; nivel_max: NivelTela; aplicacao: string; descricao: string | null }
+export interface MatrizPermissoes { papeis: string[]; telas: TelaDef[]; matriz: Record<string, Record<string, NivelTela>> }
+
+export const apiAssistente = {
+  obter: (empresa: string) => rpc<ConfigAssistente>('obter_config_assistente', { p_empresa: empresa }),
+  salvar: (empresa: string, d: Partial<Omit<ConfigAssistente, 'atualizado_em'>>) => rpc<void>('salvar_config_assistente', { p_empresa: empresa, p_dados: d }),
+}
+export const apiPermissoes = {
+  minhas: (empresa: string) => rpc<Record<string, NivelTela>>('minhas_permissoes', { p_empresa: empresa }),
+  listar: (empresa: string) => rpc<MatrizPermissoes>('listar_permissoes', { p_empresa: empresa }),
+  salvar: (empresa: string, itens: { tela: string; papel: string; nivel: NivelTela }[]) => rpc<number>('salvar_permissoes', { p_empresa: empresa, p_itens: itens }),
+  restaurar: (empresa: string) => rpc<void>('restaurar_permissoes_padrao', { p_empresa: empresa }),
+}
+
+// ---------------------------------------------------------------- Espelho Bling (produtos e notas)
+export interface ProdutoBlingLinha {
+  bling_id: number; formato: string | null; situacao: string | null; pai_id: number | null; codigo: string | null
+  nome_cru: string | null; nome_padrao: string | null; ref_fornecedor: string | null; grade_valor_cru: string | null
+  grade_valor_padrao: string | null; grade_grupo: string | null; preco: number | null; custo_cru: number | null
+  alertas: string[]; status_padronizacao: string; id_ativo_equivalente: number | null; total: number
+}
+export interface ResumoProdutosBling {
+  total: number; por_situacao: Record<string, number>; por_formato: Record<string, number>; por_status: Record<string, number>
+  por_grade: Record<string, number>; por_alerta: Record<string, number>
+}
+export interface ProdutoBlingDetalhe {
+  produto: Record<string, unknown>; bruto_lista: Record<string, unknown> | null; bruto_detalhe: Record<string, unknown> | null
+  variacoes: { bling_id: number; codigo: string | null; grade: string | null; situacao: string | null }[]
+}
+export interface NfeLinha {
+  bling_id: number; numero: string | null; serie: number | null; situacao: number | null; situacao_rotulo: string | null
+  loja_id: number | null; data_emissao: string | null; valor_nota: number | null; contato_bling_id: number | null
+  contato_nome: string | null; qtd_itens: number | null; tem_detalhe: boolean; tem_xml: boolean; total: number
+}
+export interface NfeDetalhe { nota: Record<string, unknown>; itens: Record<string, unknown>[] }
+export interface FiltroProdutoBling { busca: string; situacao: string; formato: string; grade: string; alerta: string }
+
+export const apiBling = {
+  produtos: (empresa: string, f: FiltroProdutoBling, offset: number, limite = 50) =>
+    rpc<ProdutoBlingLinha[]>('listar_produtos_bling', { p_empresa: empresa, p_busca: nulo(f.busca), p_situacao: nulo(f.situacao),
+      p_formato: nulo(f.formato), p_grade: nulo(f.grade), p_alerta: nulo(f.alerta), p_limite: limite, p_offset: offset }),
+  resumoProdutos: (empresa: string) => rpc<ResumoProdutosBling>('resumo_produtos_bling', { p_empresa: empresa }),
+  produto: (empresa: string, id: number) => rpc<ProdutoBlingDetalhe | null>('obter_produto_bling', { p_empresa: empresa, p_bling_id: id }),
+  notas: (empresa: string, busca: string, situacao: string, offset: number, limite = 50) =>
+    rpc<NfeLinha[]>('listar_nfe_bling', { p_empresa: empresa, p_busca: nulo(busca), p_situacao: situacao ? Number(situacao) : null, p_limite: limite, p_offset: offset }),
+  nota: (empresa: string, id: number) => rpc<NfeDetalhe | null>('obter_nfe_bling', { p_empresa: empresa, p_bling_id: id }),
+  reprocessar: (empresa: string) => rpc<Record<string, number>>('reprocessar_bling', { p_empresa: empresa }),
+}
+
+// ---------------------------------------------------------------- Parceiros (cadastro oficial único) e amarração com o Bling
+export interface ParceiroLinha {
+  id: string; nome: string; tipo_pessoa: string | null; ativo: boolean; papeis: string[] | null; identificadores: string[] | null
+  qtd_contatos_bling: number; tem_revisao: boolean; criado_em: string; total: number
+}
+export interface VinculoLinha {
+  bling_id: number; nome_cru: string | null; nome_padrao: string | null; situacao: string | null; documento_ultimos: string | null
+  documento_valido: boolean | null; handle_social: string | null; telefone: string | null; criterio: string; status: string
+  motivo: string | null; decidido_por: string; decidido_em: string
+}
+export interface PendenteLinha {
+  bling_id: number; nome_cru: string | null; situacao: string | null; documento_ultimos: string | null; documento_valido: boolean | null
+  handle_social: string | null; status: string; motivo: string | null; parceiro_id: string | null; parceiro_nome: string | null; total: number
+}
+export interface ContatoParceiro extends VinculoLinha {
+  inativo: boolean; principal: boolean; completude: number; mais_recente: boolean; mais_completo: boolean
+  qtd_notas: number | null; legado?: boolean
+}
+export interface NotaParceiro {
+  bling_id: number; numero: string; serie: number | null; tipo: number | null; situacao: number; situacao_rotulo: string | null
+  data_emissao: string | null; valor_nota: number | null; valor_frete: number | null; qtd_itens: number | null; tem_detalhe: boolean
+  contato_bling_id: number | null; contato_nome: string | null; total: number
+}
+export interface ResumoNotasParceiro {
+  qtd_notas: number; qtd_sem_detalhe: number; qtd_desconsideradas: number; valor_total: number; ticket_medio: number | null
+  primeira: string | null; ultima: string | null; por_situacao: Record<string, number>
+}
+export interface FiltroParceiro { busca: string; papel: string; ativo: string; tipo: string; minContatos: string; soRevisao: boolean }
+export const apiParceiros = {
+  listar: (empresa: string, f: FiltroParceiro, offset: number, limite = 50) =>
+    rpc<ParceiroLinha[]>('listar_parceiros', { p_empresa: empresa, p_busca: nulo(f.busca), p_papel: nulo(f.papel),
+      p_ativo: f.ativo === '' ? null : f.ativo === 'sim', p_tipo_pessoa: nulo(f.tipo), p_min_contatos: f.minContatos ? Number(f.minContatos) : null,
+      p_so_revisao: f.soRevisao, p_limite: limite, p_offset: offset }),
+  vinculos: (empresa: string, parceiro: string) => rpc<VinculoLinha[]>('obter_parceiro_vinculos', { p_empresa: empresa, p_parceiro: parceiro }),
+  // Contatos com indicadores de repetidos (principal, mais recente, mais completo). Se a migration 0024 ainda não foi aplicada, cai no modo antigo.
+  contatos: async (empresa: string, parceiro: string): Promise<ContatoParceiro[]> => {
+    try { return await rpc<ContatoParceiro[]>('obter_parceiro_contatos', { p_empresa: empresa, p_parceiro: parceiro }) }
+    catch (e) {
+      if (!(e instanceof ApiError) || (e.code !== 'PGRST202' && e.code !== '42883')) throw e
+      const v = await rpc<VinculoLinha[]>('obter_parceiro_vinculos', { p_empresa: empresa, p_parceiro: parceiro })
+      const base = v.map((c) => {
+        const inativo = (c.situacao ?? 'A') !== 'A'
+        const completude = (c.documento_valido ? 1 : 0) + (c.handle_social ? 1 : 0) + (c.telefone ? 1 : 0) + (inativo ? 0 : 1)
+        return { ...c, inativo, principal: false, completude, mais_recente: false, mais_completo: false, qtd_notas: null, legado: true }
+      })
+      const rec = [...base].sort((a, b) => Number(a.inativo) - Number(b.inativo) || b.bling_id - a.bling_id)[0]
+      const comp = [...base].sort((a, b) => b.completude - a.completude || Number(a.inativo) - Number(b.inativo) || b.bling_id - a.bling_id)[0]
+      return base.map((c) => ({ ...c, mais_recente: c === rec, mais_completo: c === comp }))
+    }
+  },
+  definirPrincipal: (empresa: string, parceiro: string, blingId: number | null) =>
+    rpc<null>('definir_contato_principal', { p_empresa: empresa, p_parceiro: parceiro, p_bling_id: blingId }),
+  notas: (empresa: string, parceiro: string, offset: number, limite = 20) =>
+    rpc<NotaParceiro[]>('listar_notas_parceiro', { p_empresa: empresa, p_parceiro: parceiro, p_limite: limite, p_offset: offset }),
+  resumoNotas: async (empresa: string, parceiro: string) =>
+    (await rpc<ResumoNotasParceiro[]>('resumo_notas_parceiro', { p_empresa: empresa, p_parceiro: parceiro }))[0] ?? null,
+  pendentes: (empresa: string, status: string, busca: string, offset: number, limite = 50) =>
+    rpc<PendenteLinha[]>('listar_amarracoes_pendentes', { p_empresa: empresa, p_status: status, p_busca: nulo(busca), p_limite: limite, p_offset: offset }),
+}
+
+// ---------------------------------------------------------------- Base de conhecimento do assistente (RAG)
+export interface ResumoConhecimento { fontes: number; trechos: number; prontos: number; pendentes: number; falhos: number; ultimo_erro: string | null; modelos: string[] }
+export interface FonteConhecimento {
+  id: string; titulo: string; tipo: string; sensibilidade: 'baixa' | 'media' | 'alta'; ativa: boolean; origem: string | null
+  versao: number | null; tamanho: number | null; atualizado_em: string; mascarados: { cpf?: number; email?: number; telefone?: number } | null; trechos: number; prontos: number
+}
+export interface AchadoConhecimento { chunk_id: string; fonte_id: string; fonte_titulo: string; titulo: string; conteudo: string; score: number; origem: ('texto' | 'vetor')[] }
+export const apiConhecimento = {
+  listar: (empresa: string) => rpc<{ resumo: ResumoConhecimento; fontes: FonteConhecimento[] }>('listar_fontes', { p_empresa: empresa }),
+  alternar: (empresa: string, fonte: string, ativa: boolean) => rpc<void>('alternar_fonte', { p_empresa: empresa, p_fonte: fonte, p_ativa: ativa }),
+  indexar: (empresa: string, d: { titulo: string; texto: string; tipo: string; sensibilidade: string; origem?: string }) =>
+    funcao<{ ok: boolean; estado: 'criada' | 'atualizada' | 'sem_mudanca'; trechos?: number; reaproveitados?: number; pendentes?: number; mascarados?: { cpf: number; email: number; telefone: number } }>('conhecimento', { empresa, acao: 'indexar', ...d }),
+  processar: (empresa: string, reabrir = false) =>
+    funcao<{ ok: boolean; motivo?: string; gravados?: number; aguardar_s?: number | null; erro?: string | null; resumo: ResumoConhecimento | null }>('conhecimento', { empresa, acao: 'processar', reabrir }),
+  historico: (empresa: string) => rpc<{ pergunta: string; em: string; achados: number }[]>('historico_perguntas', { p_empresa: empresa, p_limite: 12 }),
+  limparHistorico: (empresa: string) => rpc<number>('limpar_historico_perguntas', { p_empresa: empresa }),
+  buscar: (empresa: string, pergunta: string) =>
+    funcao<{ ok: boolean; modo: 'text' | 'vector' | 'hybrid'; aviso: string | null; resultados: AchadoConhecimento[] }>('conhecimento', { empresa, acao: 'buscar', pergunta }),
 }
