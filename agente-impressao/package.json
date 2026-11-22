@@ -1,0 +1,20 @@
+{
+  "name": "ane-print-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agente local de impressao do CRM Ane Brecho - pareado por codigo com a retaguarda, consome a fila via Edge Function impressao-agente e envia as etiquetas para as impressoras Windows/rede.",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "build:installer": "bash build-installer.sh"
+  },
+  "dependencies": {
+    "pdf-to-printer": "^5.8.1"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}

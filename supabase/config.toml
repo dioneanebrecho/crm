@@ -16,3 +16,7 @@ verify_jwt = true
 
 [functions.consulta-receita]
 verify_jwt = true
+
+# Agente de impressão: não há JWT de usuário; a autorização é o segredo do agente (api.agente_autenticar).
+[functions.impressao-agente]
+verify_jwt = false

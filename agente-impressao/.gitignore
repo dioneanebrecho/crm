@@ -1,0 +1,10 @@
+node_modules/
+.env
+tmp/
+daemon/
+*.log
+credencial.dat
+dist-installer/
+credencial.dat
+tmp/
+node_modules/
