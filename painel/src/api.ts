@@ -112,7 +112,7 @@ async function funcao<T>(nome: string, corpo: Record<string, unknown>): Promise<
   const { data, error } = await supabase.functions.invoke(nome, { body: corpo })
   if (error) {
     let msg = 'Não foi possível concluir a operação.'
-    try { const r = (error as { context?: Response }).context; if (r) { const j = await r.json(); if (j?.erro) msg = String(j.erro) } } catch { /* mantém msg */ }
+    try { const r = (error as { context?: Response }).context; if (r) { if (r.status === 404) msg = `A função "${nome}" ainda não foi publicada no servidor.`; const j = await r.json(); if (j?.erro) msg = String(j.erro) } } catch { /* mantém msg */ }
     throw new ApiError(msg)
   }
   return data as T
