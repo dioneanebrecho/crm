@@ -17,6 +17,8 @@ import Parceiros from './pages/Parceiros'
 import Conhecimento from './pages/Conhecimento'
 import Assistente from './pages/Assistente'
 import Etiquetas from './pages/Etiquetas'
+import Vendas from './pages/Vendas'
+import PreferenciasVitrine from './pages/PreferenciasVitrine'
 import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
 
@@ -46,10 +48,12 @@ const ITENS = [
   { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Catálogo', icone: <IEstoque /> },
   { id: 'clientes', rotulo: 'Clientes', grupo: 'Relacionamento', icone: <IClientes /> },
   { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Relacionamento', icone: <IClientes /> },
+  { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live', icone: <IMarca /> },
   { id: 'agenda', rotulo: 'Agenda', grupo: 'Live', icone: <IAgenda /> },
   { id: 'assistente', rotulo: 'Assistente', grupo: 'Inteligência', icone: <IMarca /> },
   { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Configuração', icone: <IPecas /> },
   { id: 'locais', rotulo: 'Locais', grupo: 'Configuração', icone: <ILocais /> },
+  { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Configuração', icone: <IIntegracoes /> },
   { id: 'integracoes', rotulo: 'Integrações', grupo: 'Configuração', icone: <IIntegracoes /> },
   { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <IIntegracoes /> },
   { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IIntegracoes /> },
@@ -246,6 +250,8 @@ function Painel() {
           {abaAtual === 'locais' && <Locais ctx={ctx} />}
           {abaAtual === 'grades' && <Grades ctx={ctx} />}
           {abaAtual === 'integracoes' && <Integracoes ctx={ctx} />}
+          {abaAtual === 'vendas' && <Vendas ctx={ctx} />}
+          {abaAtual === 'preferencias_vitrine' && <PreferenciasVitrine ctx={ctx} />}
           {abaAtual === 'agenda' && <Agenda />}
           {abaAtual === 'assistente' && <Assistente ctx={ctx} abrir={abrir} />}
           {abaAtual === 'conhecimento' && <Conhecimento ctx={ctx} abrir={abrir} />}

@@ -231,3 +231,62 @@ label.check { display: flex; align-items: center; gap: 8px; margin: 6px 0 }
 .campo-nota span { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--mudo); }
 .campo-nota strong { overflow-wrap: anywhere; }
 .mono { font-family: ui-monospace, Menlo, monospace; font-size: .8rem; font-weight: 600; }
+
+/* ===== Central de vendas e Preferências da vitrine (0034) ===== */
+.v-barra { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1rem; }
+.v-barra .busca { flex: 1 1 240px; margin: 0; }
+.v-seg { display: inline-flex; border: 1px solid var(--borda); border-radius: 9px; overflow: hidden; flex-wrap: wrap; }
+.v-seg button { border-radius: 0; background: transparent; color: var(--txt); padding: .45rem .75rem; border-right: 1px solid var(--borda); font-size: .82rem; }
+.v-seg button:last-child { border-right: 0; } .v-seg button:hover:not(:disabled) { background: var(--marca-suave); }
+.v-seg button.sel, .v-seg button.sel:hover:not(:disabled) { background: var(--marca); color: var(--on-marca); }
+.v-area { display: grid; gap: 1rem; } .v-area.lado { grid-template-columns: minmax(0, 1fr) minmax(340px, 420px); align-items: start; }
+@media (max-width: 1100px) { .v-area.lado { grid-template-columns: 1fr; } }
+.v-lista { min-width: 0; } .v-detalhe { min-width: 0; }
+.v-area.lado .v-detalhe { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow-y: auto; }
+.v-canal { display: inline-block; color: #fff; font-size: .68rem; font-weight: 800; padding: .1rem .45rem; border-radius: 6px; white-space: nowrap; }
+.v-canais { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.v-peca { display: flex; gap: .6rem; align-items: center; } .v-peca span { display: grid; } .v-peca small { white-space: nowrap; }
+tr.v-sel td { background: var(--marca-suave); }
+.tempo { font-variant-numeric: tabular-nums; } .tempo.atencao { color: var(--aviso); } .tempo.urgente { color: var(--erro); font-weight: 800; }
+.v-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: .7rem; }
+.v-card { display: grid; gap: .45rem; text-align: left; background: var(--card); color: var(--txt); border: 2px solid var(--borda); border-radius: 12px; padding: .7rem; font-weight: 500; }
+.v-card:hover:not(:disabled) { background: var(--card2); } .v-card.sel { border-color: var(--marca); }
+.v-card-topo { display: flex; gap: .6rem; align-items: center; min-width: 0; } .v-card-topo > span:last-child { display: grid; min-width: 0; }
+.v-card-topo strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .v-card-topo small { color: var(--mudo); }
+.v-card-linha { display: flex; gap: .4rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.v-apoio { color: var(--erro); font-size: .82rem; font-weight: 600; white-space: normal; }
+.v-alerta strong { color: var(--erro); }
+.v-funil { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; margin-bottom: 1rem; }
+.v-funil > div { display: grid; gap: .3rem; } .v-funil span { font-size: .75rem; color: var(--mudo); } .v-funil small { grid-column: 1 / -1; }
+.v-barra-funil { height: 40px; border-radius: 8px; background: var(--card2); display: flex; align-items: flex-end; overflow: hidden; }
+.v-barra-funil i { display: block; width: 100%; background: var(--marca); opacity: .85; }
+.v-etapa-reservada { background: rgba(232, 179, 75, .18); color: var(--aviso); } .v-etapa-paga { background: rgba(92, 201, 138, .16); color: var(--ok); }
+.v-etapa-fila { background: rgba(110, 150, 230, .18); color: #7fa6ec; } .v-etapa-perdeu { background: var(--erro-bg); color: var(--erro); }
+:root[data-tema='ane'] .v-etapa-fila { color: #244a7a; }
+.v-det h3 { margin: 1.1rem 0 .4rem; }
+.v-det-topo { display: flex; gap: .8rem; align-items: flex-start; } .v-det-topo > div { flex: 1; min-width: 0; display: grid; gap: .2rem; }
+.v-foto { width: 64px; height: 84px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borda); flex: none; }
+.v-foto.vazia { display: grid; place-items: center; font-size: .7rem; color: var(--mudo); background: var(--card2); }
+.v-avatar { width: 48px; height: 48px; font-size: 1rem; flex: none; }
+.v-linha { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.v-quadrante { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.v-canal-card { border: 1px solid var(--borda); border-radius: 10px; padding: .55rem .65rem; display: grid; gap: .3rem; background: var(--card2); min-width: 0; }
+.v-canal-card.ativo { border-width: 2px; background: var(--card); }
+button.mini { padding: .25rem .6rem; font-size: .78rem; }
+.v-url code { word-break: break-all; white-space: normal; }
+.v-reserva { margin-top: .9rem; border-radius: 10px; padding: .7rem .8rem; background: var(--marca-suave); display: grid; gap: .5rem; }
+.v-reserva > .v-linha:first-child { justify-content: space-between; }
+.v-relogio { font-size: 1.8rem; }
+.v-fila { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.v-fila li { display: flex; gap: .5rem; align-items: center; border: 1px solid var(--borda); border-radius: 8px; padding: .35rem .55rem; }
+.v-pos { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--card2); font-size: .75rem; font-weight: 800; flex: none; }
+.v-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; max-height: 280px; overflow-y: auto; }
+.v-hist li { display: grid; grid-template-columns: 92px auto minmax(0, 1fr); gap: .5rem; align-items: baseline; padding: .35rem 0; border-bottom: 1px solid var(--borda); font-size: .85rem; }
+.v-passos { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; margin: .4rem 0 .2rem; }
+.v-passos i { height: 5px; border-radius: 3px; background: var(--borda); } .v-passos i.on { background: var(--marca); }
+.v-prefs { margin-bottom: 1rem; max-width: 1080px; } .v-prefs h2 { margin-bottom: .3rem; }
+.v-pref { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .8rem 1.2rem; align-items: center; padding: .8rem 0; border-top: 1px solid var(--borda); }
+.v-pref > div:first-child { flex: 1 1 260px; display: grid; gap: .2rem; } .v-pref > div:last-child { display: grid; gap: .3rem; justify-items: end; }
+.v-pref input { min-width: 280px; }
+.v-passo-num { display: inline-flex; align-items: center; gap: .5rem; } .v-passo-num strong { min-width: 70px; text-align: center; font-size: 1.1rem; }
+.v-passo-num button { width: 36px; height: 36px; padding: 0; }
