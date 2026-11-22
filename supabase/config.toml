@@ -11,6 +11,9 @@ verify_jwt = true
 [functions.integracao-testar]
 verify_jwt = true
 
+[functions.usuario-convidar]
+verify_jwt = true
+
 [functions.conhecimento]
 verify_jwt = true
 

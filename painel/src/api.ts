@@ -307,3 +307,28 @@ export const apiAssistenteDados = {
   vendasCliente: (empresa: string, busca: string) => rpc<VendasCliente>('assistente_vendas_cliente', { p_empresa: empresa, p_busca: busca, p_limite: 10 }),
   registrar: (empresa: string, pergunta: string) => rpc<void>('registrar_pergunta_dados', { p_empresa: empresa, p_pergunta: pergunta }),
 }
+
+// ---------------------------------------------------------------- Usuários, grupos de acesso e convites (migration 0039)
+export interface GrupoAcesso { id: string; nome: string; descricao: string | null; papeis: string[]; ativo: boolean; sistema: boolean; membros: number }
+export interface UsuarioAcesso {
+  id: string; nome: string; email: string; superadmin: boolean; papeis: string[]; grupos: { id: string; nome: string }[]
+  papeis_efetivos: string[]; status: 'ativo' | 'convidado' | 'desativado'; ultimo_acesso: string | null
+}
+export interface ConviteLinha { id: string; nome: string; email: string; papeis: string[]; grupos: string[]; criado_em: string; expira_em: string; expirado: boolean; reenvios: number }
+export interface ResultadoConvite { ok: boolean; enviado: boolean; link?: string; aviso?: string }
+
+export const apiUsuarios = {
+  listar: (empresa: string) => rpc<{ usuarios: UsuarioAcesso[]; convites: ConviteLinha[] }>('listar_usuarios', { p_empresa: empresa }),
+  grupos: (empresa: string) => rpc<GrupoAcesso[]>('listar_grupos', { p_empresa: empresa }),
+  salvarGrupo: (empresa: string, d: { id?: string; nome: string; descricao: string; papeis: string[]; ativo: boolean }) =>
+    rpc<string>('salvar_grupo', { p_empresa: empresa, p_id: d.id ?? null, p_nome: d.nome, p_descricao: nulo(d.descricao), p_papeis: d.papeis, p_ativo: d.ativo }),
+  excluirGrupo: (empresa: string, id: string) => rpc<void>('excluir_grupo', { p_empresa: empresa, p_id: id }),
+  definirAcesso: (empresa: string, usuario: string, papeis: string[], grupos: string[], ativo: boolean) =>
+    rpc<void>('definir_acesso_usuario', { p_empresa: empresa, p_usuario: usuario, p_papeis: papeis, p_grupos: grupos, p_ativo: ativo }),
+  // Cria o convite no banco e pede à Edge Function para gerar o link e enviar o e-mail.
+  convidar: async (empresa: string, d: { email: string; nome: string; papeis: string[]; grupos: string[] }): Promise<ResultadoConvite> => {
+    const r = await rpc<{ convite_id: string }>('convidar_usuario', { p_empresa: empresa, p_email: d.email, p_nome: d.nome, p_papeis: d.papeis, p_grupos: d.grupos })
+    return funcao<ResultadoConvite>('usuario-convidar', { empresa, convite: r.convite_id })
+  },
+  revogar: (empresa: string, convite: string) => rpc<void>('revogar_convite', { p_empresa: empresa, p_convite: convite }),
+}

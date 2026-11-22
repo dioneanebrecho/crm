@@ -12,6 +12,7 @@ import Grades from './pages/Grades'
 import Integracoes from './pages/Integracoes'
 import Agenda from './pages/Agenda'
 import Permissoes from './pages/Permissoes'
+import Usuarios from './pages/Usuarios'
 import ProdutosBling from './pages/ProdutosBling'
 import NotasBling from './pages/NotasBling'
 import Parceiros from './pages/Parceiros'
@@ -59,6 +60,7 @@ const ITENS = [
   { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Configuração', icone: <IAjustes /> },
   { id: 'integracoes', rotulo: 'Integrações', grupo: 'Configuração', icone: <IIntegracoes /> },
   { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <ILivro /> },
+  { id: 'usuarios', rotulo: 'Usuários e acessos', grupo: 'Configuração', icone: <IClientes /> },
   { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IEscudo /> },
 ] as const
 type Aba = (typeof ITENS)[number]['id']
@@ -68,13 +70,14 @@ const erroDoLink = (() => {
   const h = new URLSearchParams(location.hash.slice(1))
   if (!h.get('error')) return null
   return h.get('error_code') === 'otp_expired'
-    ? 'O link do e-mail expirou ou já foi usado. Peça um novo link de recuperação.'
+    ? 'O link do e-mail expirou ou já foi usado. Se for um convite, peça um novo a quem convidou você; se for recuperação, use "Esqueci minha senha".'
     : (h.get('error_description') ?? 'Não foi possível validar o link.').replace(/\+/g, ' ')
 })()
 
 export default function App() {
   const [sessao, setSessao] = useState<Session | null | undefined>(undefined)
-  const [recuperando, setRecuperando] = useState(() => new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery')
+  const [recuperando, setRecuperando] = useState(() => ['recovery', 'invite'].includes(new URLSearchParams(location.hash.slice(1)).get('type') ?? ''))
+  const [conviteLink] = useState(() => new URLSearchParams(location.hash.slice(1)).get('type') === 'invite')
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSessao(data.session))
     const { data } = supabase.auth.onAuthStateChange((evento, s) => {
@@ -85,11 +88,11 @@ export default function App() {
   }, [])
   if (!configurado) return <Aviso titulo="Configuração ausente" texto="Defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (veja .env.example)." />
   if (sessao === undefined) return <div className="centro"><p className="sub">Carregando…</p></div>
-  if (sessao && recuperando) return <NovaSenha onConcluir={() => setRecuperando(false)} />
+  if (sessao && recuperando) return <NovaSenha convite={conviteLink} onConcluir={() => setRecuperando(false)} />
   return sessao ? <Painel /> : <Login />
 }
 
-function NovaSenha({ onConcluir }: { onConcluir: () => void }) {
+function NovaSenha({ onConcluir, convite = false }: { onConcluir: () => void; convite?: boolean }) {
   const [senha, setSenha] = useState('')
   const [conf, setConf] = useState('')
   const [erro, setErro] = useState<string | null>(null)
@@ -108,7 +111,7 @@ function NovaSenha({ onConcluir }: { onConcluir: () => void }) {
   return (
     <TelaEntrada>
       <form className="cartao login" onSubmit={salvar}>
-        <h1>Definir nova senha</h1>
+        <h1>{convite ? 'Bem-vinda(o)! Crie sua senha' : 'Definir nova senha'}</h1>
         <label className="campo"><span>Nova senha</span><input type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} required autoFocus /></label>
         <label className="campo"><span>Repita a senha</span><input type="password" autoComplete="new-password" value={conf} onChange={(e) => setConf(e.target.value)} required /></label>
         {erro && <div className="erro" role="alert">{erro}</div>}
@@ -249,7 +252,7 @@ function Painel() {
   const perm = permMapa.perm
   definirEmpresaEstado(atual.id)
   const ctx = contexto(atual.id, atual.papeis, perm)
-  const visiveis = ITENS.filter((i) => perm === null ? i.id !== 'permissoes' || tem(atual.papeis, 'admin') : perm[i.id] !== undefined && perm[i.id] !== 'nenhum')
+  const visiveis = ITENS.filter((i) => perm === null ? (i.id !== 'permissoes' && i.id !== 'usuarios') || tem(atual.papeis, 'admin') : perm[i.id] !== undefined && perm[i.id] !== 'nenhum')
   const abaAtual: Aba = visiveis.some((i) => i.id === aba) ? aba : (visiveis[0]?.id ?? 'pecas')
   const lista = abertas.filter((id) => visiveis.some((v) => v.id === id))
   if (!lista.includes(abaAtual) && visiveis.length > 0) lista.push(abaAtual)
@@ -273,6 +276,7 @@ function Painel() {
       case 'agenda': return <Agenda />
       case 'assistente': return <Assistente ctx={ctx} abrir={abrir} />
       case 'conhecimento': return <Conhecimento ctx={ctx} abrir={abrir} />
+      case 'usuarios': return <Usuarios ctx={ctx} />
       case 'permissoes': return <Permissoes ctx={ctx} onSalvo={() => setVersaoPerm((v) => v + 1)} />
     }
   }

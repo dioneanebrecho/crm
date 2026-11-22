@@ -21,3 +21,13 @@ Publicar:
 Link de redirecionamento a cadastrar no app do Bling (exatamente assim):
 
     https://gikudypnbnnugduphbpb.supabase.co/functions/v1/bling-oauth-callback
+
+## Convite de usuários (`usuario-convidar`)
+
+Publicar (com o endereço real do painel, para o link do convite e o CORS):
+
+    cd "$HOME/Documents/Projeto Ane Brecho/painel-ane" && PAINEL_URL=https://crm.evoconecta.io bash scripts/publicar-funcoes.sh usuario-convidar
+
+E-mail: a função reaproveita o Resend dos alertas (remetente em `engine.cfg_alerta`, chave no Vault) por `api.svc_email_config`. Provisório: com o remetente `onboarding@resend.dev` o Resend só entrega ao e-mail do dono da conta. Para convidar outras pessoas, verifique um domínio no Resend e troque o remetente em `engine.cfg_alerta`. Enquanto isso, a tela mostra o link de criação de senha para repassar à pessoa.
+
+No Supabase (Authentication): em URL Configuration, deixe `https://crm.evoconecta.io` como Site URL e em Redirect URLs; em Email, ajuste "Email OTP expiration" para 86400 (24 h) para o link do convite valer o prazo prometido no e-mail.
