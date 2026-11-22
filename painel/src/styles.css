@@ -290,3 +290,30 @@ button.mini { padding: .25rem .6rem; font-size: .78rem; }
 .v-pref input { min-width: 280px; }
 .v-passo-num { display: inline-flex; align-items: center; gap: .5rem; } .v-passo-num strong { min-width: 70px; text-align: center; font-size: 1.1rem; }
 .v-passo-num button { width: 36px; height: 36px; padding: 0; }
+
+/* ---- Tela de entrada: fundo com fotos em transição + logomarca ---- */
+.entrada { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 1rem; overflow: hidden; isolation: isolate; background: #1a1612; }
+.fundo { position: absolute; inset: 0; z-index: -2; }
+.fundo-foto { position: absolute; inset: 0; opacity: 0; z-index: 0; transition: opacity 1.6s ease-in-out; overflow: hidden; }
+.fundo-foto.saindo { opacity: 1; z-index: 1; }
+.fundo-foto.ativa { opacity: 1; z-index: 2; }
+.fundo-foto img { width: 100%; height: 100%; object-fit: cover; display: block; transform-origin: 50% 50%; }
+.fundo-foto.ativa img, .fundo-foto.saindo img { animation: entrada-zoom-a 16s ease-out forwards; }
+.fundo-foto:nth-child(even) img { transform-origin: 30% 60%; }
+.fundo-foto:nth-child(even).ativa img, .fundo-foto:nth-child(even).saindo img { animation-name: entrada-zoom-b; }
+@keyframes entrada-zoom-a { from { transform: scale(1.02); } to { transform: scale(1.15) translate3d(-1.5%, -1%, 0); } }
+@keyframes entrada-zoom-b { from { transform: scale(1.15) translate3d(1.5%, 1%, 0); } to { transform: scale(1.02); } }
+.fundo-padrao { position: absolute; inset: -12%; background: radial-gradient(40% 50% at 20% 25%, rgba(212, 176, 115, .38), transparent 70%), radial-gradient(45% 55% at 80% 78%, rgba(207, 168, 109, .30), transparent 70%), #1a1612; animation: entrada-deriva 26s ease-in-out infinite alternate; }
+@keyframes entrada-deriva { from { transform: translate3d(-2%, -1%, 0) scale(1); } to { transform: translate3d(2%, 1.5%, 0) scale(1.08); } }
+.fundo-veu { position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at center, rgba(20, 16, 12, .42) 0%, rgba(20, 16, 12, .80) 100%), linear-gradient(180deg, rgba(20, 16, 12, .35), rgba(20, 16, 12, .15) 40%, rgba(20, 16, 12, .55)); }
+.entrada-conteudo { display: grid; justify-items: center; gap: 1.1rem; width: min(440px, 100%); animation: entrada-sobe .8s ease both; }
+.entrada-logo { width: 112px; height: 112px; object-fit: cover; border-radius: 26px; box-shadow: 0 12px 34px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .22); }
+.entrada .cartao { width: 100%; background: color-mix(in srgb, var(--card) 74%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); border-color: rgba(212, 176, 115, .35); box-shadow: 0 24px 60px rgba(0, 0, 0, .45); }
+.entrada-legenda { position: absolute; left: 1.25rem; bottom: 1rem; margin: 0; max-width: calc(100% - 2.5rem); color: rgba(255, 255, 255, .85); font-size: .8rem; letter-spacing: .04em; text-shadow: 0 1px 6px rgba(0, 0, 0, .7); animation: entrada-legenda 7s ease both; }
+@keyframes entrada-sobe { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes entrada-legenda { 0% { opacity: 0; } 12%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@media (max-width: 520px) { .entrada-logo { width: 92px; height: 92px; border-radius: 22px; } .entrada-legenda { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .fundo-foto { transition: none; }
+  .fundo-foto img, .fundo-padrao, .entrada-conteudo, .entrada-legenda { animation: none !important; }
+}

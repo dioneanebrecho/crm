@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase, configurado } from './supabase'
 import { api, apiPermissoes, type Me, type NivelTela, type Papel } from './api'
 import { useCarregar } from './ui'
+import TelaEntrada from './TelaEntrada'
 import Pecas from './pages/Pecas'
 import Unidades from './pages/Unidades'
 import Clientes from './pages/Clientes'
@@ -103,9 +104,8 @@ function NovaSenha({ onConcluir }: { onConcluir: () => void }) {
     onConcluir()
   }
   return (
-    <div className="centro">
+    <TelaEntrada>
       <form className="cartao login" onSubmit={salvar}>
-        <div className="marca">Ane Brechó</div>
         <h1>Definir nova senha</h1>
         <label className="campo"><span>Nova senha</span><input type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} required autoFocus /></label>
         <label className="campo"><span>Repita a senha</span><input type="password" autoComplete="new-password" value={conf} onChange={(e) => setConf(e.target.value)} required /></label>
@@ -113,7 +113,7 @@ function NovaSenha({ onConcluir }: { onConcluir: () => void }) {
         <button type="submit" disabled={enviando}>{enviando ? 'Salvando…' : 'Salvar e entrar'}</button>
         <p className="sub">Mínimo de 10 caracteres. Guarde a senha no seu gerenciador de senhas.</p>
       </form>
-    </div>
+    </TelaEntrada>
   )
 }
 
@@ -143,9 +143,8 @@ function Login() {
     setEnviando(false)
   }
   return (
-    <div className="centro">
+    <TelaEntrada>
       <form className="cartao login" onSubmit={entrar}>
-        <div className="marca">Ane Brechó</div>
         <h1>Entrar no painel</h1>
         <label className="campo"><span>E-mail</span><input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></label>
         <label className="campo"><span>Senha</span><input type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required /></label>
@@ -155,7 +154,7 @@ function Login() {
         <button type="button" className="link" onClick={esqueci} disabled={enviando}>Esqueci minha senha</button>
         <p className="sub">Acesso só para a equipe. O cadastro é feito por convite.</p>
       </form>
-    </div>
+    </TelaEntrada>
   )
 }
 
