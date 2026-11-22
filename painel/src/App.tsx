@@ -76,6 +76,7 @@ const erroDoLink = (() => {
 
 // Convite pelo domínio do painel: o e-mail traz https://crm.evoconecta.io/#convite=<código>; validamos aqui, sem expor a URL do Supabase.
 const codigoConvite = new URLSearchParams(location.hash.slice(1)).get('convite')
+const tipoConvite = new URLSearchParams(location.hash.slice(1)).get('tipo') === 'recovery' ? 'recovery' : 'invite'
 const ERRO_CONVITE = 'O link do convite expirou ou já foi usado. Peça um novo convite a quem convidou você.'
 
 export default function App() {
@@ -86,7 +87,7 @@ export default function App() {
   useEffect(() => {
     if (!codigoConvite) return
     history.replaceState(null, '', location.pathname)   // tira o código da barra de endereço
-    supabase.auth.verifyOtp({ token_hash: codigoConvite, type: 'invite' }).then(({ error }) => {
+    supabase.auth.verifyOtp({ token_hash: codigoConvite, type: tipoConvite }).then(({ error }) => {
       if (error) { sessionStorage.setItem('erro_convite', ERRO_CONVITE); setRecuperando(false) }
       setValidando(false)
     })
@@ -118,6 +119,7 @@ function NovaSenha({ onConcluir, convite = false }: { onConcluir: () => void; co
     const { error } = await supabase.auth.updateUser({ password: senha })
     setEnviando(false)
     if (error) return setErro(error.message)
+    await supabase.rpc('convite_concluir')   // marca a senha como criada e o convite como aceito (falha aqui não impede o acesso)
     history.replaceState(null, '', location.pathname)
     onConcluir()
   }

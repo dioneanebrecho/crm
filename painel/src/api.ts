@@ -312,9 +312,9 @@ export const apiAssistenteDados = {
 export interface GrupoAcesso { id: string; nome: string; descricao: string | null; papeis: string[]; ativo: boolean; sistema: boolean; membros: number }
 export interface UsuarioAcesso {
   id: string; nome: string; email: string; superadmin: boolean; papeis: string[]; grupos: { id: string; nome: string }[]
-  papeis_efetivos: string[]; status: 'ativo' | 'convidado' | 'desativado'; ultimo_acesso: string | null
+  papeis_efetivos: string[]; status: 'ativo' | 'convidado' | 'aguardando_senha' | 'desativado'; ultimo_acesso: string | null
 }
-export interface ConviteLinha { id: string; nome: string; email: string; papeis: string[]; grupos: string[]; criado_em: string; expira_em: string; expirado: boolean; reenvios: number }
+export interface ConviteLinha { id: string; nome: string; email: string; papeis: string[]; grupos: string[]; criado_em: string; expira_em: string; expirado: boolean; reenvios: number; link_aberto: boolean }
 export interface ResultadoConvite { ok: boolean; enviado: boolean; link?: string; aviso?: string }
 
 export const apiUsuarios = {

@@ -71,15 +71,18 @@ Deno.serve(async (req) => {
   const painelUrl = (Deno.env.get('PAINEL_URL') ?? 'https://crm.evoconecta.io').replace(/\/$/, '')
   const admin = clienteServico()
   const email = String(cv.email).toLowerCase()
-  let link = painelUrl, jaTinhaConta = false, usuarioId: string | null = null
+  let link = painelUrl, jaTinhaConta = false, recuperar = false, usuarioId: string | null = null
 
   const gerar = () => admin.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo: painelUrl, data: { nome: cv.nome } } })
   let { data: gl, error: e2 } = await gerar()
   if (e2) {
     const existente = await acharUsuario(admin, email)
     if (!existente) { console.error('generateLink falhou', e2.code); return json(req, 500, { erro: 'não foi possível criar o convite' }) }
-    if (existente.email_confirmed_at) {            // já tem conta: só libera o acesso
-      jaTinhaConta = true; usuarioId = existente.id
+    if (existente.email_confirmed_at) {            // conta já confirmada
+      usuarioId = existente.id
+      const { data: precisa } = await admin.rpc('svc_precisa_senha', { p_usuario: existente.id })
+      if (precisa === true) recuperar = true       // abriu o link mas nunca criou senha: manda link novo para criar
+      else jaTinhaConta = true                     // já tem senha: só libera o acesso
     } else {                                       // convite antigo nunca aceito: recria para invalidar o link anterior
       const { error: ed } = await admin.auth.admin.deleteUser(existente.id)
       if (ed) { console.error('deleteUser falhou'); return json(req, 500, { erro: 'não foi possível renovar o convite' }) }
@@ -87,7 +90,11 @@ Deno.serve(async (req) => {
       if (e2) { console.error('generateLink (2) falhou', e2.code); return json(req, 500, { erro: 'não foi possível criar o convite' }) }
     }
   }
-  if (!jaTinhaConta) { usuarioId = gl!.user.id; link = `${painelUrl}/#convite=${gl!.properties.hashed_token}` }
+  if (recuperar) {
+    const { data: rc, error: er } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: painelUrl } })
+    if (er) { console.error('generateLink (recovery) falhou', er.code); return json(req, 500, { erro: 'não foi possível criar o link de senha' }) }
+    link = `${painelUrl}/#convite=${rc.properties.hashed_token}&tipo=recovery`
+  } else if (!jaTinhaConta) { usuarioId = gl!.user.id; link = `${painelUrl}/#convite=${gl!.properties.hashed_token}` }
 
   const { error: e3 } = await admin.rpc('convite_vincular', { p_convite: convite, p_auth_user: usuarioId })
   if (e3) { console.error('convite_vincular falhou', e3.code); return json(req, 500, { erro: 'não foi possível vincular o convite' }) }

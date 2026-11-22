@@ -85,7 +85,7 @@ export default function Usuarios({ ctx }: { ctx: Contexto }) {
   }
 
   const statusPill = (s: UsuarioAcesso['status']) =>
-    s === 'ativo' ? <span className="pill pill-ok"><i />Ativo</span> : s === 'convidado' ? <span className="pill pill-aviso"><i />Convite pendente</span> : <span className="pill pill-mudo"><i />Desativado</span>
+    s === 'ativo' ? <span className="pill pill-ok"><i />Ativo</span> : s === 'convidado' ? <span className="pill pill-aviso"><i />Convite pendente</span> : s === 'aguardando_senha' ? <span className="pill pill-aviso"><i />Aguardando senha</span> : <span className="pill pill-mudo"><i />Desativado</span>
 
   return (
     <section>
@@ -137,7 +137,8 @@ export default function Usuarios({ ctx }: { ctx: Contexto }) {
                 <td style={{ whiteSpace: 'normal' }}><strong>{c.nome}</strong><small className="sub" style={{ display: 'block' }}>{c.email}</small></td>
                 <td style={{ whiteSpace: 'normal' }}>{[...c.grupos, ...c.papeis.map((p) => PAPEL[p] ?? p)].join(', ')}</td>
                 <td>{quando(c.criado_em)}</td>
-                <td>{c.expirado ? <span className="pill pill-erro"><i />Expirado</span> : <span className="pill pill-aviso"><i />Até {quando(c.expira_em)}</span>}</td>
+                <td>{c.expirado ? <span className="pill pill-erro"><i />Expirado</span> : <span className="pill pill-aviso"><i />Até {quando(c.expira_em)}</span>}
+                  {c.link_aberto && <small className="sub" style={{ display: 'block' }}>Link aberto, senha ainda não criada</small>}</td>
                 <td><div className="barra-acoes">
                   <button className="sec" disabled={ocupado} onClick={() => reenviar(c)}>Reenviar</button>
                   <button className="sec" disabled={ocupado} onClick={() => revogar(c)}>Revogar</button></div></td>
