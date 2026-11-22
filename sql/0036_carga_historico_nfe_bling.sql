@@ -1,0 +1,9 @@
+-- 0036_carga_historico_nfe_bling (aplicada 22/11/2026). SQL integral no histórico de migrations do Supabase.
+-- * fila_leitura/cfg_leitura aceitam recurso 'nfe_hist'
+-- * bling.job_nfe_historico(): lê GET /nfe em janelas de 360 dias (dataEmissaoInicial/Final), 8 janelas (~8 anos), paginação dinâmica
+--   (próxima página só se a atual veio com 100), grava o payload original em raw_nfe (nível 'lista'), loga cada página em log_carga
+--   ('nfe_hist_pagina'), respeita pausa por 429 das outras cargas e o token (renovado pelo job bling-renovar-token).
+--   Ao fim das listas enfileira o detalhe das notas autorizadas (situação 5/6) sem detalhe, reativa o cron 'bling-leitura-nfe' (lote 2) e se desagenda.
+-- * bling.job_processar_nfe(): a cada 3 min, se há leitura nova em raw_nfe, roda bling.processar_nfe (espelho cad_nfe e cad_nfe_item).
+-- * cron: bling-nfe-historico (5 s), bling-leitura-nfe (5 s), bling-processar-nfe (*/3 min)
+-- Rollback: select cron.unschedule('bling-nfe-historico'); select cron.unschedule('bling-leitura-nfe'); select cron.unschedule('bling-processar-nfe');

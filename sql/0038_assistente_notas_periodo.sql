@@ -1,0 +1,7 @@
+-- 0038_assistente_notas_periodo (aplicada 22/11/2026). SQL integral no histórico de migrations do Supabase.
+-- api.assistente_notas_periodo(p_empresa uuid, p_de date default null, p_ate date default null, p_limite int default 10) returns jsonb
+--   STABLE, SECURITY DEFINER, search_path vazio. Exige tela 'assistente' (ver) via conhecimento._exigir.
+--   Sem datas = últimas notas. Retorna qtd_notas, qtd_validas (situação fora de 2,4,9), qtd_canceladas, qtd_sem_valor,
+--   valor_total (soma das válidas com detalhe; só para admin/gestor/financeiro), base_ate, base_notas, base_com_detalhe,
+--   primeira_nota e a lista das notas mais recentes (número, data, cliente, situação, valor).
+--   EXECUTE só para authenticated.

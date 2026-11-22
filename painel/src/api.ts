@@ -109,7 +109,13 @@ export interface ResultadoTeste { ok: boolean; mensagem: string; aviso: string |
 
 // Edge Functions: o valor de um segredo só trafega daqui até a função (HTTPS) e vai direto ao Vault.
 async function funcao<T>(nome: string, corpo: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(nome, { body: corpo })
+  let { data, error } = await supabase.functions.invoke(nome, { body: corpo })
+  // Sessão expirada (aba aberta há muito tempo): renova uma vez e tenta de novo.
+  if (error && (error as { context?: Response }).context?.status === 401) {
+    const r = await supabase.auth.refreshSession()
+    if (!r.error && r.data.session) ({ data, error } = await supabase.functions.invoke(nome, { body: corpo }))
+    if (error && (error as { context?: Response }).context?.status === 401) throw new ApiError('Sua sessão expirou. Entre novamente para continuar.')
+  }
   if (error) {
     let msg = 'Não foi possível concluir a operação.'
     try { const r = (error as { context?: Response }).context; if (r) { if (r.status === 404) msg = `A função "${nome}" ainda não foi publicada no servidor.`; const j = await r.json(); if (j?.erro) msg = String(j.erro) } } catch { /* mantém msg */ }
@@ -289,5 +295,13 @@ export interface ClienteVendas {
 export interface VendasCliente { ok: boolean; motivo?: string; ve_valores: boolean; base_ate: string | null; base_notas: number; base_com_detalhe: number; mais_candidatos: boolean; clientes: ClienteVendas[] }
 export const apiAssistenteDados = {
   vendasCliente: (empresa: string, busca: string) => rpc<VendasCliente>('assistente_vendas_cliente', { p_empresa: empresa, p_busca: busca, p_limite: 10 }),
+export interface NotaPeriodo { bling_id: string; numero: string; data_emissao: string | null; situacao: number; situacao_rotulo: string; cliente: string | null; valor_nota: number | null; tem_detalhe: boolean }
+export interface NotasPeriodo {
+  ok: boolean; ve_valores: boolean; de: string | null; ate: string | null
+  qtd_notas: number; qtd_validas: number; qtd_canceladas: number; qtd_sem_valor: number; valor_total: number | null
+  base_ate: string | null; base_notas: number; base_com_detalhe: number; primeira_nota: string | null; notas: NotaPeriodo[]
+}
   registrar: (empresa: string, pergunta: string) => rpc<void>('registrar_pergunta_dados', { p_empresa: empresa, p_pergunta: pergunta }),
+  notasPeriodo: (empresa: string, de: string | null, ate: string | null, limite = 10) =>
+    rpc<NotasPeriodo>('assistente_notas_periodo', { p_empresa: empresa, p_de: de, p_ate: ate, p_limite: limite }),
 }

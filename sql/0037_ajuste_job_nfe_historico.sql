@@ -1,0 +1,3 @@
+-- 0037_ajuste_job_nfe_historico (aplicada 22/11/2026)
+-- O job lia respostas de outras cargas (campo data como objeto) e falhava com "cannot get array length of a non-array".
+-- Reescrito: as respostas desta carga vão para uma tabela temporária com o JSON já validado (só listas com data em array) antes de qualquer função JSON.

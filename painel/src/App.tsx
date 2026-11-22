@@ -16,7 +16,7 @@ import ProdutosBling from './pages/ProdutosBling'
 import NotasBling from './pages/NotasBling'
 import Parceiros from './pages/Parceiros'
 import Conhecimento from './pages/Conhecimento'
-import Assistente from './pages/Assistente'
+import Assistente, { esquecerAssistente } from './pages/Assistente'
 import Etiquetas from './pages/Etiquetas'
 import Vendas from './pages/Vendas'
 import PreferenciasVitrine from './pages/PreferenciasVitrine'
@@ -184,7 +184,7 @@ function Painel() {
   if (me.erro) return <Aviso titulo="Não foi possível carregar" texto={me.erro} />
   if (!me.dados) return <div className="centro"><p className="sub">Carregando…</p></div>
   const empresas = me.dados.empresas
-  const sair = () => supabase.auth.signOut()
+  const sair = () => { esquecerAssistente(); return supabase.auth.signOut() }
 
   if (empresas.length === 0) {
     return (

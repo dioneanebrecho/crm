@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { paraTrecho, resumir } from '../textoLimpo'
-import { apiConhecimento as api, apiAssistenteDados, type AchadoConhecimento, type VendasCliente, type ClienteVendas } from '../api'
+import { apiConhecimento as api, apiAssistenteDados, type AchadoConhecimento, type VendasCliente, type ClienteVendas, type NotasPeriodo } from '../api'
 import { classificar } from '../intencao'
 import { Vazio, useCarregar } from '../ui'
 import { NOME_TELA, acharReferencias, quando, type Referencia } from '../referencias'
@@ -8,14 +8,46 @@ import type { Contexto } from '../App'
 
 const EXEMPLOS = [
   'Quais as vendas do cliente @deboraclemente?',
+  'Qual foi a última nota emitida?',
+  'Total de vendas do mês passado',
   'Quanto tempo posso deixar um pedido pago sem nota?',
   'O que fazer com cliente que não responde ao link de pagamento?',
   'Como tratar pedido faturado e ainda não expedido?',
 ]
-interface Resposta { pergunta: string; resultados: AchadoConhecimento[]; aviso: string | null; refs: Referencia[]; vendas?: VendasCliente; termo?: string; periodo?: boolean }
+interface Resposta { pergunta: string; resultados: AchadoConhecimento[]; aviso: string | null; refs: Referencia[]; vendas?: VendasCliente; termo?: string; notas?: NotasPeriodo; rotulo?: string }
 const brl = (v: number | null | undefined) => (v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))
 const dia = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—')
 const diaHora = (d: string | null | undefined) => (d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—')
+
+function ResumoNotas({ n, rotulo, abrir, podeNota }: { n: NotasPeriodo; rotulo: string; abrir: (aba: string, busca?: string) => void; podeNota: boolean }) {
+  const ultimas = n.de == null && rotulo.startsWith('Últimas')
+  return (
+    <article className="aviso-caixa" style={{ marginBottom: 10 }}>
+      <strong>{rotulo}</strong>
+      {n.qtd_notas === 0
+        ? <p style={{ margin: '6px 0 0' }}>Nenhuma nota fiscal emitida nesse período. A primeira nota da base é de {dia(n.primeira_nota)}.</p>
+        : <p style={{ margin: '6px 0 0' }}>
+            {!ultimas && <><strong>{n.qtd_validas}</strong> {n.qtd_validas === 1 ? 'nota válida' : 'notas válidas'}{n.qtd_canceladas > 0 && <> (+ {n.qtd_canceladas} cancelada{n.qtd_canceladas > 1 ? 's' : ''}/rejeitada{n.qtd_canceladas > 1 ? 's' : ''})</>}
+              {n.ve_valores && <>{' · '}total <strong>{brl(n.valor_total)}</strong></>}</>}
+            {ultimas && <>Última nota emitida: <strong>nº {n.notas[0]?.numero}</strong> em {dia(n.notas[0]?.data_emissao)}{n.notas[0]?.cliente ? <> para <strong>{n.notas[0].cliente}</strong></> : null}{n.ve_valores && n.notas[0]?.valor_nota != null ? <> · {brl(n.notas[0].valor_nota)}</> : null}.</>}
+          </p>}
+      {n.qtd_sem_valor > 0 && <p className="sub" style={{ margin: '4px 0 0' }}>{n.qtd_sem_valor} {n.qtd_sem_valor === 1 ? 'nota ainda sem valor carregado' : 'notas ainda sem valor carregado'}; o total pode estar menor que o real.</p>}
+      {n.notas.length > 0 && (
+        <div style={{ overflowX: 'auto', marginTop: 8 }}>
+          <table>
+            <thead><tr><th>Nota</th><th>Emissão</th><th>Cliente</th><th>Situação</th>{n.ve_valores && <th style={{ textAlign: 'right' }}>Valor</th>}<th /></tr></thead>
+            <tbody>{n.notas.map((x) => (
+              <tr key={x.bling_id}>
+                <td>{x.numero}</td><td>{dia(x.data_emissao)}</td><td>{x.cliente ?? '—'}</td><td>{x.situacao_rotulo}</td>
+                {n.ve_valores && <td style={{ textAlign: 'right' }}>{x.tem_detalhe ? brl(x.valor_nota) : 'a carregar'}</td>}
+                <td>{podeNota && <button className="sec" onClick={() => abrir('fiscal', String(parseInt(x.numero, 10)))}>Abrir nota →</button>}</td>
+              </tr>))}</tbody>
+          </table>
+          {n.qtd_notas > n.notas.length && <p className="sub">Mostrando as {n.notas.length} mais recentes de {n.qtd_notas}. Veja todas em Notas Bling.</p>}
+        </div>)}
+      <p className="sub" style={{ marginTop: 8 }}>Base: {n.base_notas} notas do Bling ({n.base_com_detalhe} com valor e itens), atualizada em {diaHora(n.base_ate)}. Considera só notas fiscais emitidas, não os pedidos.</p>
+    </article>)
+}
 
 function CartaoCliente({ c, valores, abrir, podeNota }: { c: ClienteVendas; valores: boolean; abrir: (aba: string, busca?: string) => void; podeNota: boolean }) {
   const r = c.resumo
@@ -48,9 +80,15 @@ function CartaoCliente({ c, valores, abrir, podeNota }: { c: ClienteVendas; valo
     </article>)
 }
 
+// Última pergunta e resultado por empresa, só em memória (some ao recarregar a página ou sair). Assim, ao abrir uma nota ou
+// um cliente a partir da resposta e voltar, o Assistente continua de onde parou.
+const memoria = new Map<string, { pergunta: string; resp: Resposta | null }>()
+export const esquecerAssistente = () => memoria.clear()
+
 export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba: string, busca?: string) => void }) {
-  const [pergunta, setPergunta] = useState('')
-  const [resp, setResp] = useState<Resposta | null>(null)
+  const [pergunta, setPergunta] = useState(() => memoria.get(ctx.empresa)?.pergunta ?? '')
+  const [resp, setResp] = useState<Resposta | null>(() => memoria.get(ctx.empresa)?.resp ?? null)
+  useEffect(() => { memoria.set(ctx.empresa, { pergunta, resp }) }, [ctx.empresa, pergunta, resp])
   const [ocupado, setOcupado] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const entrada = useRef<HTMLInputElement>(null)
@@ -71,9 +109,10 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
         setResp({ pergunta: t, resultados: [], aviso: null, refs, vendas: v, termo: it.termo })
         setOcupado(false); return
       }
-      if (it.tipo === 'periodo') {
+      if (it.tipo === 'notas') {
+        const n = await apiAssistenteDados.notasPeriodo(ctx.empresa, it.de, it.ate, it.de ? 20 : 5)
         void apiAssistenteDados.registrar(ctx.empresa, t).then(() => hist.recarregar()).catch(() => undefined)
-        setResp({ pergunta: t, resultados: [], aviso: null, refs: [{ aba: 'fiscal' as const, busca: '', rotulo: 'Notas Bling' }].filter((x) => podeAbrir(x.aba)), periodo: true })
+        setResp({ pergunta: t, resultados: [], aviso: null, refs: [], notas: n, rotulo: it.rotulo })
         setOcupado(false); return
       }
       const r = await api.buscar(ctx.empresa, t)
@@ -123,7 +162,7 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
                 </div>
               )}
               {resp.aviso && <p className="sub">{resp.aviso}</p>}
-              {resp.periodo && <Vazio titulo="Vendas por período ainda não estão disponíveis aqui" texto="Esta pergunta precisa do total de vendas por data. Por enquanto você consegue consultar as vendas de um cliente (ex.: quais as vendas do cliente @fulana?). O total por período entra na próxima etapa, quando as notas estiverem com valor carregado." />}
+              {resp.notas && <ResumoNotas n={resp.notas} rotulo={resp.rotulo ?? ''} abrir={abrir} podeNota={podeAbrir('fiscal')} />}
               {resp.vendas && (!resp.vendas.ok
                 ? <Vazio titulo="Informe o cliente" texto="Escreva o @ do Instagram ou o nome do cliente (pelo menos 3 letras)." />
                 : resp.vendas.clientes.length === 0
@@ -131,9 +170,9 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
                   : <>
                     {resp.vendas.clientes.length > 1 && <p className="sub">Encontrei {resp.vendas.clientes.length}{resp.vendas.mais_candidatos ? '+' : ''} clientes parecidos com "{resp.termo}". Confira qual é o que você procura.</p>}
                     {resp.vendas.clientes.map((c) => <CartaoCliente key={c.parceiro_id} c={c} valores={resp.vendas!.ve_valores} abrir={abrir} podeNota={podeAbrir('fiscal')} />)}
-                    <p className="sub">Base: {resp.vendas.base_notas} notas do Bling carregadas ({resp.vendas.base_com_detalhe} com detalhe), atualizada em {diaHora(resp.vendas.base_ate)}. A carga ainda está em andamento, então a lista pode estar incompleta.</p>
+                    <p className="sub">Base: {resp.vendas.base_notas} notas do Bling carregadas ({resp.vendas.base_com_detalhe} com detalhe), atualizada em {diaHora(resp.vendas.base_ate)}. Considera só notas fiscais emitidas, não os pedidos.</p>
                   </>)}
-              {!resp.vendas && !resp.periodo && resp.resultados.length === 0
+              {!resp.vendas && !resp.notas && resp.resultados.length === 0
                 ? <Vazio titulo="Não encontrei isso nos documentos" texto="Tente outras palavras. Se o assunto deveria estar documentado, peça a um gestor para incluir na base de conhecimento." />
                 : resp.resultados.map((r, i) => (
                   <article key={r.chunk_id} className="aviso-caixa" style={{ marginBottom: 10 }}>
