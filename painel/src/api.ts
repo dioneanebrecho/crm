@@ -169,6 +169,7 @@ export interface NfeLinha {
   loja_id: number | null; data_emissao: string | null; valor_nota: number | null; contato_bling_id: number | null
   contato_nome: string | null; qtd_itens: number | null; tem_detalhe: boolean; tem_xml: boolean; total: number
 }
+export interface LinkDanfe { pdf: string | null; danfe: string | null }
 export interface NfeDetalhe { nota: Record<string, unknown>; itens: Record<string, unknown>[] }
 export interface FiltroProdutoBling { busca: string; situacao: string; formato: string; grade: string; alerta: string }
 
@@ -181,6 +182,7 @@ export const apiBling = {
   notas: (empresa: string, busca: string, situacao: string, offset: number, limite = 50) =>
     rpc<NfeLinha[]>('listar_nfe_bling', { p_empresa: empresa, p_busca: nulo(busca), p_situacao: situacao ? Number(situacao) : null, p_limite: limite, p_offset: offset }),
   nota: (empresa: string, id: number) => rpc<NfeDetalhe | null>('obter_nfe_bling', { p_empresa: empresa, p_bling_id: id }),
+  linkDanfe: (empresa: string, id: number) => rpc<LinkDanfe | null>('obter_link_danfe_nfe_bling', { p_empresa: empresa, p_bling_id: id }),
   reprocessar: (empresa: string) => rpc<Record<string, number>>('reprocessar_bling', { p_empresa: empresa }),
 }
 
@@ -276,4 +278,16 @@ export const apiConhecimento = {
   limparHistorico: (empresa: string) => rpc<number>('limpar_historico_perguntas', { p_empresa: empresa }),
   buscar: (empresa: string, pergunta: string) =>
     funcao<{ ok: boolean; modo: 'text' | 'vector' | 'hybrid'; aviso: string | null; resultados: AchadoConhecimento[] }>('conhecimento', { empresa, acao: 'buscar', pergunta }),
+}
+
+export interface NotaCliente { bling_id: string; numero: string; data_emissao: string | null; situacao: number; situacao_rotulo: string; valor_nota: number | null; qtd_itens: number | null; tem_detalhe: boolean; itens: { descricao: string; grade: string | null; quantidade: number | null; valor: number | null }[] }
+export interface ClienteVendas {
+  parceiro_id: string; nome: string; instagram: string[]
+  resumo: { qtd_notas: number; qtd_validas: number; qtd_canceladas: number; qtd_sem_detalhe: number; primeira: string | null; ultima: string | null; valor_total: number | null; ticket_medio: number | null }
+  notas: NotaCliente[]
+}
+export interface VendasCliente { ok: boolean; motivo?: string; ve_valores: boolean; base_ate: string | null; base_notas: number; base_com_detalhe: number; mais_candidatos: boolean; clientes: ClienteVendas[] }
+export const apiAssistenteDados = {
+  vendasCliente: (empresa: string, busca: string) => rpc<VendasCliente>('assistente_vendas_cliente', { p_empresa: empresa, p_busca: busca, p_limite: 10 }),
+  registrar: (empresa: string, pergunta: string) => rpc<void>('registrar_pergunta_dados', { p_empresa: empresa, p_pergunta: pergunta }),
 }

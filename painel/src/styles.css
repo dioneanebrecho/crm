@@ -215,3 +215,19 @@ label.check { display: flex; align-items: center; gap: 8px; margin: 6px 0 }
 .previa-foto { position: relative; display: grid; gap: .2rem; justify-items: center; font-size: .8rem; }
 .previa-foto img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--borda); }
 .selo-capa { position: absolute; top: 4px; left: 4px; background: var(--txt); color: #fff; border-radius: 999px; padding: 0 .5rem; font-size: .7rem; font-weight: 700; }
+
+/* ===== Modal da nota Bling ===== */
+.nota-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: .8rem; }
+.nota-resumo-linha { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .9rem; }
+.nota-valor { font-size: 1.15rem; }
+.nota-link { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.nota-link a.botao { display: inline-block; padding: .5rem .9rem; border-radius: 8px; background: var(--marca); color: var(--on-marca); font-weight: 700; text-decoration: none; }
+.nota-corpo { max-height: 56vh; overflow: auto; }
+.nota-totais { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: .8rem; }
+.nota-totais .campo-nota { background: var(--marca-suave); border-radius: 10px; padding: .55rem .9rem; min-width: 120px; }
+.nota-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.nota-grade .campo-nota { background: var(--card2); border-radius: 10px; padding: .6rem .8rem; }
+.campo-nota { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.campo-nota span { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--mudo); }
+.campo-nota strong { overflow-wrap: anywhere; }
+.mono { font-family: ui-monospace, Menlo, monospace; font-size: .8rem; font-weight: 600; }

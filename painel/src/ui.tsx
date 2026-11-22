@@ -18,7 +18,7 @@ export function useCarregar<T>(fn: () => Promise<T>, deps: unknown[]) {
   return { dados, erro, carregando, recarregar }
 }
 
-export function Modal({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: ReactNode }) {
+export function Modal({ titulo, onFechar, larga = false, children }: { titulo: string; onFechar: () => void; larga?: boolean; children: ReactNode }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onFechar()
     window.addEventListener('keydown', h)
@@ -26,7 +26,7 @@ export function Modal({ titulo, onFechar, children }: { titulo: string; onFechar
   }, [onFechar])
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onFechar()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={titulo}>
+      <div className={larga ? 'modal larga' : 'modal'} role="dialog" aria-modal="true" aria-label={titulo}>
         <div className="modal-topo"><h2>{titulo}</h2><button className="icone" onClick={onFechar} aria-label="Fechar">×</button></div>
         {children}
       </div>
@@ -91,7 +91,7 @@ export function Abas<T extends string>({ abas, ativa, onMudar }: { abas: { id: T
   return (
     <div className="abas-pagina" role="tablist">
       {abas.map((a) => (
-        <button key={a.id} role="tab" aria-selected={a.id === ativa} className={a.id === ativa ? 'ativa' : ''} onClick={() => onMudar(a.id)}>
+        <button key={a.id} type="button" role="tab" aria-selected={a.id === ativa} className={a.id === ativa ? 'ativa' : ''} onClick={() => onMudar(a.id)}>
           {a.rotulo}{a.contagem !== undefined && <span>{a.contagem}</span>}
         </button>
       ))}

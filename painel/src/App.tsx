@@ -1,38 +1,56 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, configurado } from './supabase'
-import { api, type Me, type Papel } from './api'
+import { api, apiPermissoes, type Me, type NivelTela, type Papel } from './api'
 import { useCarregar } from './ui'
 import Pecas from './pages/Pecas'
 import Unidades from './pages/Unidades'
 import Clientes from './pages/Clientes'
 import Locais from './pages/Locais'
+import Grades from './pages/Grades'
 import Integracoes from './pages/Integracoes'
 import Agenda from './pages/Agenda'
+import Permissoes from './pages/Permissoes'
+import ProdutosBling from './pages/ProdutosBling'
+import NotasBling from './pages/NotasBling'
+import Parceiros from './pages/Parceiros'
+import Conhecimento from './pages/Conhecimento'
+import Assistente from './pages/Assistente'
 import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
 
 export interface Contexto {
   empresa: string; papeis: Papel[]
+  perm: Record<string, NivelTela> | null
   podeCatalogo: boolean; podeUnidade: boolean; podeCliente: boolean; veCusto: boolean; veContato: boolean
 }
 
 const tem = (p: Papel[], ...r: Papel[]) => p.includes('superadmin') || r.some((x) => p.includes(x))
-const contexto = (empresa: string, papeis: Papel[]): Contexto => ({
-  empresa, papeis,
-  podeCatalogo: tem(papeis, 'admin', 'gestor'), podeUnidade: tem(papeis, 'admin', 'gestor', 'expedicao'),
-  podeCliente: tem(papeis, 'admin', 'gestor', 'suporte'), veCusto: tem(papeis, 'admin', 'gestor', 'financeiro'),
+// A matriz de permissões só restringe: o papel continua mandando no que o banco aceita (funções da 0011).
+// Se a matriz não carregar, o painel cai no comportamento por papel (o banco continua protegendo).
+const edita = (perm: Record<string, NivelTela> | null, tela: string) => perm === null || perm[tela] === 'editar'
+const contexto = (empresa: string, papeis: Papel[], perm: Record<string, NivelTela> | null): Contexto => ({
+  empresa, papeis, perm,
+  podeCatalogo: tem(papeis, 'admin', 'gestor') && edita(perm, 'pecas'), podeUnidade: tem(papeis, 'admin', 'gestor', 'expedicao') && edita(perm, 'estoque'),
+  podeCliente: tem(papeis, 'admin', 'gestor', 'suporte') && edita(perm, 'clientes'), veCusto: tem(papeis, 'admin', 'gestor', 'financeiro'),
   veContato: tem(papeis, 'admin', 'gestor', 'suporte'),
 })
 
-const GRUPOS = [{ rotulo: 'Catálogo' }, { rotulo: 'Relacionamento' }, { rotulo: 'Live' }, { rotulo: 'Configuração' }] as const
+const GRUPOS = [{ rotulo: 'Catálogo' }, { rotulo: 'Relacionamento' }, { rotulo: 'Live' }, { rotulo: 'Inteligência' }, { rotulo: 'Configuração' }] as const
 const ITENS = [
   { id: 'pecas', rotulo: 'Peças', grupo: 'Catálogo', icone: <IPecas /> },
   { id: 'estoque', rotulo: 'Estoque', grupo: 'Catálogo', icone: <IEstoque /> },
+  { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Catálogo', icone: <IPecas /> },
+  { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Catálogo', icone: <IEstoque /> },
   { id: 'clientes', rotulo: 'Clientes', grupo: 'Relacionamento', icone: <IClientes /> },
+  { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Relacionamento', icone: <IClientes /> },
   { id: 'agenda', rotulo: 'Agenda', grupo: 'Live', icone: <IAgenda /> },
+  { id: 'assistente', rotulo: 'Assistente', grupo: 'Inteligência', icone: <IMarca /> },
+  { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Configuração', icone: <IPecas /> },
   { id: 'locais', rotulo: 'Locais', grupo: 'Configuração', icone: <ILocais /> },
   { id: 'integracoes', rotulo: 'Integrações', grupo: 'Configuração', icone: <IIntegracoes /> },
+  { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <IIntegracoes /> },
+  { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IIntegracoes /> },
 ] as const
 type Aba = (typeof ITENS)[number]['id']
 
@@ -140,8 +158,22 @@ function Painel() {
   const [empresaId, setEmpresaId] = useState<string | null>(() => localStorage.getItem('ane.empresa'))
   const [aba, setAba] = useState<Aba>(() => ITENS.find((a) => a.id === location.hash.slice(1))?.id ?? 'pecas')
   const [menu, setMenu] = useState(false)
+  // atalho entre telas: abre a tela com a busca já preenchida (ex.: da resposta do assistente para a nota citada)
+  const [atalho, setAtalho] = useState<{ aba: string; q: string; n: number } | null>(null)
   const [tema, setTema] = useState<Tema>(lerTema)
   useEffect(() => { location.hash = aba }, [aba])
+  useEffect(() => { if (atalho && atalho.aba !== aba) setAtalho(null) }, [aba, atalho])
+  const abrir = (id: string, q?: string) => { setAtalho(q ? { aba: id, q, n: Date.now() } : null); setAba(id as Aba) }
+  const [permMapa, setPermMapa] = useState<{ empresa: string; perm: Record<string, NivelTela> | null } | null>(null)
+  const [versaoPerm, setVersaoPerm] = useState(0)
+  const empresaAtualId = me.dados ? (me.dados.empresas.find((e) => e.id === empresaId) ?? me.dados.empresas[0])?.id : undefined
+  useEffect(() => {
+    if (!empresaAtualId) return
+    let vivo = true
+    apiPermissoes.minhas(empresaAtualId).then((perm) => { if (vivo) setPermMapa({ empresa: empresaAtualId, perm }) })
+      .catch(() => { if (vivo) setPermMapa({ empresa: empresaAtualId, perm: null }) })
+    return () => { vivo = false }
+  }, [empresaAtualId, versaoPerm])
   const alternarTema = () => { const t: Tema = tema === 'escuro' ? 'ane' : 'escuro'; aplicarTema(t); setTema(t) }
 
   if (me.erro) return <Aviso titulo="Não foi possível carregar" texto={me.erro} />
@@ -159,7 +191,11 @@ function Painel() {
     )
   }
   const atual = empresas.find((e) => e.id === empresaId) ?? empresas[0]
-  const ctx = contexto(atual.id, atual.papeis)
+  if (!permMapa || permMapa.empresa !== atual.id) return <div className="centro"><p className="sub">Carregando…</p></div>
+  const perm = permMapa.perm
+  const ctx = contexto(atual.id, atual.papeis, perm)
+  const visiveis = ITENS.filter((i) => perm === null ? i.id !== 'permissoes' || tem(atual.papeis, 'admin') : perm[i.id] !== undefined && perm[i.id] !== 'nenhum')
+  const abaAtual: Aba = visiveis.some((i) => i.id === aba) ? aba : (visiveis[0]?.id ?? 'pecas')
   const nome = me.dados.usuario?.nome ?? me.dados.usuario?.email ?? 'Usuário'
   const iniciais = nome.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0]?.toUpperCase()).join('') || 'U'
 
@@ -171,13 +207,13 @@ function Painel() {
           {GRUPOS.map((g) => (
             <div className="grupo" key={g.rotulo}>
               <div className="grupo-rotulo">{g.rotulo}</div>
-              {ITENS.filter((i) => i.grupo === g.rotulo).map((i) => (
-                <button key={i.id} className={i.id === aba ? 'item ativo' : 'item'} onClick={() => { setAba(i.id); setMenu(false) }}>{i.icone}<span>{i.rotulo}</span></button>
+              {visiveis.filter((i) => i.grupo === g.rotulo).map((i) => (
+                <button key={i.id} className={i.id === abaAtual ? 'item ativo' : 'item'} onClick={() => { setAba(i.id); setMenu(false) }}>{i.icone}<span>{i.rotulo}</span></button>
               ))}
             </div>
           ))}
         </nav>
-        <div className="lateral-rodape"><span>ZAYA.IT</span><span>PAINEL V0.2</span></div>
+        <div className="lateral-rodape"><span>ZAYA.IT</span><span>PAINEL V0.5</span></div>
       </aside>
       {menu && <button className="cortina" aria-label="Fechar menu" onClick={() => setMenu(false)} />}
       <div className="principal">
@@ -198,12 +234,20 @@ function Painel() {
           </div>
         </header>
         <main key={atual.id}>
-          {aba === 'pecas' && <Pecas ctx={ctx} />}
-          {aba === 'estoque' && <Unidades ctx={ctx} />}
-          {aba === 'clientes' && <Clientes ctx={ctx} />}
-          {aba === 'locais' && <Locais ctx={ctx} />}
-          {aba === 'integracoes' && <Integracoes ctx={ctx} />}
-          {aba === 'agenda' && <Agenda />}
+          {abaAtual === 'pecas' && <Pecas ctx={ctx} />}
+          {abaAtual === 'estoque' && <Unidades ctx={ctx} />}
+          {abaAtual === 'saneamento' && <ProdutosBling ctx={ctx} />}
+          {abaAtual === 'fiscal' && <NotasBling key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'fiscal' ? atalho.q : undefined} />}
+          {abaAtual === 'clientes' && <Clientes key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'clientes' ? atalho.q : undefined} />}
+          {abaAtual === 'parceiros' && <Parceiros key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'parceiros' ? atalho.q : undefined} />}
+          {abaAtual === 'locais' && <Locais ctx={ctx} />}
+          {abaAtual === 'grades' && <Grades ctx={ctx} />}
+          {abaAtual === 'integracoes' && <Integracoes ctx={ctx} />}
+          {abaAtual === 'agenda' && <Agenda />}
+          {abaAtual === 'assistente' && <Assistente ctx={ctx} abrir={abrir} />}
+          {abaAtual === 'conhecimento' && <Conhecimento ctx={ctx} abrir={abrir} />}
+          {abaAtual === 'permissoes' && <Permissoes ctx={ctx} onSalvo={() => setVersaoPerm((v) => v + 1)} />}
+          {visiveis.length === 0 && <div className="vazio"><strong>Sem telas liberadas</strong><p>Peça a um administrador para liberar seu acesso.</p></div>}
         </main>
       </div>
     </div>

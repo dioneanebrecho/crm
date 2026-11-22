@@ -5,8 +5,8 @@ import type { Contexto } from '../App'
 
 const LIMITE = 50
 
-export default function Clientes({ ctx }: { ctx: Contexto }) {
-  const [busca, setBusca] = useState('')
+export default function Clientes({ ctx, inicial }: { ctx: Contexto; inicial?: string }) {
+  const [busca, setBusca] = useState(inicial ?? '')
   const [offset, setOffset] = useState(0)
   const { dados, erro, carregando, recarregar } = useCarregar(() => api.clientes(ctx.empresa, busca, offset, LIMITE), [ctx.empresa, busca, offset])
   const [form, setForm] = useState<ClienteLinha | 'novo' | null>(null)
