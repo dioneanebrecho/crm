@@ -1,9 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useContext, useEffect, useState, type ReactNode } from 'react'
+import { AbaContexto, useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 import { api, type PecaLinha, type PecaDetalhe } from '../api'
 import { apiVendas, CANAIS, CANAIS_PUBLICAVEIS, urlPublica, restante, mmss, brl, hora, curto,
          type Canal, type OfertaLinha, type DetalheOferta, type ClienteVendasLinha, type DetalheCliente } from '../apiVendas'
 import { Abas, Busca, Campo, Formulario, Modal, useCarregar, Vazio } from '../ui'
+import MontarOferta from './MontarOferta'
 
 // Central de vendas: a mesma oferta (peça + tamanho) com um link único divulgado em vários canais e UMA fila.
 // Visão por peça (canais, reserva, fila, histórico) e por cliente (intenções, etapa, quem precisa de apoio).
@@ -17,7 +19,8 @@ const gravar = (k: string, v: string) => { try { localStorage.setItem(k, v) } ca
 
 function useAgora() {
   const [agora, setAgora] = useState(Date.now())
-  useEffect(() => { const t = setInterval(() => setAgora(Date.now()), 1000); return () => clearInterval(t) }, [])
+  const { ativa } = useContext(AbaContexto)
+  useEffect(() => { if (!ativa) return; setAgora(Date.now()); const t = setInterval(() => setAgora(Date.now()), 1000); return () => clearInterval(t) }, [ativa])
   return agora
 }
 const corTempo = (s: number) => (s < 180 ? 'tempo urgente' : s < 480 ? 'tempo atencao' : 'tempo')
@@ -37,16 +40,19 @@ export default function Vendas({ ctx }: { ctx: Contexto }) {
   const [visao, setVisao] = useState<Visao>(() => ler('ane.vendas.visao', 'peca', ['peca', 'cliente'] as const))
   const [modo, setModo] = useState<Modo>(() => ler('ane.vendas.modo', 'tabela', ['tabela', 'cards'] as const))
   const [pos, setPos] = useState<PosDet>(() => ler('ane.vendas.detalhe', 'lateral', ['lateral', 'abaixo'] as const))
-  const [filtroP, setFiltroP] = useState('todas')
-  const [filtroC, setFiltroC] = useState('todos')
-  const [busca, setBusca] = useState('')
+  const [filtroP, setFiltroP] = useEstadoTela('vendas.filtroP', 'todas')
+  const [filtroC, setFiltroC] = useEstadoTela('vendas.filtroC', 'todos')
+  const [busca, setBusca] = useEstadoTela('vendas.busca', '')
   const [selPeca, setSelPeca] = useState<string | null>(null)
   const [selCli, setSelCli] = useState<string | null>(null)
   const [versao, setVersao] = useState(0)
   const [publicando, setPublicando] = useState(false)
+  const [montando, setMontando] = useState<string | null>(null)
   const agora = useAgora()
   // atualização automática: reserva e fila mudam sozinhas (prazo, comentário da live, clique no link)
-  useEffect(() => { const t = setInterval(() => setVersao((v) => v + 1), 15000); return () => clearInterval(t) }, [])
+  // aba oculta não consulta o banco; ao voltar, atualiza na hora
+  const { ativa: abaAtiva } = useContext(AbaContexto)
+  useEffect(() => { if (!abaAtiva) return; setVersao((v) => v + 1); const t = setInterval(() => setVersao((v) => v + 1), 15000); return () => clearInterval(t) }, [abaAtiva])
   useEffect(() => gravar('ane.vendas.visao', visao), [visao])
   useEffect(() => gravar('ane.vendas.modo', modo), [modo])
   useEffect(() => gravar('ane.vendas.detalhe', pos), [pos])
@@ -110,14 +116,15 @@ export default function Vendas({ ctx }: { ctx: Contexto }) {
         {temDetalhe && (
           <div className="v-detalhe">
             {visao === 'peca' && selPeca && <DetalhePeca ctx={ctx} item={selPeca} versao={versao} agora={agora} podeOperar={podeOperar}
-                                                         onFechar={() => setSelPeca(null)} onMudou={atualizar} onAbrirCliente={abrirCliente} />}
+                                                         onFechar={() => setSelPeca(null)} onMudou={atualizar} onAbrirCliente={abrirCliente} onMontar={() => setMontando(selPeca)} />}
             {visao === 'cliente' && selCli && <DetalheCli ctx={ctx} cliente={selCli} versao={versao} agora={agora}
                                                           onFechar={() => setSelCli(null)} onAbrirPeca={abrirPeca} />}
           </div>
         )}
       </div>
 
-      {publicando && <Publicar ctx={ctx} onFechar={() => setPublicando(false)} onPublicado={(item) => { setPublicando(false); setVisao('peca'); setSelPeca(item); atualizar() }} />}
+      {publicando && <Publicar ctx={ctx} onFechar={() => setPublicando(false)} onPublicado={(item) => { setPublicando(false); setVisao('peca'); setSelPeca(item); setMontando(item); atualizar() }} />}
+      {montando && <MontarOferta ctx={ctx} item={montando} onFechar={() => setMontando(null)} onSalvo={atualizar} />}
     </section>
   )
 }
@@ -225,9 +232,9 @@ function ListaClientes({ estado, modo, sel, agora, onAbrir }: {
   )
 }
 
-function DetalhePeca({ ctx, item, versao, agora, podeOperar, onFechar, onMudou, onAbrirCliente }: {
+function DetalhePeca({ ctx, item, versao, agora, podeOperar, onFechar, onMudou, onAbrirCliente, onMontar }: {
   ctx: Contexto; item: string; versao: number; agora: number; podeOperar: boolean
-  onFechar: () => void; onMudou: () => void; onAbrirCliente: (id: string) => void
+  onFechar: () => void; onMudou: () => void; onAbrirCliente: (id: string) => void; onMontar: () => void
 }) {
   const d = useCarregar(() => apiVendas.oferta(ctx.empresa, item), [ctx.empresa, item, versao])
   const [acao, setAcao] = useState<'estender' | 'passar' | null>(null)
@@ -254,7 +261,8 @@ function DetalhePeca({ ctx, item, versao, agora, podeOperar, onFechar, onMudou, 
         <div>
           <small className="mudo">{o.peca.categoria ?? 'Peça'} · {o.peca.codigo_live} · Tam. {o.peca.tamanho}</small>
           <h2>{o.peca.nome}</h2>
-          <div className="v-linha"><strong>{brl(o.peca.preco)}</strong><span className={`selo selo-${o.status.situacao}`}>{SITUACAO[o.status.situacao]}</span></div>
+          <div className="v-linha"><strong>{brl(o.peca.preco)}</strong><span className={`selo selo-${o.status.situacao}`}>{SITUACAO[o.status.situacao]}</span>
+            {podeOperar && <button className="sec mini" onClick={onMontar}>Montar conteúdo</button>}</div>
         </div>
         <button className="icone" onClick={onFechar} aria-label="Fechar detalhe">×</button>
       </div>

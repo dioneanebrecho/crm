@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { apiParceiros, apiReceita, brl, data, type DocumentoParceiro, type ReceitaCnpj, type FiltroParceiro, type ParceiroLinha, type PendenteLinha } from '../api'
 import { Abas, Busca, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 import { DetalheNota } from './NotasBling'
 import { classificar } from '../documento'
@@ -15,7 +16,7 @@ const VAZIO: FiltroParceiro = { busca: '', papel: '', ativo: '', tipo: '', minCo
 type Aba = 'parceiros' | 'revisao' | 'proposto'
 
 export default function Parceiros({ ctx, inicial }: { ctx: Contexto; inicial?: string }) {
-  const [aba, setAba] = useState<Aba>('parceiros')
+  const [aba, setAba] = useEstadoTela<Aba>('parceiros.aba', 'parceiros')
   return (
     <section>
       <div className="topo">
@@ -28,8 +29,9 @@ export default function Parceiros({ ctx, inicial }: { ctx: Contexto; inicial?: s
 }
 
 function Lista({ ctx, inicial }: { ctx: Contexto; inicial?: string }) {
-  const [f, setF] = useState<FiltroParceiro>({ ...VAZIO, busca: inicial ?? '' })
-  const [offset, setOffset] = useState(0)
+  const [salvo, setF] = useEstadoTela<FiltroParceiro>('parceiros.f', VAZIO, inicial ? { ...VAZIO, busca: inicial } : undefined)
+  const f = useMemo<FiltroParceiro>(() => ({ ...VAZIO, ...salvo }), [salvo])
+  const [offset, setOffset] = useEstadoTela('parceiros.offset', 0)
   const [det, setDet] = useState<ParceiroLinha | null>(null)
   const { dados, erro, carregando } = useCarregar(() => apiParceiros.listar(ctx.empresa, f, offset, LIMITE), [ctx.empresa, f, offset])
   const mudar = <K extends keyof FiltroParceiro>(k: K, v: FiltroParceiro[K]) => { setOffset(0); setF((x) => ({ ...x, [k]: v })) }

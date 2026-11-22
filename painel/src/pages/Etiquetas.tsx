@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Abas, Busca, Campo, Formulario, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { useEstadoTela } from '../abas'
 import { apiImpressao, type EtiquetaLinha, type Impressora, type JaImpressa, type Modelo } from '../apiImpressao'
 import type { Contexto } from '../App'
 
@@ -11,7 +12,7 @@ const ROTULO_ESTADO: Record<string, string> = { pendente: 'A imprimir', impressa
 const ROTULO_JOB: Record<string, string> = { pendente: 'Na fila', imprimindo: 'Imprimindo', enviado: 'Enviado', erro: 'Erro', cancelado: 'Cancelado' }
 
 export default function Etiquetas({ ctx }: { ctx: Contexto }) {
-  const [aba, setAba] = useState<Aba>('etiquetas')
+  const [aba, setAba] = useEstadoTela<Aba>('etiquetas.aba', 'etiquetas')
   const sup = ctx.papeis.includes('superadmin')
   const papel = (...r: string[]) => sup || r.some((x) => (ctx.papeis as string[]).includes(x))
   const nivelOk = ctx.perm === null || ctx.perm['etiquetas'] === 'editar'
@@ -39,9 +40,9 @@ export default function Etiquetas({ ctx }: { ctx: Contexto }) {
 
 // ---------------------------------------------------------------- Etiquetas
 function ListaEtiquetas({ ctx, podeImprimir, ehAdmin }: { ctx: Contexto; podeImprimir: boolean; ehAdmin: boolean }) {
-  const [busca, setBusca] = useState('')
-  const [estado, setEstado] = useState('')
-  const [offset, setOffset] = useState(0)
+  const [busca, setBusca] = useEstadoTela('etiquetas.busca', '')
+  const [estado, setEstado] = useEstadoTela('etiquetas.estado', '')
+  const [offset, setOffset] = useEstadoTela('etiquetas.offset', 0)
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [imprimir, setImprimir] = useState(false)
   const [hist, setHist] = useState<EtiquetaLinha | null>(null)

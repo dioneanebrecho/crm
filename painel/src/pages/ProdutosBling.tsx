@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useEstadoTela } from '../abas'
 import { apiBling, brl, data, type ProdutoBlingLinha } from '../api'
 import { Abas, Busca, Campo, Modal, Paginacao, useCarregar, Vazio } from '../ui'
 import { apiGrades, ehPadrao, sugerirLocal, useTiposGrade } from '../apiGrades'
@@ -21,8 +22,9 @@ const STATUS_PADRONIZACAO: Record<string, string> = {
 const VAZIO = { busca: '', situacao: '', formato: '', grade: '', alerta: '' }
 
 export default function ProdutosBling({ ctx }: { ctx: Contexto }) {
-  const [f, setF] = useState(VAZIO)
-  const [offset, setOffset] = useState(0)
+  const [salvo, setF] = useEstadoTela('produtosbling.f', VAZIO)
+  const f = useMemo(() => ({ ...VAZIO, ...salvo }), [salvo])
+  const [offset, setOffset] = useEstadoTela('produtosbling.offset', 0)
   const [det, setDet] = useState<number | null>(null)
   const resumo = useCarregar(() => apiBling.resumoProdutos(ctx.empresa), [ctx.empresa])
   const { dados, erro, carregando } = useCarregar(() => apiBling.produtos(ctx.empresa, f, offset, LIMITE), [ctx.empresa, f, offset])

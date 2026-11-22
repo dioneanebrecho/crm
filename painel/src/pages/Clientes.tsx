@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { api, data, type ClienteLinha } from '../api'
-import { Busca, Campo, Formulario, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { Busca, Campo, Formulario, LimparFiltros, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 
 const LIMITE = 50
 
 export default function Clientes({ ctx, inicial }: { ctx: Contexto; inicial?: string }) {
-  const [busca, setBusca] = useState(inicial ?? '')
-  const [offset, setOffset] = useState(0)
+  const [busca, setBusca] = useEstadoTela('clientes.busca', '', inicial)
+  const [offset, setOffset] = useEstadoTela('clientes.offset', 0)
   const { dados, erro, carregando, recarregar } = useCarregar(() => api.clientes(ctx.empresa, busca, offset, LIMITE), [ctx.empresa, busca, offset])
   const [form, setForm] = useState<ClienteLinha | 'novo' | null>(null)
   const total = dados?.[0]?.total ?? 0
@@ -18,7 +19,10 @@ export default function Clientes({ ctx, inicial }: { ctx: Contexto; inicial?: st
         <div><h1>Clientes</h1><p className="sub">Quem participa das lives. Contato (telefone e e-mail) aparece só para quem atende clientes.</p></div>
         {ctx.podeCliente && <button onClick={() => setForm('novo')}>+ Novo cliente</button>}
       </div>
-      <Busca valor={busca} onMudar={(v) => { setOffset(0); setBusca(v) }} placeholder="Buscar por nome, @ do Instagram, telefone ou e-mail" />
+      <div className="filtros">
+        <Busca valor={busca} onMudar={(v) => { setOffset(0); setBusca(v) }} placeholder="Buscar por nome, @ do Instagram, telefone ou e-mail" />
+        <LimparFiltros ativo={!!busca} onLimpar={() => { setOffset(0); setBusca('') }} />
+      </div>
       {erro && <div className="erro">{erro}</div>}
       {carregando && !dados && <p className="sub">Carregando…</p>}
       {dados && dados.length === 0 && (

@@ -1,15 +1,15 @@
-import { useState } from 'react'
 import { api } from '../api'
-import { Busca, ESTADOS, Paginacao, Selo, useCarregar, Vazio } from '../ui'
+import { Busca, ESTADOS, LimparFiltros, Paginacao, Selo, useCarregar, Vazio } from '../ui'
+import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 
 const LIMITE = 50
 
 export default function Unidades({ ctx }: { ctx: Contexto }) {
-  const [busca, setBusca] = useState('')
-  const [estado, setEstado] = useState('')
-  const [local, setLocal] = useState('')
-  const [offset, setOffset] = useState(0)
+  const [busca, setBusca] = useEstadoTela('estoque.busca', '')
+  const [estado, setEstado] = useEstadoTela('estoque.estado', '')
+  const [local, setLocal] = useEstadoTela('estoque.local', '')
+  const [offset, setOffset] = useEstadoTela('estoque.offset', 0)
   const locais = useCarregar(() => api.locais(ctx.empresa), [ctx.empresa])
   const { dados, erro, carregando } = useCarregar(() => api.unidades(ctx.empresa, { busca, estado, local }, offset, LIMITE),
                                                     [ctx.empresa, busca, estado, local, offset])
@@ -29,6 +29,7 @@ export default function Unidades({ ctx }: { ctx: Contexto }) {
           <option value="">Todos os locais</option>
           {(locais.dados ?? []).map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
         </select>
+        <LimparFiltros ativo={!!(busca || estado || local)} onLimpar={() => { setOffset(0); setBusca(''); setEstado(''); setLocal('') }} />
       </div>
       {erro && <div className="erro">{erro}</div>}
       {carregando && !dados && <p className="sub">Carregando…</p>}

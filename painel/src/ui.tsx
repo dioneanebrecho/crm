@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { AbaContexto } from './abas'
 
 export function useCarregar<T>(fn: () => Promise<T>, deps: unknown[]) {
   const [dados, setDados] = useState<T | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
   const seq = useRef(0)
+  const { recarga } = useContext(AbaContexto) // sobe quando a aba volta depois de MINUTOS_PARA_ATUALIZAR oculta
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const recarregar = useCallback(() => {
     const id = ++seq.current
@@ -13,7 +15,7 @@ export function useCarregar<T>(fn: () => Promise<T>, deps: unknown[]) {
         .catch((e: Error) => { if (id === seq.current) setErro(e.message) })
         .finally(() => { if (id === seq.current) setCarregando(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+  }, [...deps, recarga])
   useEffect(() => { recarregar() }, [recarregar])
   return { dados, erro, carregando, recarregar }
 }
@@ -78,8 +80,16 @@ export function Paginacao({ total, offset, limite, onMudar }: { total: number; o
 
 export function Busca({ valor, onMudar, placeholder }: { valor: string; onMudar: (v: string) => void; placeholder: string }) {
   const [local, setLocal] = useState(valor)
-  useEffect(() => { const t = setTimeout(() => onMudar(local), 300); return () => clearTimeout(t) }, [local, onMudar])
+  const emitido = useRef(valor)
+  useEffect(() => { const t = setTimeout(() => { emitido.current = local; onMudar(local) }, 300); return () => clearTimeout(t) }, [local, onMudar])
+  // mudança vinda de fora (ex.: "Limpar filtros") reescreve o campo; o eco do que o próprio usuário digitou é ignorado
+  useEffect(() => { if (valor !== emitido.current) { emitido.current = valor; setLocal(valor) } }, [valor])
   return <input className="busca" type="search" value={local} onChange={(e) => setLocal(e.target.value)} placeholder={placeholder} />
+}
+
+/** Botão "Limpar filtros": só aparece quando há algum filtro aplicado. */
+export function LimparFiltros({ ativo, onLimpar }: { ativo: boolean; onLimpar: () => void }) {
+  return ativo ? <button type="button" className="link limpar-filtros" onClick={onLimpar}>Limpar filtros</button> : null
 }
 
 export const ESTADOS: Record<string, string> = {

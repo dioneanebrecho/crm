@@ -15,3 +15,13 @@ export const IEsq = () => <Svg><path d="M15 6l-6 6 6 6" /></Svg>
 export const IDir = () => <Svg><path d="M9 6l6 6-6 6" /></Svg>
 export const IMarca = () => <Svg tam={20}><path d="M6 8h12l1.500 12h-15L6 8z" /><path d="M9 8V6.500a3 3 0 0 1 6 0V8" /></Svg>
 export const IIntegracoes = () => <Svg><path d="M9 3v5M15 3v5" /><path d="M6 8h12v4a6 6 0 0 1-12 0V8z" /><path d="M12 18v3" /></Svg>
+export const IBaixo = () => <Svg tam={14}><path d="M6 9l6 6 6-6" /></Svg>
+export const IEtiqueta = () => <Svg><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z" /><circle cx="8" cy="8" r="1.4" /></Svg>
+export const IProdutos = () => <Svg><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></Svg>
+export const INota = () => <Svg><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M14 3v5h5M8 13h8M8 17h6" /></Svg>
+export const IParceiros = () => <Svg><rect x="3" y="8" width="18" height="12" rx="2" /><path d="M9 8V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" /></Svg>
+export const IGrade = () => <Svg><rect x="3" y="3" width="7.500" height="7.500" rx="1.500" /><rect x="13.500" y="3" width="7.500" height="7.500" rx="1.500" /><rect x="3" y="13.500" width="7.500" height="7.500" rx="1.500" /><rect x="13.500" y="13.500" width="7.500" height="7.500" rx="1.500" /></Svg>
+export const IAjustes = () => <Svg><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></Svg>
+export const ILivro = () => <Svg><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z" /><path d="M4 19a2 2 0 0 1 2-2h13" /></Svg>
+export const IEscudo = () => <Svg><path d="M12 3l8 3v6c0 4.500-3.200 8-8 9-4.800-1-8-4.500-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></Svg>
+export const IFaisca = () => <Svg><path d="M12 3l1.800 5.200L19 10l-5.200 1.800L12 17l-1.800-5.200L5 10l5.200-1.800L12 3z" /><path d="M18.500 16l.7 1.800 1.800.7-1.800.7-.7 1.800-.7-1.800-1.800-.7 1.800-.7.7-1.800z" /></Svg>

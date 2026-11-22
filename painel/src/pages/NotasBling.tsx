@@ -1,31 +1,38 @@
 import { useState, type ReactNode } from 'react'
 import { apiBling, brl, data, type NfeLinha } from '../api'
-import { Abas, Busca, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { Abas, Busca, LimparFiltros, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
+import PeriodoData from '../PeriodoData'
 
 const LIMITE = 50
 const SITUACOES: Record<string, string> = { '1': 'Pendente', '4': 'Rejeitada', '5': 'Autorizada', '6': 'Emitida DANFE' }
 const MATCH: Record<string, string> = { ativo: 'Produto ativo', so_excluido: 'Só excluído', multiplos_ativos: 'Vários ativos', sem_match: 'Sem produto' }
 
 export default function NotasBling({ ctx, inicial }: { ctx: Contexto; inicial?: string }) {
-  const [busca, setBusca] = useState(inicial ?? '')
-  const [sit, setSit] = useState('')
-  const [offset, setOffset] = useState(0)
+  const [busca, setBusca] = useEstadoTela('notas.busca', '', inicial)
+  const [sit, setSit] = useEstadoTela('notas.sit', '')
+  const [dIni, setDIni] = useEstadoTela('notas.ini', '')
+  const [dFim, setDFim] = useEstadoTela('notas.fim', '')
+  const [offset, setOffset] = useEstadoTela('notas.offset', 0)
+  const limpar = () => { setOffset(0); setBusca(''); setSit(''); setDIni(''); setDFim('') }
   const [det, setDet] = useState<number | null>(null)
-  const { dados, erro, carregando } = useCarregar(() => apiBling.notas(ctx.empresa, busca, sit, offset, LIMITE), [ctx.empresa, busca, sit, offset])
+  const { dados, erro, carregando } = useCarregar(() => apiBling.notas(ctx.empresa, busca, sit, offset, LIMITE, dIni, dFim), [ctx.empresa, busca, sit, offset, dIni, dFim])
   const total = dados?.[0]?.total ?? 0
   return (
     <section>
       <div className="topo"><div><h1>Notas Bling</h1><p className="sub">NF-e lidas do Bling (somente leitura). Contém dado pessoal: visível só para admin, gestor e financeiro. Os códigos de situação ainda precisam ser validados na conta.</p></div></div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
+      <div className="filtros">
         <Busca valor={busca} onMudar={(v) => { setOffset(0); setBusca(v) }} placeholder="Buscar por número, cliente, código ou descrição do item" />
         <select value={sit} onChange={(e) => { setOffset(0); setSit(e.target.value) }} aria-label="Situação">
           <option value="">Situação: todas</option>{Object.entries(SITUACOES).map(([k, v]) => <option key={k} value={k}>{k} · {v}</option>)}
         </select>
+        <PeriodoData rotulo="Emissão" ini={dIni} fim={dFim} onAplicar={(a, b) => { setOffset(0); setDIni(a); setDFim(b) }} />
+        <LimparFiltros ativo={!!(busca || sit || dIni || dFim)} onLimpar={limpar} />
       </div>
       {erro && <div className="erro">{erro}</div>}
       {carregando && !dados && <p className="sub">Carregando…</p>}
-      {dados && dados.length === 0 && <Vazio titulo="Nada encontrado" texto="Ajuste a busca ou o filtro." />}
+      {dados && dados.length === 0 && <Vazio titulo="Nada encontrado" texto="Ajuste a busca, a situação ou o período." />}
       {dados && dados.length > 0 && (
         <div className="tabela-rolavel"><table>
           <thead><tr><th>Número</th><th>Emissão</th><th>Situação</th><th>Canal</th><th>Cliente (Bling)</th><th className="num">Valor</th><th>Itens</th><th>XML</th></tr></thead>

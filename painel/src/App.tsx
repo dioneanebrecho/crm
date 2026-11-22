@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, configurado } from './supabase'
 import { api, apiPermissoes, type Me, type NivelTela, type Papel } from './api'
@@ -20,8 +20,9 @@ import Assistente, { esquecerAssistente } from './pages/Assistente'
 import Etiquetas from './pages/Etiquetas'
 import Vendas from './pages/Vendas'
 import PreferenciasVitrine from './pages/PreferenciasVitrine'
-import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca } from './icones'
+import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
+import { AbaContexto, MINUTOS_PARA_ATUALIZAR, definirEmpresaEstado } from './abas'
 
 export interface Contexto {
   empresa: string; papeis: Papel[]
@@ -40,24 +41,25 @@ const contexto = (empresa: string, papeis: Papel[], perm: Record<string, NivelTe
   veContato: tem(papeis, 'admin', 'gestor', 'suporte'),
 })
 
+const MAX_ABAS = 8
 const GRUPOS = [{ rotulo: 'Catálogo' }, { rotulo: 'Relacionamento' }, { rotulo: 'Live' }, { rotulo: 'Inteligência' }, { rotulo: 'Configuração' }] as const
 const ITENS = [
   { id: 'pecas', rotulo: 'Peças', grupo: 'Catálogo', icone: <IPecas /> },
   { id: 'estoque', rotulo: 'Estoque', grupo: 'Catálogo', icone: <IEstoque /> },
-  { id: 'etiquetas', rotulo: 'Etiquetas', grupo: 'Catálogo', icone: <IEstoque /> },
-  { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Catálogo', icone: <IPecas /> },
-  { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Catálogo', icone: <IEstoque /> },
+  { id: 'etiquetas', rotulo: 'Etiquetas', grupo: 'Catálogo', icone: <IEtiqueta /> },
+  { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Catálogo', icone: <IProdutos /> },
+  { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Catálogo', icone: <INota /> },
   { id: 'clientes', rotulo: 'Clientes', grupo: 'Relacionamento', icone: <IClientes /> },
-  { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Relacionamento', icone: <IClientes /> },
+  { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Relacionamento', icone: <IParceiros /> },
   { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live', icone: <IMarca /> },
   { id: 'agenda', rotulo: 'Agenda', grupo: 'Live', icone: <IAgenda /> },
-  { id: 'assistente', rotulo: 'Assistente', grupo: 'Inteligência', icone: <IMarca /> },
-  { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Configuração', icone: <IPecas /> },
+  { id: 'assistente', rotulo: 'Assistente', grupo: 'Inteligência', icone: <IFaisca /> },
+  { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Configuração', icone: <IGrade /> },
   { id: 'locais', rotulo: 'Locais', grupo: 'Configuração', icone: <ILocais /> },
-  { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Configuração', icone: <IIntegracoes /> },
+  { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Configuração', icone: <IAjustes /> },
   { id: 'integracoes', rotulo: 'Integrações', grupo: 'Configuração', icone: <IIntegracoes /> },
-  { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <IIntegracoes /> },
-  { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IIntegracoes /> },
+  { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <ILivro /> },
+  { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IEscudo /> },
 ] as const
 type Aba = (typeof ITENS)[number]['id']
 
@@ -163,12 +165,24 @@ function Painel() {
   const [empresaId, setEmpresaId] = useState<string | null>(() => localStorage.getItem('ane.empresa'))
   const [aba, setAba] = useState<Aba>(() => ITENS.find((a) => a.id === location.hash.slice(1))?.id ?? 'pecas')
   const [menu, setMenu] = useState(false)
+  // abas de trabalho: uma por tela, todas mantidas montadas (só a ativa aparece), para não perder filtros nem contexto
+  const [abertas, setAbertas] = useState<Aba[]>(() => [aba])
+  const [recargas, setRecargas] = useState<Record<string, number>>({})
+  const rolagens = useRef<Record<string, number>>({})
+  const ocultoDesde = useRef<Record<string, number>>({})
   // atalho entre telas: abre a tela com a busca já preenchida (ex.: da resposta do assistente para a nota citada)
   const [atalho, setAtalho] = useState<{ aba: string; q: string; n: number } | null>(null)
   const [tema, setTema] = useState<Tema>(lerTema)
+  // grupos do menu recolhidos pelo título (lembrado no navegador); o item da tela aberta continua visível
+  const [fechados, setFechados] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('ane.menu.fechados') ?? '[]') } catch { return [] } })
+  const alternarGrupo = (g: string) => setFechados((f) => {
+    const n = f.includes(g) ? f.filter((x) => x !== g) : [...f, g]
+    try { localStorage.setItem('ane.menu.fechados', JSON.stringify(n)) } catch { /* sem armazenamento: só não lembra */ }
+    return n
+  })
   useEffect(() => { location.hash = aba }, [aba])
   useEffect(() => { if (atalho && atalho.aba !== aba) setAtalho(null) }, [aba, atalho])
-  const abrir = (id: string, q?: string) => { setAtalho(q ? { aba: id, q, n: Date.now() } : null); setAba(id as Aba) }
+  const abrir = (id: string, q?: string) => { setAtalho(q ? { aba: id, q, n: Date.now() } : null); ativar(id as Aba) }
   const [permMapa, setPermMapa] = useState<{ empresa: string; perm: Record<string, NivelTela> | null } | null>(null)
   const [versaoPerm, setVersaoPerm] = useState(0)
   const empresaAtualId = me.dados ? (me.dados.empresas.find((e) => e.id === empresaId) ?? me.dados.empresas[0])?.id : undefined
@@ -179,6 +193,41 @@ function Painel() {
       .catch(() => { if (vivo) setPermMapa({ empresa: empresaAtualId, perm: null }) })
     return () => { vivo = false }
   }, [empresaAtualId, versaoPerm])
+  useEffect(() => {
+    if (!empresaAtualId) return
+    try {
+      const salvas = (JSON.parse(localStorage.getItem(`ane.abas.${empresaAtualId}`) ?? '[]') as string[]).filter((x) => ITENS.some((i) => i.id === x)) as Aba[]
+      setAbertas(Array.from(new Set([...salvas, aba])).slice(-MAX_ABAS))
+    } catch { setAbertas([aba]) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaAtualId])
+  useLayoutEffect(() => { window.scrollTo(0, rolagens.current[aba] ?? 0) }, [aba])
+  const salvarAbas = (l: Aba[]) => { if (empresaAtualId) try { localStorage.setItem(`ane.abas.${empresaAtualId}`, JSON.stringify(l)) } catch { /* sem armazenamento */ } }
+  // troca a aba visível: guarda a rolagem de quem sai e recarrega os dados de quem volta depois de muito tempo oculta
+  const trocar = (id: Aba) => {
+    if (id === aba) return
+    rolagens.current[aba] = window.scrollY
+    ocultoDesde.current[aba] = Date.now()
+    const t = ocultoDesde.current[id]
+    if (t && Date.now() - t > MINUTOS_PARA_ATUALIZAR * 60_000) setRecargas((r) => ({ ...r, [id]: (r[id] ?? 0) + 1 }))
+    delete ocultoDesde.current[id]
+    setAba(id)
+  }
+  const ativar = (id: Aba) => {
+    const l = abertas.includes(id) ? abertas : [...abertas, id]
+    const cortada = l.length > MAX_ABAS ? l.filter((x, i) => x === id || x === aba || i >= l.length - MAX_ABAS) : l
+    const final = cortada.length > MAX_ABAS ? cortada.slice(-MAX_ABAS) : cortada
+    setAbertas(final); salvarAbas(final); trocar(id)
+  }
+  const fechar = (id: Aba) => {
+    const l = abertas.filter((x) => x !== id)
+    if (l.length === 0) return
+    const prox = id === aba ? l[Math.min(abertas.indexOf(id), l.length - 1)] : aba
+    delete rolagens.current[id]; delete ocultoDesde.current[id]
+    setAbertas(l); salvarAbas(l)
+    if (id === aba) trocar(prox)
+  }
+  const fecharOutras = (id: Aba) => { setAbertas([id]); salvarAbas([id]); trocar(id) }
   const alternarTema = () => { const t: Tema = tema === 'escuro' ? 'ane' : 'escuro'; aplicarTema(t); setTema(t) }
 
   if (me.erro) return <Aviso titulo="Não foi possível carregar" texto={me.erro} />
@@ -198,25 +247,56 @@ function Painel() {
   const atual = empresas.find((e) => e.id === empresaId) ?? empresas[0]
   if (!permMapa || permMapa.empresa !== atual.id) return <div className="centro"><p className="sub">Carregando…</p></div>
   const perm = permMapa.perm
+  definirEmpresaEstado(atual.id)
   const ctx = contexto(atual.id, atual.papeis, perm)
   const visiveis = ITENS.filter((i) => perm === null ? i.id !== 'permissoes' || tem(atual.papeis, 'admin') : perm[i.id] !== undefined && perm[i.id] !== 'nenhum')
   const abaAtual: Aba = visiveis.some((i) => i.id === aba) ? aba : (visiveis[0]?.id ?? 'pecas')
+  const lista = abertas.filter((id) => visiveis.some((v) => v.id === id))
+  if (!lista.includes(abaAtual) && visiveis.length > 0) lista.push(abaAtual)
   const nome = me.dados.usuario?.nome ?? me.dados.usuario?.email ?? 'Usuário'
   const iniciais = nome.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((x) => x[0]?.toUpperCase()).join('') || 'U'
+
+  const tela = (id: Aba) => {
+    switch (id) {
+      case 'pecas': return <Pecas ctx={ctx} />
+      case 'estoque': return <Unidades ctx={ctx} />
+      case 'etiquetas': return <Etiquetas ctx={ctx} />
+      case 'saneamento': return <ProdutosBling ctx={ctx} />
+      case 'fiscal': return <NotasBling key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'fiscal' ? atalho.q : undefined} />
+      case 'clientes': return <Clientes key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'clientes' ? atalho.q : undefined} />
+      case 'parceiros': return <Parceiros key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'parceiros' ? atalho.q : undefined} />
+      case 'locais': return <Locais ctx={ctx} />
+      case 'grades': return <Grades ctx={ctx} />
+      case 'integracoes': return <Integracoes ctx={ctx} />
+      case 'vendas': return <Vendas ctx={ctx} />
+      case 'preferencias_vitrine': return <PreferenciasVitrine ctx={ctx} />
+      case 'agenda': return <Agenda />
+      case 'assistente': return <Assistente ctx={ctx} abrir={abrir} />
+      case 'conhecimento': return <Conhecimento ctx={ctx} abrir={abrir} />
+      case 'permissoes': return <Permissoes ctx={ctx} onSalvo={() => setVersaoPerm((v) => v + 1)} />
+    }
+  }
 
   return (
     <div className="quadro">
       <aside className={menu ? 'lateral aberta' : 'lateral'}>
         <div className="lateral-marca"><span className="marca-icone"><IMarca /></span><span><strong>Ane Brechó</strong><small>CRM</small></span></div>
         <nav className="lateral-nav" aria-label="Navegação principal">
-          {GRUPOS.map((g) => (
-            <div className="grupo" key={g.rotulo}>
-              <div className="grupo-rotulo">{g.rotulo}</div>
-              {visiveis.filter((i) => i.grupo === g.rotulo).map((i) => (
-                <button key={i.id} className={i.id === abaAtual ? 'item ativo' : 'item'} onClick={() => { setAba(i.id); setMenu(false) }}>{i.icone}<span>{i.rotulo}</span></button>
-              ))}
-            </div>
-          ))}
+          {GRUPOS.map((g) => {
+            const itens = visiveis.filter((i) => i.grupo === g.rotulo)
+            if (itens.length === 0) return null
+            const fechado = fechados.includes(g.rotulo)
+            return (
+              <div className={fechado ? 'grupo fechado' : 'grupo'} key={g.rotulo}>
+                <button type="button" className="grupo-rotulo" aria-expanded={!fechado} onClick={() => alternarGrupo(g.rotulo)}>
+                  <span>{g.rotulo}</span><i className="seta"><IBaixo /></i>
+                </button>
+                {itens.filter((i) => !fechado || i.id === abaAtual).map((i) => (
+                  <button key={i.id} className={i.id === abaAtual ? 'item ativo' : 'item'} title={i.rotulo} aria-current={i.id === abaAtual ? 'page' : undefined} onClick={() => { ativar(i.id); setMenu(false) }}>{i.icone}<span>{i.rotulo}</span></button>
+                ))}
+              </div>
+            )
+          })}
         </nav>
         <div className="lateral-rodape"><span>ZAYA.IT</span><span>PAINEL V0.5</span></div>
       </aside>
@@ -238,23 +318,29 @@ function Painel() {
             <button className="sec icone-btn" onClick={sair} title="Sair" aria-label="Sair"><ISair /></button>
           </div>
         </header>
+        {lista.length > 0 && (
+          <div className="abas-trabalho">
+            <div className="abas-rolagem" role="tablist" aria-label="Telas abertas">
+              {lista.map((id) => {
+                const it = ITENS.find((x) => x.id === id)!
+                return (
+                  <div key={id} className={id === abaAtual ? 'aba-t ativa' : 'aba-t'} ref={id === abaAtual ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) : undefined}>
+                    <button type="button" role="tab" id={`aba-${id}`} aria-selected={id === abaAtual} aria-controls={`painel-${id}`} title={it.rotulo}
+                      onClick={() => ativar(id)} onAuxClick={(e) => { if (e.button === 1 && lista.length > 1) { e.preventDefault(); fechar(id) } }}>{it.icone}<span>{it.rotulo}</span></button>
+                    {lista.length > 1 && <button type="button" className="aba-x" aria-label={`Fechar ${it.rotulo}`} title="Fechar aba" onClick={() => fechar(id)}>×</button>}
+                  </div>
+                )
+              })}
+            </div>
+            {lista.length > 1 && <button type="button" className="link aba-outras" onClick={() => fecharOutras(abaAtual)}>Fechar outras</button>}
+          </div>
+        )}
         <main key={atual.id}>
-          {abaAtual === 'pecas' && <Pecas ctx={ctx} />}
-          {abaAtual === 'estoque' && <Unidades ctx={ctx} />}
-          {abaAtual === 'etiquetas' && <Etiquetas ctx={ctx} />}
-          {abaAtual === 'saneamento' && <ProdutosBling ctx={ctx} />}
-          {abaAtual === 'fiscal' && <NotasBling key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'fiscal' ? atalho.q : undefined} />}
-          {abaAtual === 'clientes' && <Clientes key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'clientes' ? atalho.q : undefined} />}
-          {abaAtual === 'parceiros' && <Parceiros key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'parceiros' ? atalho.q : undefined} />}
-          {abaAtual === 'locais' && <Locais ctx={ctx} />}
-          {abaAtual === 'grades' && <Grades ctx={ctx} />}
-          {abaAtual === 'integracoes' && <Integracoes ctx={ctx} />}
-          {abaAtual === 'vendas' && <Vendas ctx={ctx} />}
-          {abaAtual === 'preferencias_vitrine' && <PreferenciasVitrine ctx={ctx} />}
-          {abaAtual === 'agenda' && <Agenda />}
-          {abaAtual === 'assistente' && <Assistente ctx={ctx} abrir={abrir} />}
-          {abaAtual === 'conhecimento' && <Conhecimento ctx={ctx} abrir={abrir} />}
-          {abaAtual === 'permissoes' && <Permissoes ctx={ctx} onSalvo={() => setVersaoPerm((v) => v + 1)} />}
+          {lista.map((id) => (
+            <div key={id} className="aba-painel" role="tabpanel" id={`painel-${id}`} aria-labelledby={`aba-${id}`} hidden={id !== abaAtual}>
+              <AbaContexto.Provider value={{ ativa: id === abaAtual, recarga: recargas[id] ?? 0 }}>{tela(id)}</AbaContexto.Provider>
+            </div>
+          ))}
           {visiveis.length === 0 && <div className="vazio"><strong>Sem telas liberadas</strong><p>Peça a um administrador para liberar seu acesso.</p></div>}
         </main>
       </div>

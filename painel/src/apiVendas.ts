@@ -112,3 +112,31 @@ export const curto = (nome: string | null | undefined, ig?: string | null) => {
   const p = nome.trim().split(/\s+/)
   return p.length > 1 ? `${p[0]} ${p[1][0]}.` : p[0]
 }
+
+// ===== Conteúdo da oferta ("Montar oferta", migration 0035) =====
+export interface Midia { tipo: 'foto' | 'video'; url: string; path: string; rotulo: 'frente' | 'costas' | 'tecido' | 'video' | 'outra'; capa: boolean }
+export interface ConteudoOferta {
+  titulo: string | null; texto: string | null; usar_html: boolean; html: string | null; midias: Midia[]; legendas: Record<string, string>
+  estado: 'rascunho' | 'aprovado'; versao: number; aprovado_em: string | null; atualizado_em: string; tem_aprovado: boolean
+}
+export interface ModeloLegenda { id: string; nome: string; canal: string | null; texto: string; ativo?: boolean }
+export interface DadosConteudo {
+  conteudo: ConteudoOferta | null
+  sugestao: { titulo: string; texto: string; midias: Midia[] }
+  fotos_peca: { url: string; path: string }[]
+  variaveis: { nome: string; codigo: string; tamanho: string; preco: number; descricao: string; prazo: number; marca: string | null
+               condicao: string | null; medidas: Record<string, string | number> }
+  link: { id: string | null; codigo: string | null; url_base: string | null }
+  peca_id: string; ordem_midias: string[]; video_auto: boolean
+  modelos: ModeloLegenda[]
+  publicacoes: Record<string, { estado: string; url_post: string | null; publicada_em: string }>
+  pode_aprovar: boolean
+}
+export const apiConteudo = {
+  obter: (empresa: string, item: string) => rpc<DadosConteudo>('obter_conteudo_oferta', { p_empresa: empresa, p_item: item }),
+  salvar: (empresa: string, item: string, dados: Record<string, unknown>, aprovar: boolean) =>
+    rpc<DadosConteudo>('salvar_conteudo_oferta', { p_empresa: empresa, p_item: item, p_dados: dados, p_aprovar: aprovar }),
+  modelos: (empresa: string) => rpc<ModeloLegenda[]>('listar_modelos_legenda', { p_empresa: empresa }),
+  salvarModelo: (empresa: string, m: { id?: string; nome: string; canal: string | null; texto: string; ativo: boolean }) =>
+    rpc<string>('salvar_modelo_legenda', { p_empresa: empresa, p_id: m.id ?? null, p_nome: m.nome, p_canal: m.canal, p_texto: m.texto, p_ativo: m.ativo }),
+}

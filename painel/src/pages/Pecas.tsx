@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, brl, data, numero, type Local, type OpcaoCadastro, type PecaDetalhe } from '../api'
 import { apiCampanhas, apiFotos, normalizarFotos, type Campanha, type Foto } from '../apiCatalogo'
-import { Abas, Busca, Campo, Formulario, Modal, Paginacao, Selo, useCarregar, Vazio } from '../ui'
+import { Abas, Busca, Campo, Formulario, LimparFiltros, Modal, Paginacao, Selo, useCarregar, Vazio } from '../ui'
+import { useEstadoTela } from '../abas'
 import { Barras, Qr, conteudoQr, imprimirEtiquetas, qrApontaParaUrl } from '../etiquetas'
 import { reduzirFoto } from '../fotos'
 import { GRUPOS_TAMANHO, tamLabel } from '../tamanhos'
@@ -15,8 +16,8 @@ const margem = (preco: number | null, custo: number | null) => (preco && custo !
 const pct = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%`
 
 export default function Pecas({ ctx }: { ctx: Contexto }) {
-  const [busca, setBusca] = useState('')
-  const [offset, setOffset] = useState(0)
+  const [busca, setBusca] = useEstadoTela('pecas.busca', '')
+  const [offset, setOffset] = useEstadoTela('pecas.offset', 0)
   const { dados, erro, carregando, recarregar } = useCarregar(() => api.pecas(ctx.empresa, busca, offset, LIMITE), [ctx.empresa, busca, offset])
   const [form, setForm] = useState(false)
   const [aberta, setAberta] = useState<{ id: string; aba: AbaPeca } | null>(null)
@@ -31,7 +32,10 @@ export default function Pecas({ ctx }: { ctx: Contexto }) {
         </div>
         {ctx.podeCatalogo && <button onClick={() => setForm(true)}>+ Nova peça</button>}
       </div>
-      <Busca valor={busca} onMudar={(v) => { setOffset(0); setBusca(v) }} placeholder="Buscar por código, nome, marca ou categoria" />
+      <div className="filtros">
+        <Busca valor={busca} onMudar={(v) => { setOffset(0); setBusca(v) }} placeholder="Buscar por código, nome, marca ou categoria" />
+        <LimparFiltros ativo={!!busca} onLimpar={() => { setOffset(0); setBusca('') }} />
+      </div>
       {erro && <div className="erro">{erro}</div>}
       {carregando && !dados && <p className="sub">Carregando…</p>}
       {dados && dados.length === 0 && (

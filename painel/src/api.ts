@@ -185,8 +185,10 @@ export const apiBling = {
       p_formato: nulo(f.formato), p_grade: nulo(f.grade), p_alerta: nulo(f.alerta), p_limite: limite, p_offset: offset }),
   resumoProdutos: (empresa: string) => rpc<ResumoProdutosBling>('resumo_produtos_bling', { p_empresa: empresa }),
   produto: (empresa: string, id: number) => rpc<ProdutoBlingDetalhe | null>('obter_produto_bling', { p_empresa: empresa, p_bling_id: id }),
-  notas: (empresa: string, busca: string, situacao: string, offset: number, limite = 50) =>
-    rpc<NfeLinha[]>('listar_nfe_bling', { p_empresa: empresa, p_busca: nulo(busca), p_situacao: situacao ? Number(situacao) : null, p_limite: limite, p_offset: offset }),
+  // Datas só vão na chamada quando há filtro: sem período, a função antiga (5 parâmetros) continua atendendo (migration 0038 adiciona p_data_ini/p_data_fim).
+  notas: (empresa: string, busca: string, situacao: string, offset: number, limite = 50, dataIni = '', dataFim = '') =>
+    rpc<NfeLinha[]>('listar_nfe_bling', { p_empresa: empresa, p_busca: nulo(busca), p_situacao: situacao ? Number(situacao) : null, p_limite: limite, p_offset: offset,
+      ...(dataIni || dataFim ? { p_data_ini: dataIni || null, p_data_fim: dataFim || null } : {}) }),
   nota: (empresa: string, id: number) => rpc<NfeDetalhe | null>('obter_nfe_bling', { p_empresa: empresa, p_bling_id: id }),
   linkDanfe: (empresa: string, id: number) => rpc<LinkDanfe | null>('obter_link_danfe_nfe_bling', { p_empresa: empresa, p_bling_id: id }),
   reprocessar: (empresa: string) => rpc<Record<string, number>>('reprocessar_bling', { p_empresa: empresa }),
@@ -293,15 +295,15 @@ export interface ClienteVendas {
   notas: NotaCliente[]
 }
 export interface VendasCliente { ok: boolean; motivo?: string; ve_valores: boolean; base_ate: string | null; base_notas: number; base_com_detalhe: number; mais_candidatos: boolean; clientes: ClienteVendas[] }
-export const apiAssistenteDados = {
-  vendasCliente: (empresa: string, busca: string) => rpc<VendasCliente>('assistente_vendas_cliente', { p_empresa: empresa, p_busca: busca, p_limite: 10 }),
 export interface NotaPeriodo { bling_id: string; numero: string; data_emissao: string | null; situacao: number; situacao_rotulo: string; cliente: string | null; valor_nota: number | null; tem_detalhe: boolean }
 export interface NotasPeriodo {
   ok: boolean; ve_valores: boolean; de: string | null; ate: string | null
   qtd_notas: number; qtd_validas: number; qtd_canceladas: number; qtd_sem_valor: number; valor_total: number | null
   base_ate: string | null; base_notas: number; base_com_detalhe: number; primeira_nota: string | null; notas: NotaPeriodo[]
 }
-  registrar: (empresa: string, pergunta: string) => rpc<void>('registrar_pergunta_dados', { p_empresa: empresa, p_pergunta: pergunta }),
+export const apiAssistenteDados = {
   notasPeriodo: (empresa: string, de: string | null, ate: string | null, limite = 10) =>
     rpc<NotasPeriodo>('assistente_notas_periodo', { p_empresa: empresa, p_de: de, p_ate: ate, p_limite: limite }),
+  vendasCliente: (empresa: string, busca: string) => rpc<VendasCliente>('assistente_vendas_cliente', { p_empresa: empresa, p_busca: busca, p_limite: 10 }),
+  registrar: (empresa: string, pergunta: string) => rpc<void>('registrar_pergunta_dados', { p_empresa: empresa, p_pergunta: pergunta }),
 }
