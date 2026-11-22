@@ -74,10 +74,23 @@ const erroDoLink = (() => {
     : (h.get('error_description') ?? 'Não foi possível validar o link.').replace(/\+/g, ' ')
 })()
 
+// Convite pelo domínio do painel: o e-mail traz https://crm.evoconecta.io/#convite=<código>; validamos aqui, sem expor a URL do Supabase.
+const codigoConvite = new URLSearchParams(location.hash.slice(1)).get('convite')
+const ERRO_CONVITE = 'O link do convite expirou ou já foi usado. Peça um novo convite a quem convidou você.'
+
 export default function App() {
   const [sessao, setSessao] = useState<Session | null | undefined>(undefined)
-  const [recuperando, setRecuperando] = useState(() => ['recovery', 'invite'].includes(new URLSearchParams(location.hash.slice(1)).get('type') ?? ''))
-  const [conviteLink] = useState(() => new URLSearchParams(location.hash.slice(1)).get('type') === 'invite')
+  const [recuperando, setRecuperando] = useState(() => !!codigoConvite || ['recovery', 'invite'].includes(new URLSearchParams(location.hash.slice(1)).get('type') ?? ''))
+  const [conviteLink] = useState(() => !!codigoConvite || new URLSearchParams(location.hash.slice(1)).get('type') === 'invite')
+  const [validando, setValidando] = useState(!!codigoConvite)
+  useEffect(() => {
+    if (!codigoConvite) return
+    history.replaceState(null, '', location.pathname)   // tira o código da barra de endereço
+    supabase.auth.verifyOtp({ token_hash: codigoConvite, type: 'invite' }).then(({ error }) => {
+      if (error) { sessionStorage.setItem('erro_convite', ERRO_CONVITE); setRecuperando(false) }
+      setValidando(false)
+    })
+  }, [])
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSessao(data.session))
     const { data } = supabase.auth.onAuthStateChange((evento, s) => {
@@ -87,7 +100,7 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
   if (!configurado) return <Aviso titulo="Configuração ausente" texto="Defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (veja .env.example)." />
-  if (sessao === undefined) return <div className="centro"><p className="sub">Carregando…</p></div>
+  if (sessao === undefined || validando) return <div className="centro"><p className="sub">Carregando…</p></div>
   if (sessao && recuperando) return <NovaSenha convite={conviteLink} onConcluir={() => setRecuperando(false)} />
   return sessao ? <Painel /> : <Login />
 }
@@ -129,7 +142,7 @@ function Aviso({ titulo, texto }: { titulo: string; texto: string }) {
 function Login() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [erro, setErro] = useState<string | null>(erroDoLink)
+  const [erro, setErro] = useState<string | null>(() => { const e = sessionStorage.getItem('erro_convite'); sessionStorage.removeItem('erro_convite'); return e ?? erroDoLink })
   const [info, setInfo] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   async function esqueci() {

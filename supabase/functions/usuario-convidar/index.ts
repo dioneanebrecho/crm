@@ -3,7 +3,7 @@
 // 2) cria o usuário no Auth e gera o link de criação de senha (service role, que nunca sai daqui);
 // 3) liga o convite ao usuário (api.convite_vincular) e envia o e-mail HTML por Resend ou SMTP.
 // E-mail: usa o Resend já configurado para os alertas (remetente em engine.cfg_alerta, chave no Vault; provisório) via api.svc_email_config.
-// Se não houver config ali, cai em segredos da função: EMAIL_REMETENTE + RESEND_API_KEY, ou SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS.
+// Se SMTP_HOST estiver definido, o SMTP vence (conta própria do admin). Senão, config dos alertas ou segredos da função: EMAIL_REMETENTE + RESEND_API_KEY, ou SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS.
 // Se o e-mail não puder ser enviado, devolve o link ao admin para repassar só à pessoa convidada (o convite continua valendo).
 // PAINEL_URL = endereço do painel.
 import { clienteServico, clienteUsuario, cors, ehUuid, json } from '../_shared/comum.ts'
@@ -12,6 +12,23 @@ import { assuntoConvite, htmlConvite, textoConvite, type DadosConvite } from '..
 const PAPEL: Record<string, string> = { admin: 'Administrador', gestor: 'Gestor', suporte: 'Suporte', apresentadora: 'Apresentadora', expedicao: 'Expedição', financeiro: 'Financeiro', leitura: 'Consulta' }
 
 async function enviarEmail(cfg: { remetente?: string | null; api_key?: string | null } | null, para: string, assunto: string, html: string, texto: string): Promise<{ enviado: boolean; motivo?: string }> {
+  // 1) SMTP (ex.: Gmail com senha de app) tem prioridade quando SMTP_HOST está definido: o e-mail sai da própria conta do administrador.
+  const host = Deno.env.get('SMTP_HOST')
+  if (host) {
+    const usuario = Deno.env.get('SMTP_USER') ?? ''
+    const de = Deno.env.get('EMAIL_REMETENTE') || usuario
+    if (!de) return { enviado: false, motivo: 'sem_provedor' }
+    try {
+      const { SMTPClient } = await import('https://deno.land/x/denomailer@1.6.0/mod.ts')
+      const porta = Number(Deno.env.get('SMTP_PORT') ?? '465')
+      const c = new SMTPClient({ connection: { hostname: host, port: porta, tls: porta === 465,
+        auth: { username: usuario, password: Deno.env.get('SMTP_PASS') ?? '' } } })
+      await c.send({ from: de, to: para, subject: assunto, content: texto, html })
+      await c.close()
+      return { enviado: true }
+    } catch (e) { console.error('smtp falhou', (e as Error).name); return { enviado: false, motivo: 'falha_envio' } }
+  }
+  // 2) Resend (config dos alertas ou segredos da função).
   const remetente = cfg?.remetente || Deno.env.get('EMAIL_REMETENTE') || ''
   const chave = cfg?.api_key || Deno.env.get('RESEND_API_KEY')
   if (chave && remetente) {
@@ -21,18 +38,6 @@ async function enviarEmail(cfg: { remetente?: string | null; api_key?: string | 
     })
     if (!r.ok) { console.error('resend falhou', r.status); return { enviado: false, motivo: r.status === 403 || r.status === 422 ? 'remetente_restrito' : 'falha_envio' } }
     return { enviado: true }
-  }
-  const host = Deno.env.get('SMTP_HOST')
-  if (host && remetente) {
-    try {
-      const { SMTPClient } = await import('https://deno.land/x/denomailer@1.6.0/mod.ts')
-      const porta = Number(Deno.env.get('SMTP_PORT') ?? '465')
-      const c = new SMTPClient({ connection: { hostname: host, port: porta, tls: porta === 465,
-        auth: { username: Deno.env.get('SMTP_USER') ?? '', password: Deno.env.get('SMTP_PASS') ?? '' } } })
-      await c.send({ from: remetente, to: para, subject: assunto, content: texto, html })
-      await c.close()
-      return { enviado: true }
-    } catch (e) { console.error('smtp falhou', (e as Error).name); return { enviado: false, motivo: 'falha_envio' } }
   }
   return { enviado: false, motivo: 'sem_provedor' }
 }
@@ -82,7 +87,7 @@ Deno.serve(async (req) => {
       if (e2) { console.error('generateLink (2) falhou', e2.code); return json(req, 500, { erro: 'não foi possível criar o convite' }) }
     }
   }
-  if (!jaTinhaConta) { usuarioId = gl!.user.id; link = gl!.properties.action_link }
+  if (!jaTinhaConta) { usuarioId = gl!.user.id; link = `${painelUrl}/#convite=${gl!.properties.hashed_token}` }
 
   const { error: e3 } = await admin.rpc('convite_vincular', { p_convite: convite, p_auth_user: usuarioId })
   if (e3) { console.error('convite_vincular falhou', e3.code); return json(req, 500, { erro: 'não foi possível vincular o convite' }) }
