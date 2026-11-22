@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { apiParceiros, brl, data, type FiltroParceiro, type ParceiroLinha, type PendenteLinha } from '../api'
+import { apiParceiros, apiReceita, brl, data, type DocumentoParceiro, type ReceitaCnpj, type FiltroParceiro, type ParceiroLinha, type PendenteLinha } from '../api'
 import { Abas, Busca, Modal, Paginacao, useCarregar, Vazio } from '../ui'
 import type { Contexto } from '../App'
 import { DetalheNota } from './NotasBling'
+import { classificar } from '../documento'
 
 const LIMITE = 50
 const LIMITE_NOTAS = 20
@@ -82,19 +83,19 @@ function Lista({ ctx, inicial }: { ctx: Contexto; inicial?: string }) {
   )
 }
 
-type AbaModal = 'contatos' | 'notas'
+type AbaModal = 'contatos' | 'notas' | 'documento'
 type ModoContato = 'todos' | 'recente' | 'completo'
 const SIT_NOTA_TIPO: Record<number, string> = { 0: 'Entrada', 1: 'Saída' }
 
 function Vinculos({ ctx, parceiro, onFechar }: { ctx: Contexto; parceiro: ParceiroLinha; onFechar: () => void }) {
   const [aba, setAba] = useState<AbaModal>('contatos')
   // Notas são dado fiscal/pessoal: mesmos papéis da tela Notas Bling (admin, gestor, financeiro).
-  const abas = [{ id: 'contatos' as const, rotulo: 'Contatos do Bling', contagem: parceiro.qtd_contatos_bling }, ...(ctx.veCusto ? [{ id: 'notas' as const, rotulo: 'Histórico de notas' }] : [])]
+  const abas = [{ id: 'contatos' as const, rotulo: 'Contatos do Bling', contagem: parceiro.qtd_contatos_bling }, ...(ctx.veCusto ? [{ id: 'notas' as const, rotulo: 'Histórico de notas' }] : []), ...(ctx.veContato ? [{ id: 'documento' as const, rotulo: 'Documento e Receita' }] : [])]
   return (
     <Modal titulo={parceiro.nome} onFechar={onFechar} larga>
       <p className="sub">Identificadores: {(parceiro.identificadores ?? []).join(' · ') || '—'} · Criado em {data(parceiro.criado_em)}</p>
       <Abas abas={abas} ativa={aba} onMudar={setAba} />
-      {aba === 'contatos' ? <Contatos ctx={ctx} parceiro={parceiro} /> : <NotasParceiro ctx={ctx} parceiro={parceiro} />}
+      {aba === 'contatos' ? <Contatos ctx={ctx} parceiro={parceiro} /> : aba === 'notas' ? <NotasParceiro ctx={ctx} parceiro={parceiro} /> : <DocumentoReceita ctx={ctx} parceiro={parceiro} />}
     </Modal>
   )
 }
@@ -178,6 +179,81 @@ function Contatos({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha })
   )
 }
 
+function DocumentoReceita({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha }) {
+  const [docs, setDocs] = useState<DocumentoParceiro[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [carregando, setCarregando] = useState(false)
+  const [livre, setLivre] = useState('')
+  const [consultando, setConsultando] = useState<string | null>(null)
+  const [receita, setReceita] = useState<ReceitaCnpj | null>(null)
+  const [erroReceita, setErroReceita] = useState<string | null>(null)
+  const dl = classificar(livre)
+
+  async function mostrar() {
+    setCarregando(true); setErro(null)
+    try { setDocs(await apiParceiros.documentos(ctx.empresa, parceiro.id)) } catch (e) { setErro((e as Error).message) } finally { setCarregando(false) }
+  }
+  async function consultar(cnpj: string) {
+    setConsultando(cnpj); setErroReceita(null); setReceita(null)
+    try { setReceita(await apiReceita.consultarCnpj(ctx.empresa, cnpj)) } catch (e) { setErroReceita((e as Error).message) } finally { setConsultando(null) }
+  }
+
+  return (
+    <>
+      <p className="sub">
+        O documento completo vem do dado lido do Bling. Cada abertura do documento e cada consulta à Receita ficam registradas (quem e quando; o número não é gravado).
+        Conferência por dígitos verificadores vale para CPF e CNPJ; a consulta à Receita (ReceitaWS, o mesmo serviço do cadastro de parceiros da Sankhya) existe só para CNPJ.
+      </p>
+      {!docs && <button onClick={mostrar} disabled={carregando}>{carregando ? 'Abrindo…' : 'Mostrar documentos completos'}</button>}
+      {erro && <div className="erro" role="alert">{/migration pendente/i.test(erro) ? 'Indisponível: a migration 0028 ainda não foi aplicada no banco.' : erro}</div>}
+      {docs && docs.length === 0 && <Vazio titulo="Sem documento" texto="Nenhum contato vinculado a este parceiro tem CPF/CNPJ no dado lido do Bling (parceiro identificado só pelo @)." />}
+      {docs && docs.length > 0 && (
+        <div style={{ maxHeight: '35vh', overflow: 'auto', marginTop: 8 }}>
+          <table>
+            <thead><tr><th>Tipo</th><th>Número</th><th>Dígitos</th><th>Confere com o cadastro</th><th className="num">Contatos Bling</th><th /></tr></thead>
+            <tbody>
+              {docs.map((d) => {
+                const c = classificar(d.numero)
+                return (
+                  <tr key={d.numero}>
+                    <td>{d.tipo.toUpperCase()}</td><td>{c.formatado}</td>
+                    <td><span className={d.valido ? 'selo selo-disponivel' : 'selo selo-baixada'}>{d.valido ? 'Válido' : 'Inválido'}</span></td>
+                    <td>{d.confere_identificador ? 'Sim' : <strong>Não (conflito)</strong>}</td>
+                    <td className="num">{d.bling_ids.length}</td>
+                    <td>{d.tipo === 'cnpj' && d.valido
+                      ? <button className="sec" disabled={consultando !== null} onClick={() => consultar(d.numero)}>{consultando === d.numero ? 'Consultando…' : 'Consultar Receita'}</button>
+                      : d.tipo === 'cpf' ? <span className="mudo">sem consulta (só dígitos)</span> : null}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <h3 style={{ marginTop: 16 }}>Validar ou consultar outro documento</h3>
+      <div className="filtros-contato">
+        <input className="busca" value={livre} onChange={(e) => { setLivre(e.target.value); setReceita(null); setErroReceita(null) }} placeholder="CPF ou CNPJ (com ou sem pontuação)" inputMode="numeric" />
+        {dl.mensagem && <span className={dl.valido ? 'selo selo-disponivel' : 'selo selo-baixada'}>{dl.mensagem}</span>}
+        {dl.tipo === 'cnpj' && dl.valido && <button className="sec" disabled={consultando !== null} onClick={() => consultar(dl.digitos)}>{consultando === dl.digitos ? 'Consultando…' : 'Consultar Receita'}</button>}
+      </div>
+      {erroReceita && <div className="erro" role="alert">{erroReceita}</div>}
+      {receita && (
+        <div className="resumo-notas" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginTop: 8 }}>
+          <div><small>Razão social (Receita)</small><strong>{receita.nome ?? '—'}</strong></div>
+          <div><small>Nome no cadastro</small><strong>{parceiro.nome}</strong></div>
+          <div><small>Situação cadastral</small><strong>{receita.situacao ?? '—'}{receita.data_situacao ? ` desde ${receita.data_situacao}` : ''}</strong></div>
+          <div><small>Fantasia</small><strong>{receita.fantasia ?? '—'}</strong></div>
+          <div><small>Atividade principal</small><strong>{receita.atividade_principal ?? '—'}</strong></div>
+          <div><small>Endereço</small><strong>{[receita.logradouro, receita.numero, receita.complemento, receita.bairro, receita.municipio && `${receita.municipio}/${receita.uf ?? ''}`, receita.cep].filter(Boolean).join(', ') || '—'}</strong></div>
+          <div><small>Contato</small><strong>{[receita.telefone, receita.email].filter(Boolean).join(' · ') || '—'}</strong></div>
+          <div><small>Abertura / última atualização</small><strong>{receita.abertura ?? '—'} / {receita.ultima_atualizacao ? data(receita.ultima_atualizacao) : '—'}</strong></div>
+        </div>
+      )}
+      {receita && <p className="sub" style={{ marginTop: 6 }}>Dados da Receita para conferência pelo time de cadastro. A atualização do cadastro a partir daqui entra junto com a tela de edição de parceiros.</p>}
+    </>
+  )
+}
+
 function NotasParceiro({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha }) {
   const [offset, setOffset] = useState(0)
   const [det, setDet] = useState<number | null>(null)
@@ -193,7 +269,7 @@ function NotasParceiro({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLin
         <>
           <div className="resumo-notas">
             <div><small>Notas</small><strong>{r.qtd_notas}</strong></div>
-            <div><small>Valor total</small><strong>{brl(r.valor_total)}</strong></div>
+            <div><small>Valor total</small><strong>{r.qtd_notas > 0 && r.qtd_sem_detalhe === r.qtd_notas ? '—' : brl(r.valor_total)}</strong></div>
             <div><small>Ticket médio</small><strong>{r.ticket_medio == null ? '—' : brl(r.ticket_medio)}</strong></div>
             <div><small>Primeira nota</small><strong>{r.primeira ? data(r.primeira) : '—'}</strong></div>
             <div><small>Última nota</small><strong>{r.ultima ? data(r.ultima) : '—'}</strong></div>

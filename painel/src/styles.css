@@ -198,3 +198,20 @@ details.bruto pre { white-space: pre-wrap; word-break: break-word; max-height: 2
 .resumo-notas small { color: var(--mudo); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
 .resumo-notas strong { font-size: 1rem; }
 .col-nome { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* grades e vínculo com o Bling */
+.busca-bling { display: flex; gap: 8px; margin-bottom: 8px }
+.busca-bling input { flex: 1 }
+.lista-bling { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px }
+.lista-bling li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--borda, #ddd); border-radius: 8px }
+.subtitulo { margin: 14px 0 4px; font-size: .95rem }
+label.check { display: flex; align-items: center; gap: 8px; margin: 6px 0 }
+
+/* Tela de Peças: miniatura na lista, prévia das fotos no formulário */
+.col-foto { width: 56px; padding-right: 0; }
+.miniatura { display: block; width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borda); background: var(--borda); }
+.miniatura.vazia { display: grid; place-items: center; color: var(--mudo); font-size: .8rem; }
+.previa-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .6rem; }
+.previa-foto { position: relative; display: grid; gap: .2rem; justify-items: center; font-size: .8rem; }
+.previa-foto img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--borda); }
+.selo-capa { position: absolute; top: 4px; left: 4px; background: var(--txt); color: #fff; border-radius: 999px; padding: 0 .5rem; font-size: .7rem; font-weight: 700; }

@@ -10,3 +10,9 @@ verify_jwt = true
 
 [functions.integracao-testar]
 verify_jwt = true
+
+[functions.conhecimento]
+verify_jwt = true
+
+[functions.consulta-receita]
+verify_jwt = true

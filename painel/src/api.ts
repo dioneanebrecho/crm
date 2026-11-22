@@ -10,13 +10,16 @@ export interface Local { id: string; nome: string; vendavel: boolean; ativo: boo
 export interface PecaLinha {
   id: string; codigo: string; nome: string; categoria: string | null; marca: string | null; condicao: 'nova' | 'usada'
   custo: number | null; preco_tabela: number | null; qtd_variacoes: number; qtd_unidades: number; qtd_disponiveis: number
-  atualizado_em: string; total: number
+  atualizado_em: string; total: number; foto_capa?: string | null
 }
+export interface OpcaoCadastro { id: string; nome: string; pecas: number }
 export interface UnidadeDet { id: string; codigo: string; estado: string; local_id: string; local_nome: string; observacao: string | null }
 export interface PecaDetalhe {
   peca: { id: string; codigo: string; nome: string; descricao: string | null; categoria: string | null; marca: string | null
-          condicao: 'nova' | 'usada'; custo: number | null; preco_tabela: number | null; fotos?: unknown; atualizado_em: string }
-  variacoes: { id: string; tamanho: string; codigo: string; unidades: UnidadeDet[] }[]
+          condicao: 'nova' | 'usada'; custo: number | null; preco_tabela: number | null; fotos?: unknown; atualizado_em: string
+          tipo_grade_id?: string | null; atributos?: Record<string, string | number>; bling_produto_id?: number | null }
+  bling?: { bling_id: number; codigo: string | null; nome: string | null; situacao: string | null } | null
+  variacoes: { id: string; tamanho: string; codigo: string; atributos?: Record<string, string | number>; bling_variacao_id?: number | null; unidades: UnidadeDet[] }[]
 }
 export interface UnidadeLinha {
   id: string; codigo: string; estado: string; local_id: string; local_nome: string; variacao_id: string; tamanho: string
@@ -52,6 +55,13 @@ export const numero = (v: string): number | null => {
   return n
 }
 
+async function listaOpcional(fn: string, empresa: string): Promise<OpcaoCadastro[]> {
+  try { return await rpc<OpcaoCadastro[]>(fn, { p_empresa: empresa }) } catch (e) {
+    if (e instanceof ApiError && (e.code === 'PGRST202' || /ainda não/.test(e.message))) return []
+    throw e
+  }
+}
+
 export const api = {
   me: () => rpc<Me>('me'),
   locais: (empresa: string) => rpc<Local[]>('listar_locais', { p_empresa: empresa }),
@@ -60,6 +70,9 @@ export const api = {
   pecas: (empresa: string, busca: string, offset: number, limite = 50) =>
     rpc<PecaLinha[]>('listar_pecas', { p_empresa: empresa, p_busca: nulo(busca), p_limite: limite, p_offset: offset }),
   peca: (empresa: string, id: string) => rpc<PecaDetalhe>('obter_peca', { p_empresa: empresa, p_peca: id }),
+  // Listas sugeridas no formulário (migration 0024). Enquanto ela não existir, a lista vem vazia e o campo continua aceitando texto livre.
+  categorias: (empresa: string) => listaOpcional('listar_categorias', empresa),
+  marcas: (empresa: string) => listaOpcional('listar_marcas', empresa),
   salvarPeca: (empresa: string, d: { id?: string; codigo: string; nome: string; descricao: string; categoria: string; marca: string
                                     condicao: string; custo: string; preco: string }) =>
     rpc<string>('salvar_peca', { p_empresa: empresa, p_codigo: d.codigo, p_nome: d.nome, p_id: d.id ?? null, p_descricao: nulo(d.descricao),
@@ -198,6 +211,17 @@ export interface ResumoNotasParceiro {
   qtd_notas: number; qtd_sem_detalhe: number; qtd_desconsideradas: number; valor_total: number; ticket_medio: number | null
   primeira: string | null; ultima: string | null; por_situacao: Record<string, number>
 }
+export interface DocumentoParceiro { tipo: 'cpf' | 'cnpj' | 'outro'; numero: string; valido: boolean; confere_identificador: boolean; bling_ids: number[] }
+export interface ReceitaCnpj {
+  cnpj: string; nome: string | null; fantasia: string | null; situacao: string | null; data_situacao: string | null; abertura: string | null
+  porte: string | null; natureza_juridica: string | null; atividade_principal: string | null; logradouro: string | null; numero: string | null
+  complemento: string | null; bairro: string | null; municipio: string | null; uf: string | null; cep: string | null; telefone: string | null
+  email: string | null; ultima_atualizacao: string | null
+}
+// Consulta de CNPJ na ReceitaWS (Edge Function consulta-receita). CPF não tem consulta: só validação dos dígitos.
+export const apiReceita = {
+  consultarCnpj: (empresa: string, cnpj: string) => funcao<ReceitaCnpj>('consulta-receita', { empresa, cnpj }),
+}
 export interface FiltroParceiro { busca: string; papel: string; ativo: string; tipo: string; minContatos: string; soRevisao: boolean }
 export const apiParceiros = {
   listar: (empresa: string, f: FiltroParceiro, offset: number, limite = 50) =>
@@ -206,6 +230,9 @@ export const apiParceiros = {
       p_so_revisao: f.soRevisao, p_limite: limite, p_offset: offset }),
   vinculos: (empresa: string, parceiro: string) => rpc<VinculoLinha[]>('obter_parceiro_vinculos', { p_empresa: empresa, p_parceiro: parceiro }),
   // Contatos com indicadores de repetidos (principal, mais recente, mais completo). Se a migration 0024 ainda não foi aplicada, cai no modo antigo.
+  // Documento completo (só admin, gestor e suporte; cada consulta é registrada no banco).
+  documentos: (empresa: string, parceiro: string) =>
+    rpc<DocumentoParceiro[]>('obter_documento_parceiro', { p_empresa: empresa, p_parceiro: parceiro }),
   contatos: async (empresa: string, parceiro: string): Promise<ContatoParceiro[]> => {
     try { return await rpc<ContatoParceiro[]>('obter_parceiro_contatos', { p_empresa: empresa, p_parceiro: parceiro }) }
     catch (e) {
