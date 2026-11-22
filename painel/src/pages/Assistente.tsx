@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { paraTrecho, resumir } from '../textoLimpo'
 import { apiConhecimento as api, apiAssistenteDados, type AchadoConhecimento, type VendasCliente, type ClienteVendas, type NotasPeriodo } from '../api'
-import { classificar } from '../intencao'
+import { classificar, type Opcao, type PeriodoComparado } from '../intencao'
 import { Vazio, useCarregar } from '../ui'
 import { NOME_TELA, acharReferencias, quando, type Referencia } from '../referencias'
 import type { Contexto } from '../App'
@@ -14,7 +14,19 @@ const EXEMPLOS = [
   'O que fazer com cliente que não responde ao link de pagamento?',
   'Como tratar pedido faturado e ainda não expedido?',
 ]
-interface Resposta { pergunta: string; resultados: AchadoConhecimento[]; aviso: string | null; refs: Referencia[]; vendas?: VendasCliente; termo?: string; notas?: NotasPeriodo; rotulo?: string }
+interface Resposta {
+  pergunta: string; resultados: AchadoConhecimento[]; aviso: string | null; refs: Referencia[]; vendas?: VendasCliente; termo?: string; notas?: NotasPeriodo; rotulo?: string
+  assumido?: string; opcoes?: Opcao[]; esclarecer?: { pergunta: string; opcoes: Opcao[] }; comparativo?: { periodos: PeriodoComparado[]; opcoes: Opcao[] }; grafico?: boolean
+}
+
+// Sugestões clicáveis: "enviar" executa a pergunta; "preencher" coloca no campo para a pessoa completar.
+function Chips({ opcoes, escolher, rotulo }: { opcoes: Opcao[]; escolher: (o: Opcao) => void; rotulo?: string }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+      {rotulo && <small className="sub">{rotulo}</small>}
+      {opcoes.map((o) => <button key={o.rotulo} className="sec" onClick={() => escolher(o)}>{o.rotulo}</button>)}
+    </div>)
+}
 const brl = (v: number | null | undefined) => (v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))
 const dia = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—')
 const diaHora = (d: string | null | undefined) => (d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—')
@@ -102,6 +114,13 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
     setPergunta(t); setOcupado(true); setErro(null)
     try {
       const it = classificar(t)
+      if (it.tipo === 'esclarecer' || it.tipo === 'comparativo') {
+        void apiAssistenteDados.registrar(ctx.empresa, t).then(() => hist.recarregar()).catch(() => undefined)
+        setResp(it.tipo === 'esclarecer'
+          ? { pergunta: t, resultados: [], aviso: null, refs: [], esclarecer: { pergunta: it.pergunta, opcoes: it.opcoes }, grafico: !!it.grafico }
+          : { pergunta: t, resultados: [], aviso: null, refs: [], comparativo: { periodos: it.periodos, opcoes: it.opcoes }, grafico: !!it.grafico })
+        setOcupado(false); return
+      }
       if (it.tipo === 'cliente') {
         const v = await apiAssistenteDados.vendasCliente(ctx.empresa, it.termo)
         void apiAssistenteDados.registrar(ctx.empresa, t).then(() => hist.recarregar()).catch(() => undefined)
@@ -110,9 +129,9 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
         setOcupado(false); return
       }
       if (it.tipo === 'notas') {
-        const n = await apiAssistenteDados.notasPeriodo(ctx.empresa, it.de, it.ate, it.de ? 20 : 5)
+        const n = await apiAssistenteDados.notasPeriodo(ctx.empresa, it.de, it.ate, it.rotulo.startsWith('Últimas') ? 5 : 20)
         void apiAssistenteDados.registrar(ctx.empresa, t).then(() => hist.recarregar()).catch(() => undefined)
-        setResp({ pergunta: t, resultados: [], aviso: null, refs: [], notas: n, rotulo: it.rotulo })
+        setResp({ pergunta: t, resultados: [], aviso: null, refs: [], notas: n, rotulo: it.rotulo, assumido: it.assumido, opcoes: it.opcoes, grafico: !!it.grafico })
         setOcupado(false); return
       }
       const r = await api.buscar(ctx.empresa, t)
@@ -123,6 +142,7 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
     setOcupado(false)
   }
   const editar = (t: string) => { setPergunta(t); entrada.current?.focus() }
+  const escolher = (o: Opcao) => { if (o.modo === 'enviar') void perguntar(o.texto); else editar(o.texto) }
   async function limpar() {
     try { await api.limparHistorico(ctx.empresa); hist.recarregar() } catch (e) { setErro((e as Error).message) }
   }
@@ -162,6 +182,24 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
                 </div>
               )}
               {resp.aviso && <p className="sub">{resp.aviso}</p>}
+              {resp.grafico && (resp.notas || resp.comparativo || resp.esclarecer) && <p className="sub">Você pediu um gráfico: os gráficos interativos estão em construção, por enquanto mostro a tabela.</p>}
+              {resp.esclarecer && (
+                <article className="aviso-caixa" style={{ marginBottom: 10 }}>
+                  <strong>{resp.esclarecer.pergunta}</strong>
+                  <Chips opcoes={resp.esclarecer.opcoes} escolher={escolher} />
+                </article>)}
+              {resp.comparativo && (
+                <article className="aviso-caixa" style={{ marginBottom: 10 }}>
+                  <strong>Comparativo entre períodos</strong>
+                  <p style={{ margin: '6px 0 0' }}>Entendi {resp.comparativo.periodos.length} períodos: {resp.comparativo.periodos.map((p) => p.rotulo).join(' · ')}.</p>
+                  <p className="sub" style={{ margin: '4px 0 0' }}>O comparativo lado a lado chega junto com os gráficos. Por enquanto, veja cada período separadamente:</p>
+                  <Chips opcoes={resp.comparativo.opcoes} escolher={escolher} />
+                </article>)}
+              {resp.assumido && (
+                <article className="aviso-caixa" style={{ marginBottom: 10 }}>
+                  <p style={{ margin: 0 }}>{resp.assumido}</p>
+                  {resp.opcoes && <Chips opcoes={resp.opcoes} escolher={escolher} rotulo="Mudar o período:" />}
+                </article>)}
               {resp.notas && <ResumoNotas n={resp.notas} rotulo={resp.rotulo ?? ''} abrir={abrir} podeNota={podeAbrir('fiscal')} />}
               {resp.vendas && (!resp.vendas.ok
                 ? <Vazio titulo="Informe o cliente" texto="Escreva o @ do Instagram ou o nome do cliente (pelo menos 3 letras)." />
@@ -172,7 +210,7 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
                     {resp.vendas.clientes.map((c) => <CartaoCliente key={c.parceiro_id} c={c} valores={resp.vendas!.ve_valores} abrir={abrir} podeNota={podeAbrir('fiscal')} />)}
                     <p className="sub">Base: {resp.vendas.base_notas} notas do Bling carregadas ({resp.vendas.base_com_detalhe} com detalhe), atualizada em {diaHora(resp.vendas.base_ate)}. Considera só notas fiscais emitidas, não os pedidos.</p>
                   </>)}
-              {!resp.vendas && !resp.notas && resp.resultados.length === 0
+              {!resp.vendas && !resp.notas && !resp.esclarecer && !resp.comparativo && resp.resultados.length === 0
                 ? <Vazio titulo="Não encontrei isso nos documentos" texto="Tente outras palavras. Se o assunto deveria estar documentado, peça a um gestor para incluir na base de conhecimento." />
                 : resp.resultados.map((r, i) => (
                   <article key={r.chunk_id} className="aviso-caixa" style={{ marginBottom: 10 }}>
