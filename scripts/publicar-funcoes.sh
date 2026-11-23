@@ -35,7 +35,7 @@ echo ">> Configurando PAINEL_URL=$PAINEL"
 supabase secrets set PAINEL_URL="$PAINEL" PAINEL_ORIGENS="$PAINEL"
 
 # 5) Publicar
-FUNCOES=("integracao-salvar-segredo" "integracao-testar" "bling-oauth-callback" "conhecimento" "usuario-convidar")
+FUNCOES=("integracao-salvar-segredo" "integracao-testar" "bling-oauth-callback" "conhecimento" "assistente-ia" "usuario-convidar")
 [ "$#" -gt 0 ] && FUNCOES=("$@")
 for f in "${FUNCOES[@]}"; do
   echo ">> Publicando $f"

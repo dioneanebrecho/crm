@@ -3,7 +3,7 @@
 export type TipoGrafico = 'coluna' | 'barra' | 'linha' | 'area' | 'pizza' | 'rosca'
 // Tipos que a pessoa pode pedir; os que não estão em TipoGrafico ainda não existem e a resposta explica.
 export type TipoPedido = TipoGrafico | 'waterfall' | 'funil' | 'pareto' | 'calor' | 'dispersao'
-export type Dimensao = 'dia' | 'semana' | 'mes' | 'cliente' | 'situacao'
+export type Dimensao = 'dia' | 'semana' | 'mes' | 'cliente' | 'situacao' | 'recebimento'
 export type Metrica = 'valor' | 'qtd' | 'ticket'
 export type Forma = 'serie_temporal' | 'ranking' | 'composicao'
 
@@ -14,9 +14,9 @@ export interface Ponto { chave: string; rotulo: string; v: number; qtd: number; 
 // O que a conversa guarda para a pergunta seguinte ("e do mês passado?", "agora em pizza").
 export interface ContextoDados { de: string | null; ate: string | null; rotulo: string; dimensao: Dimensao; metrica: Metrica; grafico: TipoPedido | null }
 
-export const formaDe = (d: Dimensao): Forma => (d === 'cliente' ? 'ranking' : d === 'situacao' ? 'composicao' : 'serie_temporal')
-export const ROTULO_DIMENSAO: Record<Dimensao, string> = { dia: 'Dia', semana: 'Semana', mes: 'Mês', cliente: 'Cliente', situacao: 'Situação' }
-export const ROTULO_METRICA: Record<Metrica, string> = { valor: 'Valor (R$)', qtd: 'Notas', ticket: 'Ticket médio' }
+export const formaDe = (d: Dimensao): Forma => (d === 'cliente' ? 'ranking' : d === 'situacao' || d === 'recebimento' ? 'composicao' : 'serie_temporal')
+export const ROTULO_DIMENSAO: Record<Dimensao, string> = { dia: 'Dia', semana: 'Semana', mes: 'Mês', cliente: 'Cliente', situacao: 'Situação', recebimento: 'Recebimento' }
+export const ROTULO_METRICA: Record<Metrica, string> = { valor: 'Valor (R$)', qtd: 'Pedidos', ticket: 'Ticket médio' }
 export const ROTULO_TIPO: Record<TipoPedido, string> = {
   coluna: 'Colunas', barra: 'Barras', linha: 'Linha', area: 'Área', pizza: 'Pizza', rosca: 'Rosca',
   waterfall: 'Waterfall (cascata)', funil: 'Funil', pareto: 'Pareto (curva ABC)', calor: 'Mapa de calor', dispersao: 'Dispersão',
@@ -51,7 +51,7 @@ export function escolherGrafico(forma: Forma, pedido: TipoPedido | null | undefi
   if (t === 'pizza' || t === 'rosca') {
     return {
       tipo: padrao, aviso: `${ROTULO_TIPO[t]} mostra partes de um todo, não a evolução no tempo; mostrei ${ROTULO_TIPO[padrao].toLowerCase()}.`,
-      sugestoes: [{ rotulo: `${ROTULO_TIPO[t]} por situação das notas`, dimensao: 'situacao', tipo: t }, { rotulo: `${ROTULO_TIPO[t]} por cliente`, dimensao: 'cliente', tipo: t }],
+      sugestoes: [{ rotulo: `${ROTULO_TIPO[t]} por situação dos pedidos`, dimensao: 'situacao', tipo: t }, { rotulo: `${ROTULO_TIPO[t]} por cliente`, dimensao: 'cliente', tipo: t }],
     }
   }
   return {
@@ -60,9 +60,9 @@ export function escolherGrafico(forma: Forma, pedido: TipoPedido | null | undefi
   }
 }
 
-// Valor em R$ e ticket só para quem pode ver valores; os demais caem para quantidade de notas, com aviso.
+// Valor em R$ e ticket só para quem pode ver valores; os demais caem para quantidade de pedidos, com aviso.
 export function metricaEfetiva(m: Metrica, veValores: boolean): { metrica: Metrica; aviso: string | null } {
-  if (!veValores && m !== 'qtd') return { metrica: 'qtd', aviso: 'Valores em R$ ficam ocultos para o seu perfil; mostrei a quantidade de notas.' }
+  if (!veValores && m !== 'qtd') return { metrica: 'qtd', aviso: 'Valores em R$ ficam ocultos para o seu perfil; mostrei a quantidade de pedidos.' }
   return { metrica: m, aviso: null }
 }
 // Ticket médio não é parte de um todo: pizza e rosca usam o valor.
@@ -94,7 +94,7 @@ export const serieVazia = (pontos: Ponto[]): boolean => pontos.length === 0 || p
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const COMPACTO = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })
 export function fmtMetrica(m: Metrica, v: number): string {
-  return m === 'qtd' ? `${v.toLocaleString('pt-BR')} ${v === 1 ? 'nota' : 'notas'}` : BRL.format(v)
+  return m === 'qtd' ? `${v.toLocaleString('pt-BR')} ${v === 1 ? 'pedido' : 'pedidos'}` : BRL.format(v)
 }
 export const fmtEixo = (m: Metrica, v: number): string => (m === 'qtd' ? COMPACTO.format(v) : `R$ ${COMPACTO.format(v)}`)
 

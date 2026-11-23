@@ -1,4 +1,4 @@
-import { classificar, resolverPeriodo, extrairPeriodos } from '../src/intencao.ts'
+import { classificar, resolverPeriodo, extrairPeriodos, deFichaIA, pareceDado } from '../src/intencao.ts'
 import assert from 'node:assert/strict'
 const HOJE = new Date(2026, 10, 22) // domingo, 22/11/2026
 const c = (p: string) => JSON.stringify(classificar(p, HOJE))
@@ -81,3 +81,24 @@ assert.ok(ec.tipo === 'esclarecer' && ec.opcoes.length === 4)
 if (ec.tipo === 'esclarecer') for (const o of ec.opcoes.slice(0, 3)) assert.equal(classificar(o.texto, HOJE).tipo, 'comparativo', o.texto)
 assert.equal(classificar('vendas da @deboraclemente comparado ao ano passado', HOJE).tipo, 'cliente')
 console.log('ok', casos.length + ' casos + períodos, semana, 30 dias e comparativos')
+{
+  const r = classificar('quais os TOP 10 clientes nos ultimos 6 meses', HOJE)
+  assert.equal(r.tipo, 'notas')
+  if (r.tipo === 'notas') {
+    assert.equal(r.de, '2026-05-23'); assert.equal(r.ate, '2026-11-22'); assert.equal(r.dimensao, 'cliente'); assert.equal(r.limite, 10); assert.equal(r.grafico, true); assert.equal(r.assumido, undefined)
+  }
+  const r2 = classificar('os 5 maiores clientes do ano passado', HOJE)
+  assert.ok(r2.tipo === 'notas' && r2.limite === 5 && r2.dimensao === 'cliente' && r2.grafico === true)
+  const r3 = classificar('vendas por mês nos últimos 3 meses', HOJE)
+  assert.ok(r3.tipo === 'notas' && r3.dimensao === 'mes' && r3.de === '2026-08-23' && r3.grafico === true)
+  assert.equal(resolverPeriodo('últimos 12 meses', HOJE)?.de, '2025-11-23')
+  console.log('ok ranking e últimos N meses')
+}
+{
+  const f = deFichaIA({ intencao: 'vendas', entendimento: 'Top 10 clientes por valor, últimos 6 meses', periodo: { de: '2026-05-23', ate: '2026-11-22', rotulo: 'Últimos 6 meses' }, dimensao: 'cliente', metrica: 'valor', limite: 10, mostrar_grafico: true }, 'x')
+  assert.ok(f && f.tipo === 'notas' && f.dimensao === 'cliente' && f.limite === 10 && f.grafico === true && f.de === '2026-05-23' && f.entendimento)
+  assert.equal(deFichaIA({ intencao: 'documentos', entendimento: '' }, 'x')?.tipo, 'documentos')
+  assert.equal(deFichaIA({ intencao: 'cliente', entendimento: '' }, 'x'), null)
+  assert.ok(pareceDado('quais os top 10 clientes') && !pareceDado('como funciona a reserva de peça'))
+  console.log('ok ficha da IA')
+}

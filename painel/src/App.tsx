@@ -21,7 +21,13 @@ import Assistente, { esquecerAssistente } from './pages/Assistente'
 import Etiquetas from './pages/Etiquetas'
 import Vendas from './pages/Vendas'
 import PreferenciasVitrine from './pages/PreferenciasVitrine'
-import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca } from './icones'
+import Governanca from './pages/Governanca'
+import Gestao from './pages/Gestao'
+import Faixa from './Faixa'
+import FaixaConfig from './pages/FaixaConfig'
+import BotaoAjuda from './ajuda/Ajuda'
+import { TourProvider } from './ajuda/Tour'
+import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca, IGov, IGestao } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
 import { AbaContexto, MINUTOS_PARA_ATUALIZAR, definirEmpresaEstado } from './abas'
 
@@ -54,6 +60,7 @@ const ITENS = [
   { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Relacionamento', icone: <IParceiros /> },
   { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live', icone: <IMarca /> },
   { id: 'agenda', rotulo: 'Agenda', grupo: 'Live', icone: <IAgenda /> },
+  { id: 'dashboards', rotulo: 'Painel de Gestão', grupo: 'Inteligência', icone: <IGestao /> },
   { id: 'assistente', rotulo: 'Assistente', grupo: 'Inteligência', icone: <IFaisca /> },
   { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Configuração', icone: <IGrade /> },
   { id: 'locais', rotulo: 'Locais', grupo: 'Configuração', icone: <ILocais /> },
@@ -62,6 +69,8 @@ const ITENS = [
   { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <ILivro /> },
   { id: 'usuarios', rotulo: 'Usuários e acessos', grupo: 'Configuração', icone: <IClientes /> },
   { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IEscudo /> },
+  { id: 'governanca', rotulo: 'Central de governança', grupo: 'Configuração', icone: <IGov /> },
+  { id: 'faixa', rotulo: 'Faixa informativa', grupo: 'Configuração', icone: <IMarca /> },
 ] as const
 type Aba = (typeof ITENS)[number]['id']
 
@@ -103,7 +112,7 @@ export default function App() {
   if (!configurado) return <Aviso titulo="Configuração ausente" texto="Defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (veja .env.example)." />
   if (sessao === undefined || validando) return <div className="centro"><p className="sub">Carregando…</p></div>
   if (sessao && recuperando) return <NovaSenha convite={conviteLink} onConcluir={() => setRecuperando(false)} />
-  return sessao ? <Painel /> : <Login />
+  return sessao ? <TourProvider><Painel /></TourProvider> : <Login />
 }
 
 function NovaSenha({ onConcluir, convite = false }: { onConcluir: () => void; convite?: boolean }) {
@@ -246,7 +255,7 @@ function Painel() {
     if (id === aba) trocar(prox)
   }
   const fecharOutras = (id: Aba) => { setAbertas([id]); salvarAbas([id]); trocar(id) }
-  const alternarTema = () => { const t: Tema = tema === 'escuro' ? 'ane' : 'escuro'; aplicarTema(t); setTema(t) }
+  const alternarTema = () => { const ordem: Tema[] = ['escuro', 'ane', 'zagent']; const t = ordem[(ordem.indexOf(tema) + 1) % ordem.length]; aplicarTema(t); setTema(t) }
 
   if (me.erro) return <Aviso titulo="Não foi possível carregar" texto={me.erro} />
   if (!me.dados) return <div className="centro"><p className="sub">Carregando…</p></div>
@@ -289,10 +298,13 @@ function Painel() {
       case 'vendas': return <Vendas ctx={ctx} />
       case 'preferencias_vitrine': return <PreferenciasVitrine ctx={ctx} />
       case 'agenda': return <Agenda />
+      case 'dashboards': return <Gestao ctx={ctx} />
       case 'assistente': return <Assistente ctx={ctx} abrir={abrir} />
       case 'conhecimento': return <Conhecimento ctx={ctx} abrir={abrir} />
       case 'usuarios': return <Usuarios ctx={ctx} />
       case 'permissoes': return <Permissoes ctx={ctx} onSalvo={() => setVersaoPerm((v) => v + 1)} />
+      case 'governanca': return <Governanca ctx={ctx} />
+      case 'faixa': return <FaixaConfig ctx={ctx} />
     }
   }
 
@@ -300,7 +312,7 @@ function Painel() {
     <div className="quadro">
       <aside className={menu ? 'lateral aberta' : 'lateral'}>
         <div className="lateral-marca"><span className="marca-icone"><IMarca /></span><span><strong>Ane Brechó</strong><small>CRM</small></span></div>
-        <nav className="lateral-nav" aria-label="Navegação principal">
+        <nav className="lateral-nav" aria-label="Navegação principal" data-ajuda="menu">
           {GRUPOS.map((g) => {
             const itens = visiveis.filter((i) => i.grupo === g.rotulo)
             if (itens.length === 0) return null
@@ -324,13 +336,15 @@ function Painel() {
         <header className="topbar">
           <button className="icone-btn sec so-mobile" onClick={() => setMenu(true)} aria-label="Abrir menu"><IMenu /></button>
           {empresas.length > 1
-            ? <select className="seletor-empresa" value={atual.id} onChange={(e) => { localStorage.setItem('ane.empresa', e.target.value); setEmpresaId(e.target.value) }} aria-label="Empresa">
+            ? <select className="seletor-empresa" data-ajuda="empresa" value={atual.id} onChange={(e) => { localStorage.setItem('ane.empresa', e.target.value); setEmpresaId(e.target.value) }} aria-label="Empresa">
                 {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
               </select>
-            : <div className="empresa-chip"><small>EMPRESA</small><strong>{atual.nome}</strong></div>}
+            : <div className="empresa-chip" data-ajuda="empresa"><small>EMPRESA</small><strong>{atual.nome}</strong></div>}
+          <Faixa empresa={atual.id} />
           <div className="topbar-acoes">
-            <button className="sec icone-btn" onClick={alternarTema} title={tema === 'escuro' ? 'Mudar para o tema Ane (claro)' : 'Mudar para o tema escuro'} aria-label="Alternar tema">{tema === 'escuro' ? <ITema /> : <ILua />}</button>
-            <div className="perfil" title={atual.papeis.join(', ')}>
+            <button className="sec icone-btn" data-ajuda="tema" onClick={alternarTema} title={tema === 'escuro' ? 'Tema Escuro — clique para o tema Ane (claro)' : tema === 'ane' ? 'Tema Ane (claro) — clique para o tema ZAgent' : 'Tema ZAgent — clique para o tema Escuro'} aria-label="Alternar tema">{tema === 'escuro' ? <ILua /> : tema === 'ane' ? <ITema /> : <IFaisca />}</button>
+            <BotaoAjuda empresa={atual.id} tela={abaAtual} />
+            <div className="perfil" data-ajuda="perfil" title={atual.papeis.join(', ')}>
               <span className="avatar">{iniciais}</span>
               <div><strong>{nome}</strong><small>{atual.papeis.join(', ')}</small></div>
             </div>
@@ -338,7 +352,7 @@ function Painel() {
           </div>
         </header>
         {lista.length > 0 && (
-          <div className="abas-trabalho">
+          <div className="abas-trabalho" data-ajuda="abas">
             <div className="abas-rolagem" role="tablist" aria-label="Telas abertas">
               {lista.map((id) => {
                 const it = ITENS.find((x) => x.id === id)!

@@ -8,10 +8,12 @@ export interface PeriodoComparado extends Periodo { frase: string }
 // modo 'enviar' = pergunta completa (o clique já executa); 'preencher' = coloca no campo para a pessoa completar.
 export interface Opcao { rotulo: string; texto: string; modo: 'enviar' | 'preencher' }
 export type Intencao =
-  | { tipo: 'cliente'; termo: string }
-  | { tipo: 'notas'; de: string | null; ate: string | null; rotulo: string; assumido?: string; opcoes?: Opcao[]; grafico?: true; dimensao?: Dimensao; metrica?: Metrica; tipoGrafico?: TipoPedido; seguimento?: true }
-  | { tipo: 'esclarecer'; pergunta: string; opcoes: Opcao[]; grafico?: true }
-  | { tipo: 'comparativo'; periodos: PeriodoComparado[]; opcoes: Opcao[]; grafico?: true }
+  | { tipo: 'cliente'; termo: string; entendimento?: string }
+  | { tipo: 'notas'; de: string | null; ate: string | null; rotulo: string; assumido?: string; opcoes?: Opcao[]; grafico?: true; dimensao?: Dimensao; metrica?: Metrica; tipoGrafico?: TipoPedido; seguimento?: true; limite?: number; entendimento?: string }
+  | { tipo: 'esclarecer'; pergunta: string; opcoes: Opcao[]; grafico?: true; entendimento?: string }
+  | { tipo: 'comparativo'; periodos: PeriodoComparado[]; opcoes: Opcao[]; grafico?: true; entendimento?: string }
+  // pergunta de número sem ferramenta que a responda (ex.: margem, lucro, por cidade): resposta honesta, nunca RAG.
+  | { tipo: 'indisponivel'; motivo: string; entendimento?: string; sugestao?: string; consultaConhecimento?: string }
   | { tipo: 'documentos' }
 
 const RE_ARROBA = /(?<![\w.@])@([A-Za-z0-9._]{2,30})/
@@ -73,6 +75,14 @@ export function resolverPeriodo(texto: string, hoje: Date = new Date()): Periodo
   if (/(este|esse|neste|nesse)\s+mes|mes\s+atual/.test(t)) return mk(new Date(h.getFullYear(), h.getMonth(), 1), h, 'Este mês')
   const n = t.match(/ultimos?\s+(\d{1,3})\s+dias/)
   if (n) { const q = Math.min(Math.max(parseInt(n[1], 10), 1), 366); return mk(soma(h, -(q - 1)), h, `Últimos ${q} dias`) }
+  const nu = t.match(/ultim[oa]s?\s+(\d{1,2})\s+(mes|meses|semana|semanas|ano|anos)\b/)
+  if (nu) {
+    const q = Math.max(parseInt(nu[1], 10), 1), u = nu[2]
+    if (u.startsWith('semana')) { const d = Math.min(q, 52) * 7; return mk(soma(h, -(d - 1)), h, `Últimas ${Math.min(q, 52)} semanas`) }
+    if (u.startsWith('mes')) { const k = Math.min(q, 36); return mk(soma(new Date(h.getFullYear(), h.getMonth() - k, h.getDate()), 1), h, `Últimos ${k} ${k === 1 ? 'mês' : 'meses'}`) }
+    const k = Math.min(q, 5); return mk(soma(new Date(h.getFullYear() - k, h.getMonth(), h.getDate()), 1), h, `Últimos ${k} ${k === 1 ? 'ano' : 'anos'}`)
+  }
+  if (/ultimo\s+ano/.test(t)) return mk(soma(new Date(h.getFullYear() - 1, h.getMonth(), h.getDate()), 1), h, 'Últimos 12 meses')
   if (/ultimo\s+mes/.test(t)) return mk(soma(h, -29), h, 'Últimos 30 dias')
   const m = t.match(new RegExp(`\\b${RE_MES}\\b(?:\\s+de)?(?:\\s+(\\d{4}))?`))
   if (m) {
@@ -122,7 +132,7 @@ export function extrairPeriodos(texto: string, hoje: Date = new Date()): Periodo
   const semAnoNoMes = (frag: string) => (/\d{4}/.test(frag) ? frag : /(?:este|esse|neste|nesse|deste|desse)\s+ano/.test(t) ? `${frag} de ${h.getFullYear()}` : frag)
   varrer(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*(?:a|ate|ao?|-)\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/g)
   varrer(new RegExp(`\\b${RE_MES}\\b(?:\\s+de)?(?:\\s+\\d{4})?`, 'g'), semAnoNoMes)
-  for (const re of [/mes\s+(?:passado|anterior)/g, /(?:este|esse|neste|nesse)\s+mes|mes\s+atual/g, /semana\s+(?:passada|anterior)/g, /(?:esta|essa|nesta|nessa)\s+semana|semana\s+atual/g, /\bhoje\b/g, /\bontem\b/g, /ultimos?\s+\d{1,3}\s+dias/g, /ultimo\s+mes/g]) varrer(re)
+  for (const re of [/mes\s+(?:passado|anterior)/g, /(?:este|esse|neste|nesse)\s+mes|mes\s+atual/g, /semana\s+(?:passada|anterior)/g, /(?:esta|essa|nesta|nessa)\s+semana|semana\s+atual/g, /\bhoje\b/g, /\bontem\b/g, /ultimos?\s+\d{1,3}\s+dias/g, /ultim[oa]s?\s+\d{1,2}\s+(?:mes|meses|semana|semanas|ano|anos)\b/g, /ultimo\s+ano/g, /ultimo\s+mes/g]) varrer(re)
   const qtdBase = achados.length
   if (qtdBase === 0) {
     varrer(/(?:este|esse|neste|nesse|deste|desse)\s+ano|ano\s+atual/g)
@@ -154,13 +164,21 @@ export function extrairPedido(texto: string): Pedido {
   else if (/\b(por\s+semana|semanal|semana\s+a\s+semana)\b/.test(t)) p.dimensao = 'semana'
   else if (/\b(por\s+mes|mensal|mes\s+a\s+mes)\b/.test(t)) p.dimensao = 'mes'
   if (/\bticket\b/.test(t)) p.metrica = 'ticket'
-  else if (/\b(quantidade|qtd|numero\s+de\s+notas|quantas|n[o°º]\s+de\s+notas)\b/.test(t)) p.metrica = 'qtd'
+  else if (/\b(quantidade|qtd|em\s+pedidos|n[uú]mero\s+de\s+pedidos|numero\s+de\s+notas|quantas|n[o°º]\s+de\s+notas)\b/.test(t)) p.metrica = 'qtd'
   else if (/\b(valor|faturamento|r\$|reais)\b/.test(t)) p.metrica = 'valor'
   return p
 }
 const pedidoCampos = (t: string) => {
   const p = extrairPedido(t)
   return { ...(p.dimensao ? { dimensao: p.dimensao } : {}), ...(p.metrica ? { metrica: p.metrica } : {}), ...(p.tipo ? { tipoGrafico: p.tipo } : {}) }
+}
+// "top 10", "10 maiores clientes", "o maior cliente": quantos itens o ranking deve mostrar (padrão 10).
+export function extrairLimite(texto: string): number {
+  const t = semAcento(texto)
+  const m = t.match(/\btop\s*(\d{1,2})\b/) ?? t.match(/\b(\d{1,2})\s+(?:maiores|melhores|principais)\b/) ?? t.match(/\b(?:maiores|melhores|principais)\s+(\d{1,2})\b/)
+  if (m) return Math.min(Math.max(parseInt(m[1], 10), 1), 30)
+  if (/\b(maior|melhor)\s+cliente\b/.test(t)) return 1
+  return 10
 }
 const RE_RANKING_CLIENTES = /\b(top|maiores|melhores|ranking)\b[^.?!]*\bclientes?\b|\bclientes?\b[^.?!]*\b(top|maiores|melhores)\b/i
 
@@ -220,13 +238,16 @@ export function classificar(pergunta: string, hoje: Date = new Date()): Intencao
   if (RE_ULTIMAS.test(t)) return { tipo: 'notas', de: null, ate: null, rotulo: 'Últimas notas emitidas' }
   const per = resolverPeriodo(t, hoje)
   if ((RE_VENDA_FORTE.test(t) && (RE_PERIODO.test(t) || RE_TOTAL.test(t))) || RE_RANKING_CLIENTES.test(t) || (/\bnotas?\b/i.test(t) && per)) {
-    if (per) return { tipo: 'notas', ...per, ...graf, ...pedidoCampos(t) }
+    const ped = pedidoCampos(t), rank = RE_RANKING_CLIENTES.test(t)
+    const g = graf.grafico || rank || ped.dimensao || ped.tipoGrafico ? ({ grafico: true } as const) : {}
+    const lim = rank ? { limite: extrairLimite(t) } : {}
+    if (per) return { tipo: 'notas', ...per, ...g, ...ped, ...lim }
     // período não informado: assume os últimos 30 dias e avisa
     const ini = soma(h, -29)
     return {
       tipo: 'notas', de: ymd(ini), ate: ymd(h), rotulo: `Últimos 30 dias (${br(ini)} a ${br(h)})`,
       assumido: `Você não informou o período, então mostrei os últimos 30 dias (${br(ini)} a ${br(h)}).`,
-      opcoes: opcoesPeriodo(t), ...graf, ...pedidoCampos(t),
+      opcoes: opcoesPeriodo(t), ...g, ...ped, ...lim,
     }
   }
   return { tipo: 'documentos' }
@@ -250,3 +271,48 @@ export function entender(pergunta: string, ctx: ContextoDados | null, hoje: Date
     grafico: true, seguimento: true,
   }
 }
+
+// ---- Interpretação por IA (Edge Function assistente-ia): a ficha já vem validada pelo servidor; aqui vira a Intencao que o painel executa.
+export interface FichaIA {
+  intencao: 'vendas' | 'cliente' | 'documentos' | 'esclarecer' | 'comparativo' | 'indisponivel'; entendimento: string
+  cliente_termo?: string
+  periodo?: { de: string; ate: string; rotulo: string } | null; todo_periodo?: boolean; periodo_assumido?: boolean
+  dimensao?: Dimensao | null; metrica?: Metrica | null; tipo_grafico?: TipoPedido | null; mostrar_grafico?: boolean; limite?: number | null
+  periodos?: { de: string; ate: string; rotulo: string }[]
+  esclarecimento?: { pergunta: string; opcoes: { rotulo: string; texto: string }[] }
+  lacuna?: string; consulta_conhecimento?: string | null; sugestao?: string | null
+}
+const fmtIso = (s: string) => s.split('-').reverse().join('/')
+export function deFichaIA(f: FichaIA, pergunta: string): (Intencao & { entendimento?: string }) | null {
+  const entendimento = f.entendimento || undefined
+  if (f.intencao === 'documentos') return { tipo: 'documentos' }
+  if (f.intencao === 'indisponivel') {
+    return { tipo: 'indisponivel', motivo: f.lacuna || 'Ainda não consigo calcular isso com os dados disponíveis.', entendimento, sugestao: f.sugestao || undefined, consultaConhecimento: f.consulta_conhecimento || undefined }
+  }
+  if (f.intencao === 'cliente') return f.cliente_termo ? { tipo: 'cliente', termo: f.cliente_termo, entendimento } : null
+  if (f.intencao === 'esclarecer' && f.esclarecimento) {
+    return { tipo: 'esclarecer', pergunta: f.esclarecimento.pergunta, opcoes: f.esclarecimento.opcoes.map((o) => ({ rotulo: o.rotulo, texto: o.texto, modo: 'enviar' as const })), ...(RE_GRAFICO.test(pergunta) ? { grafico: true as const } : {}), entendimento }
+  }
+  if (f.intencao === 'comparativo' && f.periodos && f.periodos.length >= 2) {
+    const ps = f.periodos.map((p) => ({ ...p, frase: `de ${fmtIso(p.de)} a ${fmtIso(p.ate)}` }))
+    return { tipo: 'comparativo', periodos: ps, opcoes: ps.map((p) => ({ rotulo: `Ver só ${p.rotulo.split(' (')[0]}`, texto: `total de vendas ${p.frase}`, modo: 'enviar' as const })), ...(RE_GRAFICO.test(pergunta) ? { grafico: true as const } : {}), entendimento }
+  }
+  if (f.intencao === 'vendas') {
+    const per = f.periodo
+    const de = per ? per.de : null, ate = per ? per.ate : null
+    const rotulo = per ? `${per.rotulo} (${fmtIso(per.de)} a ${fmtIso(per.ate)})` : 'Todo o período carregado'
+    const base: Intencao & { entendimento?: string } = {
+      tipo: 'notas', de, ate, rotulo, entendimento,
+      ...(f.mostrar_grafico ? { grafico: true as const } : {}),
+      ...(f.dimensao ? { dimensao: f.dimensao } : {}), ...(f.metrica ? { metrica: f.metrica } : {}), ...(f.tipo_grafico ? { tipoGrafico: f.tipo_grafico } : {}),
+      ...(f.limite && f.dimensao === 'cliente' ? { limite: f.limite } : {}),
+    }
+    if (f.periodo_assumido && per) {
+      return { ...base, assumido: `Você não informou o período, então mostrei ${per.rotulo.toLowerCase()} (${fmtIso(per.de)} a ${fmtIso(per.ate)}).`, opcoes: opcoesPeriodo(pergunta) } as Intencao
+    }
+    return base as Intencao
+  }
+  return null
+}
+// Só vale chamar a IA quando a pergunta tem cara de dado (vendas, clientes, ranking, período, gráfico). Regra/processo vai direto aos documentos.
+export const pareceDado = (t: string) => /\b(vend\w*|compr\w*|fatur\w*|pedid\w*|notas?|clientes?|top|maiores|melhores|ranking|total|quanto|quantos?|quantas?|ticket|receb\w*|devolu\w*|cancel\w*|gr[aá]fico|ultim\w*|[uú]ltim\w*|per[ií]odo|semana|m[eê]s|meses|ano|marg\w*|lucro\w*|rentab\w*|custo\w*|apurad\w*|cidade\w*|categoria\w*|marca\w*|fornecedor\w*|consignante\w*)\b/i.test(t)

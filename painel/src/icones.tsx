@@ -24,4 +24,7 @@ export const IGrade = () => <Svg><rect x="3" y="3" width="7.500" height="7.500" 
 export const IAjustes = () => <Svg><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></Svg>
 export const ILivro = () => <Svg><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z" /><path d="M4 19a2 2 0 0 1 2-2h13" /></Svg>
 export const IEscudo = () => <Svg><path d="M12 3l8 3v6c0 4.500-3.200 8-8 9-4.800-1-8-4.500-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></Svg>
+export const IGov = () => <Svg><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.4" /><path d="M12 3v5.6M12 15.4V21M3 12h5.6M15.4 12H21" /></Svg>
 export const IFaisca = () => <Svg><path d="M12 3l1.800 5.200L19 10l-5.200 1.800L12 17l-1.800-5.200L5 10l5.200-1.800L12 3z" /><path d="M18.500 16l.7 1.800 1.800.7-1.800.7-.7 1.800-.7-1.800-1.800-.7 1.800-.7.7-1.800z" /></Svg>
+
+export const IGestao = () => <Svg><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></Svg>

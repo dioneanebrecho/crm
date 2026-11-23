@@ -301,7 +301,46 @@ export interface NotasPeriodo {
   qtd_notas: number; qtd_validas: number; qtd_canceladas: number; qtd_sem_valor: number; valor_total: number | null
   base_ate: string | null; base_notas: number; base_com_detalhe: number; primeira_nota: string | null; notas: NotaPeriodo[]
 }
+// Vendas = pedidos de venda do Bling (migration 0046); recebimento vem das contas a receber ligadas ao pedido.
+export type Recebimento = 'recebido' | 'parcial' | 'em_aberto' | 'sem_conta'
+export interface PedidoPeriodo { bling_id: string; numero: number | null; data: string | null; situacao: number | null; situacao_rotulo: string; cliente: string; valor: number | null; recebimento: Recebimento }
+export interface FatiaRecebimento { qtd: number; valor: number | null }
+export interface VendasPeriodo {
+  ok: boolean; ve_valores: boolean; de: string | null; ate: string | null
+  qtd_pedidos: number; qtd_validas: number; qtd_canceladas: number; valor_total: number | null
+  recebimento: Record<Recebimento, FatiaRecebimento>
+  devolucoes: { qtd_notas: number; valor: number | null }
+  base_ate: string | null; base_pedidos: number; primeira_data: string | null; contas_desde: string | null; carga_em_andamento: boolean
+  pedidos: PedidoPeriodo[]
+}
+export interface PedidosDetalhe { ok: boolean; motivo?: string; ve_valores: boolean; qtd: number; valor_total: number | null; pedidos: PedidoPeriodo[] }
+export interface LinhaSerieVendas { chave: string; rotulo: string; qtd: number; valor: number | null; qtd_sem_valor?: number; de?: string; ate?: string; outros?: boolean; valida?: boolean }
+export interface SerieVendas {
+  ok: boolean; motivo?: string; ve_valores: boolean; de: string; ate: string; dimensao: string; dimensao_pedida: string
+  base_ate: string | null; base_pedidos: number; primeira_data: string | null; contas_desde: string | null; carga_em_andamento: boolean
+  qtd_pedidos: number; qtd_validas: number; qtd_canceladas: number; valor_total: number | null; linhas: LinhaSerieVendas[]
+}
+export interface AnaliseIA { ok: boolean; motivo?: string; modo?: string; texto?: string; sugestoes?: string[] }
+export interface InterpretacaoIA { ok: boolean; motivo?: string; modo?: string; ficha?: import('./intencao').FichaIA }
+export const apiConversas = {
+  salvarTurno: (empresa: string, conversa: string | null, pergunta: string, contexto: Record<string, unknown>) =>
+    rpc<{ ok: boolean; conversa_id: string; ordem?: number; motivo?: string }>('salvar_turno', { p_empresa: empresa, p_conversa: conversa, p_pergunta: pergunta, p_contexto: contexto }),
+  avaliar: (empresa: string, conversa: string, ordem: number, avaliacao: 'util' | 'errado', observacao?: string) =>
+    rpc<{ ok: boolean }>('avaliar_turno', { p_empresa: empresa, p_conversa: conversa, p_ordem: ordem, p_avaliacao: avaliacao, p_observacao: observacao ?? null }),
+}
+export const apiAssistenteIA = {
+  interpretar: (empresa: string, pergunta: string, hoje: string, contexto?: { rotulo: string; dimensao: string; metrica: string }) =>
+    funcao<InterpretacaoIA>('assistente-ia', { empresa, acao: 'interpretar', pergunta, hoje, contexto }),
+  analisar: (empresa: string, d: { pergunta: string; periodo: string; dimensao: string; metrica: string; linhas: { ref: string; qtd: number; valor: number | null }[]; avisos: string[]; resumo: { qtd_validas: number; qtd_canceladas: number; valor_total: number | null } }) =>
+    funcao<AnaliseIA>('assistente-ia', { empresa, acao: 'analisar', ...d }),
+}
 export const apiAssistenteDados = {
+  vendasPeriodo: (empresa: string, de: string | null, ate: string | null, limite = 10) =>
+    rpc<VendasPeriodo>('assistente_vendas_periodo', { p_empresa: empresa, p_de: de, p_ate: ate, p_limite: limite }),
+  serieVendas: (empresa: string, de: string | null, ate: string | null, dimensao: string, limite = 10) =>
+    rpc<SerieVendas>('assistente_serie_vendas', { p_empresa: empresa, p_de: de, p_ate: ate, p_dimensao: dimensao, p_limite: limite }),
+  pedidosDetalhe: (empresa: string, de: string | null, ate: string | null, filtro: string | null, valor: string | null, limite = 30) =>
+    rpc<PedidosDetalhe>('assistente_pedidos_detalhe', { p_empresa: empresa, p_de: de, p_ate: ate, p_filtro: filtro, p_valor: valor, p_limite: limite }),
   notasPeriodo: (empresa: string, de: string | null, ate: string | null, limite = 10) =>
     rpc<NotasPeriodo>('assistente_notas_periodo', { p_empresa: empresa, p_de: de, p_ate: ate, p_limite: limite }),
   vendasCliente: (empresa: string, busca: string) => rpc<VendasCliente>('assistente_vendas_cliente', { p_empresa: empresa, p_busca: busca, p_limite: 10 }),
@@ -331,4 +370,117 @@ export const apiUsuarios = {
     return funcao<ResultadoConvite>('usuario-convidar', { empresa, convite: r.convite_id })
   },
   revogar: (empresa: string, convite: string) => rpc<void>('revogar_convite', { p_empresa: empresa, p_convite: convite }),
+}
+
+// ---------------------------------------------------------------- Central de governança (migration 0054)
+export type TipoGov = 'duvida' | 'ocorrencia' | 'sugestao'
+export type EstadoGov = 'aberto' | 'em_analise' | 'resolvido' | 'descartado'
+export interface ItemGov {
+  id: string; tipo: TipoGov; titulo: string; descricao: string; tela: string | null; tela_rotulo: string | null
+  severidade: string | null; estado: EstadoGov; origem: 'usuario' | 'sistema'
+  criado_em: string; criado_por_nome: string | null
+  atualizado_em: string | null; resolucao: string | null; resolvido_por_nome: string | null; resolvido_em: string | null
+}
+export interface ResumoGov { aberto: number; em_analise: number; resolvido: number; descartado: number; total: number }
+export interface ListaGov { resumo: ResumoGov; itens: ItemGov[] }
+export interface FiltroGov { tipo?: string; estado?: string; busca?: string }
+
+export const apiGovernanca = {
+  // Qualquer pessoa da empresa pode registrar (não depende da permissão da tela de governança).
+  registrar: (empresa: string, d: { tela: string | null; tipo: TipoGov; titulo: string; descricao: string; severidade: string | null }) =>
+    rpc<string>('governanca_registrar', { p_empresa: empresa, p_tela: d.tela, p_tipo: d.tipo, p_titulo: d.titulo, p_descricao: d.descricao, p_severidade: d.severidade }),
+  listar: (empresa: string, f: FiltroGov = {}) =>
+    rpc<ListaGov>('governanca_listar', { p_empresa: empresa, p_tipo: nulo(f.tipo), p_estado: nulo(f.estado), p_busca: nulo(f.busca) }),
+  atualizar: (empresa: string, id: string, d: { estado: EstadoGov; resolucao?: string | null }) =>
+    rpc<void>('governanca_atualizar', { p_empresa: empresa, p_id: id, p_estado: d.estado, p_resolucao: nulo(d.resolucao ?? undefined) }),
+}
+
+// ---------------------------------------------------------------- Faixa informativa (migration 0055)
+export interface FaixaNoticia { id: string; titulo: string; link: string; veiculo: string; publicado_em: string }
+export interface FaixaCotacao { valor: number; variacao_pct: number | null; referencia_em: string | null; origem: 'ptax' | 'awesomeapi' | null; ok_em: string | null }
+export interface FaixaDados {
+  ativa: boolean; mostrar_hora?: boolean; mostrar_dolar?: boolean; mostrar_noticias?: boolean; segundos?: number
+  cotacao?: FaixaCotacao | null; noticias?: FaixaNoticia[]
+}
+export interface FaixaConfig {
+  ativa: boolean; mostrar_hora: boolean; mostrar_dolar: boolean; mostrar_noticias: boolean; segundos: number; idade_max_dias: number
+  palavras_chave: string[]; palavras_bloqueio: string[]; veiculos_permitidos: string[]
+}
+export interface FaixaFonte {
+  id: string; nome: string; url: string; ativa: boolean; filtrar_veiculo: boolean; exigir_palavra: boolean; intervalo_min: number
+  ultimo_ok_em: string | null; ultimo_erro: string | null; itens_lidos: number; itens_aceitos: number
+}
+export interface FaixaAdmin {
+  config: FaixaConfig
+  cotacao: (FaixaCotacao & { erro: string | null }) | null
+  fontes: FaixaFonte[]
+  noticias: (FaixaNoticia & { oculta: boolean })[]
+}
+
+export const apiFaixa = {
+  obter: (empresa: string) => rpc<FaixaDados>('faixa_obter', { p_empresa: empresa }),
+  config: (empresa: string) => rpc<FaixaAdmin>('faixa_config_obter', { p_empresa: empresa }),
+  salvar: (empresa: string, d: Partial<FaixaConfig>) => rpc<void>('faixa_config_salvar', { p_empresa: empresa, p_dados: d }),
+  restaurarListas: (empresa: string) => rpc<void>('faixa_restaurar_listas', { p_empresa: empresa }),
+  salvarFonte: (empresa: string, f: { id: string | null; nome: string; url: string; ativa: boolean; filtrar_veiculo: boolean; exigir_palavra: boolean; intervalo_min: number }) =>
+    rpc<string>('faixa_fonte_salvar', { p_empresa: empresa, p_id: f.id, p_nome: f.nome, p_url: f.url, p_ativa: f.ativa, p_filtrar_veiculo: f.filtrar_veiculo, p_exigir_palavra: f.exigir_palavra, p_intervalo_min: f.intervalo_min }),
+  excluirFonte: (empresa: string, id: string) => rpc<void>('faixa_fonte_excluir', { p_empresa: empresa, p_id: id }),
+  ocultar: (empresa: string, id: string, oculta: boolean) => rpc<void>('faixa_noticia_ocultar', { p_empresa: empresa, p_id: id, p_oculta: oculta }),
+  atualizarAgora: (empresa: string) => rpc<void>('faixa_atualizar_agora', { p_empresa: empresa }),
+}
+
+// ---------------------------------------------------------------- Painel de Gestão: api.gestao_* (vendas, canais, detalhe, financeiro)
+export type GestaoBase = 'pedido' | 'nota'
+export type GestaoTipo = 'venda' | 'cancelamento' | 'devolucao'
+export interface GestaoBloco { qtd: number; valor: number | null; qtd_ant: number; valor_ant: number | null; var_qtd?: number | null; var_valor?: number | null }
+export interface GestaoResumo {
+  ok: boolean; motivo?: string; ve_valores: boolean; base: GestaoBase
+  periodo: { de: string; ate: string; dias: number }; periodo_anterior: { de: string; ate: string }
+  primeira_nota: string | null; base_ate: string | null
+  faturamento: GestaoBloco; devolucoes: GestaoBloco; cancelamentos: GestaoBloco
+  venda_liquida: { valor: number | null; valor_ant: number | null; var_valor: number | null }
+  ticket_medio: number | null; taxa_devolucao: number | null; taxa_cancelamento: number | null
+  waterfall: { etapa: string; valor: number | null; total?: boolean }[]
+}
+export interface GestaoLinha {
+  chave: string; rotulo: string; de: string; ate: string
+  venda_qtd: number; venda_valor: number | null; cancelamento_qtd: number; cancelamento_valor: number | null
+  devolucao_qtd: number; devolucao_valor: number | null
+}
+export interface GestaoSerie { ok: boolean; motivo?: string; ve_valores: boolean; base: GestaoBase; de: string; ate: string; granularidade: 'dia' | 'semana' | 'mes'; granularidade_pedida: string; linhas: GestaoLinha[] }
+export interface GestaoCanalLinha { canal: string; rotulo: string; qtd: number; valor: number | null; cancelados: number; qtd_ant: number; valor_ant: number | null; var_valor: number | null; var_qtd: number | null }
+export interface GestaoPorCanal { ok: boolean; motivo?: string; ve_valores: boolean; base: GestaoBase; lojas_nao_mapeadas: number; linhas: GestaoCanalLinha[] }
+export interface GestaoLancamento { id: string; numero: string; data: string; cliente: string; canal: string | null; canal_rotulo: string; situacao: string; valor: number | null; recebimento: string | null }
+export interface GestaoLancamentos { ok: boolean; motivo?: string; ve_valores: boolean; base: GestaoBase; tipo: GestaoTipo; canal: string | null; de: string; ate: string; qtd: number; valor_total: number | null; limite: number; itens: GestaoLancamento[] }
+export interface GestaoCanaisConfig { ok: boolean; canais: { canal: string; rotulo: string }[]; lojas: { loja_id: string; pedidos: number; valor: number; ultima: string | null; canal: string; mapeada: boolean }[] }
+export interface FinCard { qtd: number; valor: number; atraso_qtd?: number; atraso_valor?: number }
+export interface GestaoFinLinha {
+  chave: string; rotulo: string; de: string; ate: string
+  entradas: number; entradas_real: number; entradas_prev: number; saidas: number; saidas_real: number; saidas_prev: number
+  saldo: number; desencaixe: boolean; saida_maior: boolean
+}
+export interface GestaoFinanceiro {
+  ok: boolean; motivo?: string; de: string; ate: string; granularidade: 'dia' | 'semana' | 'mes'; granularidade_pedida: string; hoje: string
+  saldo_inicial: { informado: boolean; valor: number | null; data: string | null }
+  saldo_abertura: number; saldo_final: number; primeiro_desencaixe: string | null; menor_saldo: { valor: number; rotulo: string } | null
+  cards: { a_pagar: FinCard; pago: FinCard; a_receber: FinCard; recebido: FinCard }
+  vencidos_antes: { receber_qtd: number; receber_valor: number; pagar_qtd: number; pagar_valor: number }
+  linhas: GestaoFinLinha[]
+}
+export interface GestaoTitulo { lado: 'pagar' | 'receber'; id: string; status: 'aberto' | 'liquidado'; situacao: string; data: string; vencimento: string; valor: number; contato: string; origem: string; categoria: string | null; data_aproximada: boolean }
+export interface GestaoTitulos { ok: boolean; motivo?: string; de: string; ate: string; lado: string; status: string; qtd: number; total_pagar: number; total_receber: number; limite: number; itens: GestaoTitulo[] }
+export const apiGestao = {
+  resumo: (empresa: string, de: string | null, ate: string | null, base: GestaoBase) => rpc<GestaoResumo>('gestao_resumo', { p_empresa: empresa, p_de: de, p_ate: ate, p_base: base }),
+  serie: (empresa: string, de: string | null, ate: string | null, granularidade: 'dia' | 'semana' | 'mes', base: GestaoBase) =>
+    rpc<GestaoSerie>('gestao_serie', { p_empresa: empresa, p_de: de, p_ate: ate, p_granularidade: granularidade, p_base: base }),
+  porCanal: (empresa: string, de: string | null, ate: string | null, base: GestaoBase) => rpc<GestaoPorCanal>('gestao_por_canal', { p_empresa: empresa, p_de: de, p_ate: ate, p_base: base }),
+  lancamentos: (empresa: string, de: string, ate: string, tipo: GestaoTipo, canal: string | null, base: GestaoBase, limite = 200) =>
+    rpc<GestaoLancamentos>('gestao_lancamentos', { p_empresa: empresa, p_de: de, p_ate: ate, p_tipo: tipo, p_canal: canal, p_base: base, p_limite: limite }),
+  canaisConfig: (empresa: string) => rpc<GestaoCanaisConfig>('gestao_canais_config', { p_empresa: empresa }),
+  salvarCanal: (empresa: string, loja: string, canal: string) => rpc<{ ok: boolean }>('gestao_salvar_canal', { p_empresa: empresa, p_loja: loja, p_canal: canal }),
+  financeiro: (empresa: string, de: string | null, ate: string | null, granularidade: 'dia' | 'semana' | 'mes') =>
+    rpc<GestaoFinanceiro>('gestao_financeiro', { p_empresa: empresa, p_de: de, p_ate: ate, p_granularidade: granularidade }),
+  titulos: (empresa: string, de: string, ate: string, lado: 'todos' | 'pagar' | 'receber', status: 'todos' | 'aberto' | 'liquidado', limite = 300) =>
+    rpc<GestaoTitulos>('gestao_titulos', { p_empresa: empresa, p_de: de, p_ate: ate, p_lado: lado, p_status: status, p_limite: limite }),
+  salvarSaldo: (empresa: string, valor: number | null, data: string | null) => rpc<{ ok: boolean }>('gestao_salvar_saldo', { p_empresa: empresa, p_valor: valor, p_data: data }),
 }
