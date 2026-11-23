@@ -305,7 +305,7 @@ function DetalheVendas({ ctx, base, sel, canalRot, onFechar }: { ctx: Contexto; 
       { id: 'situacao', titulo: 'Situação', texto: (x) => x.situacao },
     ]
     if (base === 'pedido' && sel.tipo !== 'devolucao') c.push({ id: 'receb', titulo: 'Recebimento', texto: (x) => (x.recebimento ? ROT_RECEB[x.recebimento] ?? x.recebimento : '—') })
-    if (veValor) c.push({ id: 'valor', titulo: 'Valor', texto: (x) => brl(x.valor), valor: (x) => x.valor ?? 0, direita: true })
+    if (veValor) c.push({ id: 'valor', titulo: 'Valor', texto: (x) => brl(x.valor), valor: (x) => x.valor ?? 0, direita: true, formatar: brl })
     return c
   }, [base, sel.tipo, veValor])
   return (
@@ -322,7 +322,7 @@ function DetalheVendas({ ctx, base, sel, canalRot, onFechar }: { ctx: Contexto; 
       {d.erro && <div className="erro" role="alert">{d.erro}</div>}
       {d.carregando && !r && <p className="gs-nota">Carregando lançamentos…</p>}
       {r?.ok && r.itens.length === 0 && <p className="gs-nota">Nenhum lançamento nesse recorte.</p>}
-      {r?.ok && r.itens.length > 0 && <GradeDados id={`gestao.vendas.${base}.${sel.tipo}`} colunas={colunas} linhas={r.itens} chave={(x) => x.id} />}
+      {r?.ok && r.itens.length > 0 && <GradeDados id={`gestao.vendas.${base}.${sel.tipo}`} titulo={`${sel.titulo} (${dataBr(sel.de)} a ${dataBr(sel.ate)})`} colunas={colunas} linhas={r.itens} chave={(x) => x.id} />}
       {r?.ok && r.qtd > r.itens.length && <p className="gs-nota">Mostrando os {r.itens.length} mais recentes de {num(r.qtd)}. Afunile o período para ver os demais.</p>}
     </Modal>
   )
@@ -500,7 +500,7 @@ function DetalheTitulos({ ctx, sel, onFechar }: { ctx: Contexto; sel: SelFin; on
     { id: 'contato', titulo: 'Contato', texto: (t) => t.contato, max: 280 },
     { id: 'origem', titulo: 'Origem', texto: (t) => t.origem },
     { id: 'cat', titulo: 'Categoria', texto: (t) => t.categoria ?? '—' },
-    { id: 'valor', titulo: 'Valor', texto: (t) => (t.lado === 'pagar' ? '−' : '') + brl(t.valor), valor: (t) => (t.lado === 'pagar' ? -t.valor : t.valor), direita: true,
+    { id: 'valor', titulo: 'Valor', texto: (t) => (t.lado === 'pagar' ? '−' : '') + brl(t.valor), valor: (t) => (t.lado === 'pagar' ? -t.valor : t.valor), direita: true, formatar: brl,
       render: (t) => <span style={{ color: t.lado === 'pagar' ? 'var(--g2)' : 'var(--g3)' }}>{t.lado === 'pagar' ? '−' : ''}{brl(t.valor)}</span> },
   ], [])
   return (
@@ -518,7 +518,7 @@ function DetalheTitulos({ ctx, sel, onFechar }: { ctx: Contexto; sel: SelFin; on
       {d.erro && <div className="erro" role="alert">{d.erro}</div>}
       {d.carregando && !r && <p className="gs-nota">Carregando títulos…</p>}
       {r?.ok && r.itens.length === 0 && <p className="gs-nota">Nenhum título nesse recorte.</p>}
-      {r?.ok && r.itens.length > 0 && <GradeDados id="gestao.titulos" colunas={colunasT} linhas={r.itens} chave={(t) => `${t.lado}${t.id}`} />}
+      {r?.ok && r.itens.length > 0 && <GradeDados id="gestao.titulos" titulo={`${sel.titulo} (${dataBr(sel.de)} a ${dataBr(sel.ate)})`} colunas={colunasT} linhas={r.itens} chave={(t) => `${t.lado}${t.id}`} />}
       {r?.ok && r.qtd > r.itens.length && <p className="gs-nota">Mostrando os {r.itens.length} primeiros de {num(r.qtd)}. Afunile o período para ver os demais.</p>}
     </Modal>
   )
