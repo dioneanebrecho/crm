@@ -86,7 +86,13 @@ fi
 [ -n "${COOLIFY_TOKEN:-}" ] || erro "COOLIFY_TOKEN vazio em $TOKEN_FILE."
 
 echo ">> acionando deploy no Coolify"
-RESP="$(curl -fsS -H "Authorization: Bearer $COOLIFY_TOKEN" "http://localhost:8000/api/v1/deploy?uuid=$APP_UUID&force=false")" || erro "o Coolify recusou o pedido de deploy (token inválido ou API desligada?)."
+RESP="$(curl -sS -X POST -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" -w '\n%{http_code}' "http://localhost:8000/api/v1/deploy?uuid=$APP_UUID&force=false")" || erro "não consegui falar com o Coolify."
+COD="${RESP##*$'\n'}"; RESP="${RESP%$'\n'*}"
+if [ "$COD" = "405" ]; then
+  RESP="$(curl -sS -X GET -H "Authorization: Bearer $COOLIFY_TOKEN" -H "Accept: application/json" -w '\n%{http_code}' "http://localhost:8000/api/v1/deploy?uuid=$APP_UUID&force=false")"
+  COD="${RESP##*$'\n'}"; RESP="${RESP%$'\n'*}"
+fi
+case "$COD" in 2*) ;; *) erro "o Coolify respondeu HTTP $COD: $(printf '%s' "$RESP" | head -c 300)";; esac
 DEP="$(printf '%s' "$RESP" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);console.log((j.deployments&&j.deployments[0]&&j.deployments[0].deployment_uuid)||"")}catch(e){console.log("")}})')"
 [ -n "$DEP" ] || erro "resposta inesperada do Coolify: $RESP"
 echo ">> deploy $DEP na fila; acompanhando (até 10 min)"
