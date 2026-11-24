@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { Contexto } from '../App'
 import {
   apiGestao, type FinCard, type GestaoBase, type GestaoCanalLinha, type GestaoFinanceiro, type GestaoFinLinha, type GestaoLinha,
@@ -420,70 +420,158 @@ function AbaVendas({ ctx, base }: { ctx: Contexto; base: GestaoBase }) {
 // ------------------------------------------------------------------ aba Financeiro
 interface SelFin { de: string; ate: string; lado: 'todos' | 'pagar' | 'receber'; status: 'todos' | 'aberto' | 'liquidado'; titulo: string }
 
+const DIA_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+const diaSemana = (iso: string) => DIA_SEM[new Date(`${iso.slice(0, 10)}T12:00:00`).getDay()]
+
+// Saldo em degrau: o saldo só muda quando entra ou sai dinheiro, então fica reto no dia e sobe/cai de uma vez no dia do movimento
+// (a curva suave dava a impressão de subida gradual antes do dia real).
+function degrau(saldos: number[], esq: number, passo: number, y: (v: number) => number): string {
+  if (saldos.length === 0) return ''
+  let out = `M${esq.toFixed(1)},${y(saldos[0]).toFixed(1)} H${(esq + passo).toFixed(1)}`
+  for (let i = 1; i < saldos.length; i++) out += ` V${y(saldos[i]).toFixed(1)} H${(esq + passo * (i + 1)).toFixed(1)}`
+  return out
+}
+
+// Marcas "redondas" do eixo único (1, 2, 2,5, 5 × 10ⁿ), incluindo valores negativos.
+function marcasEixo(min: number, max: number, alvo = 5): number[] {
+  const span = max - min || 1
+  const bruto = span / alvo, mag = 10 ** Math.floor(Math.log10(bruto)), r = bruto / mag
+  const passo = (r <= 1 ? 1 : r <= 2 ? 2 : r <= 2.5 ? 2.5 : r <= 5 ? 5 : 10) * mag
+  const ini = Math.floor(min / passo - 1e-9) * passo, fim = Math.ceil(max / passo - 1e-9) * passo
+  const out: number[] = []
+  for (let v = ini; v <= fim + passo / 1000; v += passo) out.push(Math.round(v * 1e6) / 1e6)
+  return out
+}
+
 function Fluxo({ linhas, hoje, onSel, selecionada }: { linhas: GestaoFinLinha[]; hoje: string; onSel: (l: GestaoFinLinha) => void; selecionada: string | null }) {
   const [hover, setHover] = useState<number | null>(null)
-  const W = 720, H = 400, ml = 62, mr = 14
-  const topoA = 14, altA = 170, topoB = 232, altB = 120
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
+  const W = 760, H = 392, ml = 58, mr = 16, top = 16, alt = 306
   const n = linhas.length
   const iw = W - ml - mr, passo = iw / Math.max(n, 1)
   const x = (i: number) => ml + passo * i + passo / 2
-  const maxA = Math.max(...linhas.flatMap((l) => [l.entradas, l.saidas]), 1)
-  const yA = (v: number) => topoA + altA - (v / maxA) * altA
-  const maxB = Math.max(...linhas.map((l) => l.saldo), 0), minB = Math.min(...linhas.map((l) => l.saldo), 0)
-  const spanB = maxB - minB || 1
-  const yB = (v: number) => topoB + altB - ((v - minB) / spanB) * altB
-  const cada = Math.ceil(n / 12)
-  const linha = (f: (l: GestaoFinLinha) => number, y: (v: number) => number) => linhas.map((l, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(f(l)).toFixed(1)}`).join(' ')
-  const h = hover != null ? linhas[hover] : null
+  const diario = linhas.length > 0 && linhas.every((l) => l.de === l.ate)
+
+  // eixo único: entradas, saídas e saldo na mesma escala
+  const todos = linhas.flatMap((l) => [l.entradas, l.saidas, l.saldo, 0])
+  const marcas = marcasEixo(Math.min(...todos), Math.max(...todos))
+  const vMin = marcas[0], vMax = marcas[marcas.length - 1]
+  const y = (v: number) => top + alt - ((v - vMin) / ((vMax - vMin) || 1)) * alt
+  const y0 = y(0), base = top + alt
+
+  const curva = degrau(linhas.map((l) => l.saldo), ml, passo, y)
+  const area = n > 0 ? `${curva} L${(ml + passo * n).toFixed(1)},${y0.toFixed(1)} L${ml.toFixed(1)},${y0.toFixed(1)} Z` : ''
+
+  // até "hoje" é realizado; depois é projeção (tracejado)
   const iHoje = linhas.findIndex((l) => l.de <= hoje && hoje <= l.ate)
+  const xCorte = linhas.length === 0 ? ml : hoje < linhas[0].de ? ml : hoje > linhas[n - 1].ate ? W - mr : iHoje >= 0 ? x(iHoje) : W - mr
+  const temProj = xCorte < W - mr - 1
+  const bw = Math.max(3, Math.min(passo * 0.34, 14))
+  const cada = Math.max(1, Math.ceil(n / Math.floor(iw / (diario ? 44 : 58))))
+  const h = hover != null ? linhas[hover] : null
+  const rot = (l: GestaoFinLinha) => (diario ? `${diaSemana(l.de)}, ${l.rotulo}` : `${l.rotulo}${l.de !== l.ate ? ` a ${dataBr(l.ate).slice(0, 5)}` : ''}`)
+  const iDes = linhas.findIndex((l) => l.desencaixe)
+
+  const tracos = (dash: boolean, clipCorte: string) => (
+    <g clipPath={`url(#${clipCorte})`}>
+      {[['pos', 'var(--g1)'], ['neg', 'var(--gred)']].map(([lado, cor]) => (
+        <g key={lado} clipPath={`url(#${uid}${lado})`}>
+          <path d={curva} fill="none" stroke={cor} strokeWidth={3} strokeLinecap="butt" strokeLinejoin="round" strokeDasharray={dash ? '7 6' : undefined} />
+        </g>))}
+    </g>)
+
   return (
     <div className="gs-area" onPointerLeave={() => setHover(null)}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Fluxo de caixa: entradas e saídas, e saldo acumulado">
-        {/* faixas de desencaixe (saldo negativo) em ambos os painéis */}
-        {linhas.map((l, i) => l.desencaixe && <rect key={`d${l.chave}`} x={x(i) - passo / 2} y={topoA} width={passo} height={topoB + altB - topoA} fill="var(--gred)" opacity={0.1} />)}
-        {[0, 0.5, 1].map((f) => (
-          <g key={`a${f}`}>
-            <line x1={ml} x2={W - mr} y1={yA(maxA * f)} y2={yA(maxA * f)} stroke="var(--borda)" strokeDasharray={f === 0 ? undefined : '3 4'} />
-            <text x={ml - 8} y={yA(maxA * f) + 4} textAnchor="end" fontSize={11} fill="var(--mudo)">{compacto(maxA * f)}</text>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Fluxo de caixa: entradas e saídas por período e saldo acumulado projetado até a data final, no mesmo eixo">
+        <defs>
+          <linearGradient id={`${uid}gp`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style={{ stopColor: 'var(--g1)', stopOpacity: 0.34 }} /><stop offset="100%" style={{ stopColor: 'var(--g1)', stopOpacity: 0.02 }} /></linearGradient>
+          <linearGradient id={`${uid}gn`} x1="0" y1="1" x2="0" y2="0"><stop offset="0%" style={{ stopColor: 'var(--gred)', stopOpacity: 0.4 }} /><stop offset="100%" style={{ stopColor: 'var(--gred)', stopOpacity: 0.03 }} /></linearGradient>
+          <clipPath id={`${uid}pos`}><rect x={ml} y={top} width={iw} height={Math.max(y0 - top, 0)} /></clipPath>
+          <clipPath id={`${uid}neg`}><rect x={ml} y={y0} width={iw} height={Math.max(base - y0, 0)} /></clipPath>
+          <clipPath id={`${uid}real`}><rect x={0} y={0} width={Math.max(xCorte, 0)} height={H} /></clipPath>
+          <clipPath id={`${uid}proj`}><rect x={xCorte} y={0} width={Math.max(W - xCorte, 0)} height={H} /></clipPath>
+        </defs>
+
+        {/* fins de semana (só no modo dia) e dias selecionados */}
+        {linhas.map((l, i) => {
+          const dom = diario && ['dom', 'sáb'].includes(diaSemana(l.de))
+          return (dom || selecionada === l.chave) && <rect key={`f${l.chave}`} x={x(i) - passo / 2} y={top} width={passo} height={alt} fill="var(--mudo)" opacity={selecionada === l.chave ? 0.16 : 0.07} />
+        })}
+        {/* projeção: do "hoje" até a data final do filtro */}
+        {temProj && <g><rect x={xCorte} y={top} width={W - mr - xCorte} height={alt} fill="var(--g1)" opacity={0.045} /><text x={W - mr - 6} y={top + 12} textAnchor="end" fontSize={10.5} fill="var(--mudo)" letterSpacing=".06em">PROJEÇÃO</text></g>}
+
+        {/* grade e eixo único */}
+        {marcas.map((v) => (
+          <g key={`m${v}`}>
+            <line x1={ml} x2={W - mr} y1={y(v)} y2={y(v)} stroke="var(--borda)" strokeDasharray={v === 0 ? undefined : '2 5'} opacity={v === 0 ? 0 : 0.8} />
+            <text x={ml - 8} y={y(v) + 4} textAnchor="end" fontSize={11} fill="var(--mudo)">{compacto(v)}</text>
           </g>))}
-        <text x={ml} y={topoA - 3} fontSize={11} fill="var(--mudo)">Entradas × saídas por período</text>
-        <path d={linha((l) => l.entradas, yA)} fill="none" stroke="var(--g3)" strokeWidth={2.8} strokeLinejoin="round" strokeLinecap="round" />
-        <path d={linha((l) => l.saidas, yA)} fill="none" stroke="var(--g2)" strokeWidth={2.8} strokeLinejoin="round" strokeLinecap="round" />
+
+        {/* área do saldo: azul acima de zero, vermelha abaixo */}
+        {area && <g><g clipPath={`url(#${uid}pos)`}><path d={area} fill={`url(#${uid}gp)`} /></g><g clipPath={`url(#${uid}neg)`}><path d={area} fill={`url(#${uid}gn)`} /></g></g>}
+
+        {/* entradas e saídas: barras finas lado a lado */}
+        {linhas.map((l, i) => {
+          const ativo = hover === i
+          return (
+            <g key={`b${l.chave}`} opacity={hover == null || ativo ? 1 : 0.55}>
+              {l.entradas > 0 && <rect x={x(i) - bw - 1} y={y(l.entradas)} width={bw} height={Math.max(y0 - y(l.entradas), 1)} rx={Math.min(bw / 2, 3)} fill="var(--g3)" opacity={0.92} />}
+              {l.saidas > 0 && <rect x={x(i) + 1} y={y(l.saidas)} width={bw} height={Math.max(y0 - y(l.saidas), 1)} rx={Math.min(bw / 2, 3)} fill="var(--g2)" opacity={0.92} />}
+            </g>)
+        })}
+
+        {/* linha do zero */}
+        <line x1={ml} x2={W - mr} y1={y0} y2={y0} stroke={vMin < 0 ? 'var(--gred)' : 'var(--mudo)'} strokeWidth={1.4} opacity={0.9} />
+
+        {/* saldo acumulado: sólido até hoje, tracejado na projeção */}
+        {curva && tracos(false, `${uid}real`)}
+        {curva && temProj && tracos(true, `${uid}proj`)}
+
+        {/* pontos só onde importa: desencaixe, dia selecionado e hover */}
+        {linhas.map((l, i) => (l.desencaixe && (i === iDes || hover === i)) || hover === i || selecionada === l.chave
+          ? <circle key={`s${l.chave}`} cx={x(i)} cy={y(l.saldo)} r={hover === i ? 5.5 : 4.5} fill={l.saldo < 0 ? 'var(--gred)' : 'var(--g1)'} stroke="var(--card)" strokeWidth={2} />
+          : null)}
+        {iDes >= 0 && <g><line x1={x(iDes)} x2={x(iDes)} y1={y(linhas[iDes].saldo)} y2={base} stroke="var(--gred)" strokeDasharray="2 3" opacity={0.7} /><text x={x(iDes)} y={base - 6} textAnchor={iDes > n * 0.7 ? 'end' : 'start'} dx={iDes > n * 0.7 ? -5 : 5} fontSize={10.5} fontWeight={700} fill="var(--gred)">saldo negativo</text></g>}
+        {linhas.map((l, i) => l.saida_maior && <path key={`t${l.chave}`} d={`M${x(i) - 4},${base + 11} L${x(i) + 4},${base + 11} L${x(i)},${base + 3} Z`} fill="var(--gred)"><title>Saídas maiores que entradas</title></path>)}
+
+        {/* hoje */}
+        {iHoje >= 0 && <g><line x1={x(iHoje)} x2={x(iHoje)} y1={top} y2={base} stroke="var(--txt)" strokeDasharray="3 4" opacity={0.55} /><text x={x(iHoje)} y={top - 4} textAnchor="middle" fontSize={10.5} fontWeight={700} fill="var(--txt)">hoje</text></g>}
+
+        {/* cruzamento no dia: linha vertical ligando entradas, saídas e saldo */}
+        {h && hover != null && (
+          <g>
+            <line x1={x(hover)} x2={x(hover)} y1={top} y2={base} stroke="var(--mudo)" strokeDasharray="3 3" opacity={0.8} />
+            <circle cx={x(hover) - bw / 2 - 1} cy={y(h.entradas)} r={4} fill="var(--g3)" stroke="var(--card)" strokeWidth={2} />
+            <circle cx={x(hover) + bw / 2 + 1} cy={y(h.saidas)} r={4} fill="var(--g2)" stroke="var(--card)" strokeWidth={2} />
+          </g>)}
+
+        {/* eixo X: dia da semana + data */}
+        {linhas.map((l, i) => i % cada === 0 && (
+          <g key={`x${l.chave}`}>
+            {diario ? (
+              <>
+                <text x={x(i)} y={base + 28} textAnchor="middle" fontSize={11} fontWeight={700} fill={hover === i ? 'var(--txt)' : ['dom', 'sáb'].includes(diaSemana(l.de)) ? 'var(--g2)' : 'var(--mudo)'}>{diaSemana(l.de)}</text>
+                <text x={x(i)} y={base + 43} textAnchor="middle" fontSize={10.5} fill={hover === i ? 'var(--txt)' : 'var(--mudo)'}>{l.rotulo}</text>
+              </>
+            ) : <text x={x(i)} y={base + 30} textAnchor="middle" fontSize={11} fill={hover === i ? 'var(--txt)' : 'var(--mudo)'}>{l.rotulo}</text>}
+          </g>))}
+
+        {/* áreas de captura (clique e teclado) */}
         {linhas.map((l, i) => (
-          <g key={`p${l.chave}`}>
-            {n <= 45 && <circle cx={x(i)} cy={yA(l.entradas)} r={hover === i ? 5 : 3} fill="var(--g3)" stroke="var(--card)" strokeWidth={1.5} />}
-            {n <= 45 && <circle cx={x(i)} cy={yA(l.saidas)} r={hover === i ? 5 : 3} fill="var(--g2)" stroke="var(--card)" strokeWidth={1.5} />}
-            {l.saida_maior && <path d={`M${x(i) - 4},${topoA + altA + 12} L${x(i) + 4},${topoA + altA + 12} L${x(i)},${topoA + altA + 4} Z`} fill="var(--gred)"><title>Saídas maiores que entradas</title></path>}
-          </g>))}
-        {/* saldo acumulado */}
-        {[minB, minB + spanB / 2, maxB].map((v, k) => (
-          <g key={`b${k}`}>
-            <line x1={ml} x2={W - mr} y1={yB(v)} y2={yB(v)} stroke="var(--borda)" strokeDasharray="3 4" />
-            <text x={ml - 8} y={yB(v) + 4} textAnchor="end" fontSize={11} fill="var(--mudo)">{compacto(v)}</text>
-          </g>))}
-        <line x1={ml} x2={W - mr} y1={yB(0)} y2={yB(0)} stroke={minB < 0 ? 'var(--gred)' : 'var(--mudo)'} strokeWidth={1.4} />
-        <text x={ml} y={topoB - 6} fontSize={11} fill="var(--mudo)">Saldo acumulado (linha vermelha = zero)</text>
-        <path d={linha((l) => l.saldo, yB)} fill="none" stroke="var(--g1)" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
-        {linhas.map((l, i) => n <= 45 && <circle key={`s${l.chave}`} cx={x(i)} cy={yB(l.saldo)} r={hover === i || selecionada === l.chave ? 5.5 : 3} fill={l.desencaixe ? 'var(--gred)' : 'var(--g1)'} stroke="var(--card)" strokeWidth={1.5} />)}
-        {iHoje >= 0 && <g><line x1={x(iHoje)} x2={x(iHoje)} y1={topoA} y2={topoB + altB} stroke="var(--mudo)" strokeDasharray="2 3" /><text x={x(iHoje) + 4} y={topoA + 10} fontSize={10.5} fill="var(--mudo)">hoje</text></g>}
-        {hover != null && <line x1={x(hover)} x2={x(hover)} y1={topoA} y2={topoB + altB} stroke="var(--mudo)" strokeDasharray="3 3" opacity={0.7} />}
-        {linhas.map((l, i) => (
-          <g key={`h${l.chave}`}>
-            <rect x={ml + passo * i} y={topoA} width={passo} height={topoB + altB - topoA} fill="transparent" style={{ cursor: 'pointer' }} tabIndex={0} role="button"
-                  aria-label={`${l.rotulo}: entradas ${brl(l.entradas)}, saídas ${brl(l.saidas)}, saldo ${brl(l.saldo)}. Ver títulos`}
-                  onPointerEnter={() => setHover(i)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} onClick={() => onSel(l)} onKeyDown={(e) => { if (e.key === 'Enter') onSel(l) }} />
-            {i % cada === 0 && <text x={x(i)} y={H - 8} textAnchor="middle" fontSize={11} fill={hover === i ? 'var(--txt)' : 'var(--mudo)'}>{l.rotulo}</text>}
-          </g>))}
+          <rect key={`h${l.chave}`} x={ml + passo * i} y={top} width={passo} height={alt + 14} fill="transparent" style={{ cursor: 'pointer' }} tabIndex={0} role="button"
+                aria-label={`${rot(l)}: entradas ${brl(l.entradas)}, saídas ${brl(l.saidas)}, saldo ${brl(l.saldo)}. Ver títulos`}
+                onPointerEnter={() => setHover(i)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} onClick={() => onSel(l)} onKeyDown={(e) => { if (e.key === 'Enter') onSel(l) }} />))}
       </svg>
-      {h && (
-        <div className="gs-tip" role="tooltip" style={{ left: `${Math.min(62, (hover! / Math.max(n, 1)) * 100)}%`, top: 8 }}>
-          <span>{h.rotulo}{h.de !== h.ate && ` a ${dataBr(h.ate).slice(0, 5)}`}</span>
+      {h && hover != null && (
+        <div className="gs-tip" role="tooltip" style={{ left: `${(x(hover) / W) * 100}%`, top: 8, transform: hover > n / 2 ? 'translateX(calc(-100% - 14px))' : 'translateX(14px)' }}>
+          <span><strong style={{ color: 'var(--txt)' }}>{rot(h)}</strong>{h.ate >= hoje && h.de > hoje ? ' · projeção' : ''}</span>
           <b style={{ color: 'var(--g3)' }}>Entradas: {brl(h.entradas)}</b>
           <span>recebido {brl(h.entradas_real)} · a receber {brl(h.entradas_prev)}</span>
           <b style={{ color: 'var(--g2)' }}>Saídas: {brl(h.saidas)}</b>
           <span>pago {brl(h.saidas_real)} · a pagar {brl(h.saidas_prev)}</span>
-          <b>Saldo: {brl(h.saldo)}{h.desencaixe && ' ⚠ desencaixe'}</b>
-          <span>Clique para ver os títulos</span>
+          <b style={{ color: h.saldo < 0 ? 'var(--gred)' : 'var(--g1)' }}>Saldo acumulado: {brl(h.saldo)}{h.desencaixe && ' ⚠ desencaixe'}</b>
+          <span style={{ display: 'block' }}>Resultado do período: {brl(h.entradas - h.saidas)}</span>
+          <span style={{ display: 'block', opacity: 0.7 }}>Clique para ver os títulos</span>
         </div>)}
     </div>
   )
@@ -606,11 +694,11 @@ function AbaFinanceiro({ ctx }: { ctx: Contexto }) {
               <h2>Fluxo de caixa</h2>
               <Granularidade valor={gran} efetiva={f.granularidade} onMudar={setGran} />
             </div>
-            <div className="gs-leg"><span><i style={{ background: 'var(--g3)' }} />Entradas (recebido + a receber)</span><span><i style={{ background: 'var(--g2)' }} />Saídas (pago + a pagar)</span><span><i style={{ background: 'var(--g1)' }} />Saldo acumulado</span><span><i style={{ background: 'var(--gred)', opacity: 0.4 }} />Saldo negativo (desencaixe)</span></div>
+            <div className="gs-leg"><span><i style={{ background: 'var(--g3)' }} />Entradas (recebido + a receber)</span><span><i style={{ background: 'var(--g2)' }} />Saídas (pago + a pagar)</span><span><i style={{ background: 'var(--g1)', height: 3, borderRadius: 2, verticalAlign: 'middle' }} />Saldo acumulado</span><span><i style={{ background: 'repeating-linear-gradient(90deg,var(--g1) 0 4px,transparent 4px 7px)', height: 3, borderRadius: 2, verticalAlign: 'middle', width: 18 }} />Projeção até a data final</span><span><i style={{ background: 'var(--gred)', opacity: 0.6 }} />Saldo negativo (desencaixe)</span></div>
             {f.granularidade !== gran && <p className="gs-nota">Período longo: agrupei por {f.granularidade === 'semana' ? 'semana' : 'mês'} para o gráfico ficar legível.</p>}
             {f.linhas.length > 0 && <Fluxo linhas={f.linhas} hoje={f.hoje} selecionada={sel ? f.linhas.find((l) => l.de === sel.de && l.ate === sel.ate)?.chave ?? null : null}
               onSel={(l) => setSel({ de: l.de, ate: l.ate, lado: 'todos', status: 'todos', titulo: `Títulos de ${l.rotulo}${l.de !== l.ate ? ` a ${dataBr(l.ate).slice(0, 5)}` : ''}` })} />}
-            <p className="gs-nota">Clique num dia (ou semana/mês) para abrir a grade de títulos. Triângulo vermelho = dia em que as saídas superam as entradas.</p>
+            <p className="gs-nota">Tudo no mesmo eixo: barras = entradas e saídas do período; linha = saldo acumulado, tracejada a partir de hoje (projeção até a data final do filtro). Triângulo vermelho = dia em que as saídas superam as entradas. Clique num dia para abrir os títulos.</p>
           </section>
 
           <SaldoInicial key={`${f.saldo_inicial.valor}|${f.saldo_inicial.data}`} ctx={ctx} f={f} onSalvo={() => fin.recarregar()} />
