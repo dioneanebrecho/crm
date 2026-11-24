@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export type Papel = 'admin' | 'gestor' | 'suporte' | 'apresentadora' | 'expedicao' | 'financeiro' | 'leitura' | 'superadmin'
+export type Papel = 'admin' | 'gestor' | 'suporte' | 'apresentadora' | 'expedicao' | 'financeiro' | 'leitura' | 'rentabilidade' | 'superadmin'
 
 export interface Me {
   usuario: { id: string; nome: string; email: string; is_superadmin: boolean } | null
@@ -24,7 +24,13 @@ export interface PecaDetalhe {
 export interface UnidadeLinha {
   id: string; codigo: string; estado: string; local_id: string; local_nome: string; variacao_id: string; tamanho: string
   peca_id: string; peca_codigo: string; peca_nome: string; observacao: string | null; criado_em: string; total: number
+  custo: number | null; preco: number | null   // custo vem nulo para quem não tem a marcação de rentabilidade
 }
+export interface EstoqueAgrupado {
+  variacao_id: string; peca_id: string; peca_codigo: string; peca_nome: string; tamanho: string; qtd: number
+  preco: number | null; custo: number | null; valor_preco: number; valor_custo: number | null; total: number
+}
+export interface ResumoEstoque { estado: string; qtd: number; valor_custo: number | null; valor_preco: number; sem_custo: number | null }
 export interface ClienteLinha {
   id: string; nome: string | null; instagram_username: string | null; telefone: string | null; email: string | null
   observacao_interna: string | null; bloqueado_ate: string | null; anonimizado: boolean; criado_em: string; total: number
@@ -82,9 +88,14 @@ export const api = {
   criarUnidades: (empresa: string, variacao: string, local: string, quantidade: number, obs: string) =>
     rpc<{ id: string; codigo: string }[]>('criar_unidades', { p_empresa: empresa, p_variacao: variacao, p_local: local,
       p_quantidade: quantidade, p_observacao: nulo(obs) }),
-  unidades: (empresa: string, f: { busca: string; estado: string; local: string }, offset: number, limite = 50) =>
+  unidades: (empresa: string, f: { busca: string; estado: string; local: string }, offset: number, limite = 50, variacao?: string) =>
     rpc<UnidadeLinha[]>('listar_unidades', { p_empresa: empresa, p_busca: nulo(f.busca), p_estado: nulo(f.estado), p_local: nulo(f.local),
+      p_limite: limite, p_offset: offset, p_variacao: variacao ?? null }),
+  estoqueAgrupado: (empresa: string, f: { busca: string; estado: string; local: string }, offset: number, limite = 50) =>
+    rpc<EstoqueAgrupado[]>('listar_estoque_agrupado', { p_empresa: empresa, p_busca: nulo(f.busca), p_estado: nulo(f.estado), p_local: nulo(f.local),
       p_limite: limite, p_offset: offset }),
+  resumoEstoque: (empresa: string, f: { busca: string; estado: string; local: string }) =>
+    rpc<ResumoEstoque[]>('resumo_estoque', { p_empresa: empresa, p_busca: nulo(f.busca), p_estado: nulo(f.estado), p_local: nulo(f.local) }),
   clientes: (empresa: string, busca: string, offset: number, limite = 50) =>
     rpc<ClienteLinha[]>('listar_clientes', { p_empresa: empresa, p_busca: nulo(busca), p_limite: limite, p_offset: offset }),
   salvarCliente: (empresa: string, d: { id?: string; nome: string; instagram: string; telefone: string; email: string; obs: string }) =>
@@ -477,6 +488,21 @@ export interface GestaoFinanceiro {
 }
 export interface GestaoTitulo { lado: 'pagar' | 'receber'; id: string; status: 'aberto' | 'liquidado'; situacao: string; data: string; vencimento: string; valor: number; contato: string; origem: string; categoria: string | null; data_aproximada: boolean }
 export interface GestaoTitulos { ok: boolean; motivo?: string; de: string; ate: string; lado: string; status: string; qtd: number; total_pagar: number; total_receber: number; limite: number; itens: GestaoTitulo[] }
+export type GnBase = 'competencia' | 'vencimento' | 'caixa'
+export interface GnNo { codigo: string; nome: string; grau: number; analitico: boolean; sinal?: number; ativo?: boolean; reconhece_em?: string; tipo?: string }
+export interface GnDado { n: string; c: string; m: string; v: number; vp: number; q: number }
+export interface GestaoNatureza {
+  ok: boolean; motivo?: string; de: string; ate: string; base: GnBase; meses: string[]
+  naturezas: GnNo[]; crs: GnNo[]; dados: GnDado[]
+  sem_classificar: { lado: 'receber' | 'pagar'; m: string; v: number; q: number }[]
+  total: { titulos: number; valor: number }
+}
+export interface GnTitulo {
+  lado: 'receber' | 'pagar'; id: string; data: string; vencimento: string; situacao: string; contato: string; origem: string
+  valor_titulo: number; valor: number; percentual: number | null; natureza: string | null; natureza_nome: string | null
+  cr: string | null; cr_nome: string | null; estado: 'pendente' | 'aprovado' | null; classe: string | null
+}
+export interface GnTitulos { ok: boolean; qtd: number; valor: number; limite: number; itens: GnTitulo[] }
 export const apiGestao = {
   resumo: (empresa: string, de: string | null, ate: string | null, base: GestaoBase) => rpc<GestaoResumo>('gestao_resumo', { p_empresa: empresa, p_de: de, p_ate: ate, p_base: base }),
   serie: (empresa: string, de: string | null, ate: string | null, granularidade: 'dia' | 'semana' | 'mes', base: GestaoBase) =>
@@ -490,5 +516,10 @@ export const apiGestao = {
     rpc<GestaoFinanceiro>('gestao_financeiro', { p_empresa: empresa, p_de: de, p_ate: ate, p_granularidade: granularidade }),
   titulos: (empresa: string, de: string, ate: string, lado: 'todos' | 'pagar' | 'receber', status: 'todos' | 'aberto' | 'liquidado', limite = 300) =>
     rpc<GestaoTitulos>('gestao_titulos', { p_empresa: empresa, p_de: de, p_ate: ate, p_lado: lado, p_status: status, p_limite: limite }),
+  natureza: (empresa: string, de: string | null, ate: string | null, base: GnBase) =>
+    rpc<GestaoNatureza>('gestao_natureza', { p_empresa: empresa, p_de: de, p_ate: ate, p_base: base }),
+  naturezaTitulos: (empresa: string, de: string, ate: string, base: GnBase, natureza: string | null, cr: string | null, mes: string | null, classe: string | null, limite = 500) =>
+    rpc<GnTitulos>('gestao_natureza_titulos', { p_empresa: empresa, p_de: de, p_ate: ate, p_base: base, p_natureza: natureza, p_cr: cr, p_mes: mes, p_classe: classe, p_limite: limite }),
+  classificar: (empresa: string) => rpc<{ ok: boolean; classificados: number; sem_regra: number }>('classificar_apropriacoes', { p_empresa: empresa }),
   salvarSaldo: (empresa: string, valor: number | null, data: string | null) => rpc<{ ok: boolean }>('gestao_salvar_saldo', { p_empresa: empresa, p_valor: valor, p_data: data }),
 }

@@ -4,9 +4,10 @@ import {
   apiGestao, type FinCard, type GestaoBase, type GestaoCanalLinha, type GestaoFinanceiro, type GestaoFinLinha, type GestaoLinha,
   type GestaoLancamento, type GestaoResumo, type GestaoSerie, type GestaoTipo, type GestaoTitulo,
 } from '../api'
-import { Abas, Modal, useCarregar } from '../ui'
+import { Abas, Modal, useCarregar, Titulo } from '../ui'
 import PeriodoData from '../PeriodoData'
 import GradeDados, { type Coluna } from '../GradeDados'
+import AbaNatureza from './GestaoNatureza'
 
 // Painel de Gestão. Duas abas: Vendas (pedidos ou notas, por canal, com detalhe ao clicar) e Financeiro (a pagar/pagas,
 // a receber/recebidas, fluxo de caixa e saldo inicial por parâmetro). Os números vêm prontos do banco (api.gestao_*);
@@ -718,20 +719,21 @@ function AbaFinanceiro({ ctx }: { ctx: Contexto }) {
 }
 
 // ------------------------------------------------------------------ tela
-type Aba = 'vendas' | 'financeiro'
+type Aba = 'vendas' | 'financeiro' | 'natureza'
 export default function Gestao({ ctx }: { ctx: Contexto }) {
   const [aba, setAba] = useState<Aba>('vendas')
   const [visitouFin, setVisitouFin] = useState(false)
+  const [visitouNat, setVisitouNat] = useState(false)
   const [base, setBase] = useState<GestaoBase>(() => { try { return localStorage.getItem('ane.gestao.base') === 'nota' ? 'nota' : 'pedido' } catch { return 'pedido' } })
   const trocarBase = (b: GestaoBase) => { setBase(b); try { localStorage.setItem('ane.gestao.base', b) } catch { /* sem armazenamento */ } }
-  const abas: { id: Aba; rotulo: string }[] = ctx.veCusto ? [{ id: 'vendas', rotulo: 'Vendas' }, { id: 'financeiro', rotulo: 'Financeiro' }] : [{ id: 'vendas', rotulo: 'Vendas' }]
-  const mudar = (a: Aba) => { setAba(a); if (a === 'financeiro') setVisitouFin(true) }
+  const abas: { id: Aba; rotulo: string }[] = ctx.veFinanceiro ? [{ id: 'vendas', rotulo: 'Vendas' }, { id: 'financeiro', rotulo: 'Financeiro' }, { id: 'natureza', rotulo: 'Natureza e CR' }] : [{ id: 'vendas', rotulo: 'Vendas' }]
+  const mudar = (a: Aba) => { setAba(a); if (a === 'financeiro') setVisitouFin(true); if (a === 'natureza') setVisitouNat(true) }
 
   return (
     <div className="gs">
       <style>{CSS}</style>
       <div className="gs-topo">
-        <h1>Painel de Gestão</h1>
+        <Titulo>Painel de Gestão</Titulo>
         {aba === 'vendas' && (
           <div className="gs-base" data-ajuda="base">
             <span>Base das vendas</span>
@@ -743,7 +745,8 @@ export default function Gestao({ ctx }: { ctx: Contexto }) {
       </div>
       {abas.length > 1 && <Abas abas={abas} ativa={aba} onMudar={mudar} />}
       <div hidden={aba !== 'vendas'}><AbaVendas ctx={ctx} base={base} /></div>
-      {ctx.veCusto && (visitouFin || aba === 'financeiro') && <div hidden={aba !== 'financeiro'}><AbaFinanceiro ctx={ctx} /></div>}
+      {ctx.veFinanceiro && (visitouFin || aba === 'financeiro') && <div hidden={aba !== 'financeiro'}><AbaFinanceiro ctx={ctx} /></div>}
+      {ctx.veFinanceiro && (visitouNat || aba === 'natureza') && <div hidden={aba !== 'natureza'}><AbaNatureza ctx={ctx} /></div>}
     </div>
   )
 }
