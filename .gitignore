@@ -11,3 +11,7 @@ supabase/.branches/
 *.age
 
 vite.config.ts.timestamp-*
+
+# Gerados pelo ambiente local (não versionar)
+graphify-out/
+.claude/

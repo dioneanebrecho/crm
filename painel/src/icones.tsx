@@ -28,3 +28,4 @@ export const IGov = () => <Svg><circle cx="12" cy="12" r="9" /><circle cx="12" c
 export const IFaisca = () => <Svg><path d="M12 3l1.800 5.200L19 10l-5.200 1.800L12 17l-1.800-5.200L5 10l5.200-1.800L12 3z" /><path d="M18.500 16l.7 1.800 1.800.7-1.800.7-.7 1.800-.7-1.800-1.800-.7 1.800-.7.7-1.800z" /></Svg>
 
 export const IGestao = () => <Svg><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></Svg>
+export const IBusca = () => <Svg><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></Svg>

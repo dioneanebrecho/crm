@@ -29,9 +29,10 @@ import Natureza from './pages/Natureza'
 import CentroResultado from './pages/CentroResultado'
 import Faixa from './Faixa'
 import FaixaConfig from './pages/FaixaConfig'
+import BuscaRapida, { ATALHO_BUSCA } from './busca'
 import BotaoAjuda from './ajuda/Ajuda'
 import { TourProvider } from './ajuda/Tour'
-import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca, IGov, IGestao } from './icones'
+import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca, IGov, IGestao, IBusca } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
 import { lerDensidade, aplicarDensidade, type Densidade } from './densidade'
 import { AbaContexto, MINUTOS_PARA_ATUALIZAR, definirEmpresaEstado } from './abas'
@@ -54,27 +55,29 @@ const contexto = (empresa: string, papeis: Papel[], perm: Record<string, NivelTe
 })
 
 const MAX_ABAS = 8
-const GRUPOS = [{ rotulo: 'Catálogo' }, { rotulo: 'Relacionamento' }, { rotulo: 'Live' }, { rotulo: 'Inteligência' }, { rotulo: 'Financeiro' }, { rotulo: 'Configuração' }] as const
+const GRUPOS = [{ rotulo: 'Início' }, { rotulo: 'Compras e estoque' }, { rotulo: 'Preparar live' }, { rotulo: 'Live e vendas' }, { rotulo: 'Clientes e pós-venda' }, { rotulo: 'Financeiro' }, { rotulo: 'Cadastros' }, { rotulo: 'Configuração' }] as const
+// Menu na ordem do ciclo do negócio: comprar, estocar, preparar a live, vender, atender, receber e analisar.
+// Os ids não mudam (permissões e ajuda continuam valendo); só o grupo e a ordem.
 const ITENS = [
-  { id: 'pecas', rotulo: 'Peças', grupo: 'Catálogo', icone: <IPecas /> },
-  { id: 'entrada_compra', rotulo: 'Entrada de mercadoria', grupo: 'Catálogo', icone: <INota /> },
-  { id: 'grupos_produto', rotulo: 'Grupos de produto', grupo: 'Catálogo', icone: <IGrade /> },
-  { id: 'estoque', rotulo: 'Estoque', grupo: 'Catálogo', icone: <IEstoque /> },
-  { id: 'etiquetas', rotulo: 'Etiquetas', grupo: 'Catálogo', icone: <IEtiqueta /> },
-  { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Catálogo', icone: <IProdutos /> },
-  { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Catálogo', icone: <INota /> },
-  { id: 'clientes', rotulo: 'Clientes', grupo: 'Relacionamento', icone: <IClientes /> },
-  { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Relacionamento', icone: <IParceiros /> },
-  { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live', icone: <IMarca /> },
-  { id: 'agenda', rotulo: 'Agenda', grupo: 'Live', icone: <IAgenda /> },
-  { id: 'dashboards', rotulo: 'Painel de Gestão', grupo: 'Inteligência', icone: <IGestao /> },
-  { id: 'assistente', rotulo: 'Assistente', grupo: 'Inteligência', icone: <IFaisca /> },
+  { id: 'dashboards', rotulo: 'Painel de Gestão', grupo: 'Início', icone: <IGestao /> },
+  { id: 'assistente', rotulo: 'Assistente', grupo: 'Início', icone: <IFaisca /> },
+  { id: 'entrada_compra', rotulo: 'Entrada de mercadoria', grupo: 'Compras e estoque', icone: <INota /> },
+  { id: 'pecas', rotulo: 'Peças', grupo: 'Compras e estoque', icone: <IPecas /> },
+  { id: 'estoque', rotulo: 'Estoque', grupo: 'Compras e estoque', icone: <IEstoque /> },
+  { id: 'grupos_produto', rotulo: 'Grupos de produto', grupo: 'Compras e estoque', icone: <IGrade /> },
+  { id: 'agenda', rotulo: 'Agenda', grupo: 'Preparar live', icone: <IAgenda /> },
+  { id: 'etiquetas', rotulo: 'Etiquetas', grupo: 'Preparar live', icone: <IEtiqueta /> },
+  { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Preparar live', icone: <IAjustes /> },
+  { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live e vendas', icone: <IMarca /> },
+  { id: 'clientes', rotulo: 'Clientes', grupo: 'Clientes e pós-venda', icone: <IClientes /> },
   { id: 'naturezas', rotulo: 'Natureza financeira', grupo: 'Financeiro', icone: <IGestao /> },
   { id: 'centros_resultado', rotulo: 'Centro de resultado', grupo: 'Financeiro', icone: <ILocais /> },
-  { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Configuração', icone: <IGrade /> },
-  { id: 'locais', rotulo: 'Locais', grupo: 'Configuração', icone: <ILocais /> },
-  { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Configuração', icone: <IAjustes /> },
+  { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Cadastros', icone: <IParceiros /> },
+  { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Cadastros', icone: <IGrade /> },
+  { id: 'locais', rotulo: 'Locais', grupo: 'Cadastros', icone: <ILocais /> },
   { id: 'integracoes', rotulo: 'Integrações', grupo: 'Configuração', icone: <IIntegracoes /> },
+  { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Configuração', icone: <IProdutos /> },
+  { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Configuração', icone: <INota /> },
   { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <ILivro /> },
   { id: 'usuarios', rotulo: 'Usuários e acessos', grupo: 'Configuração', icone: <IClientes /> },
   { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IEscudo /> },
@@ -210,14 +213,23 @@ function Painel() {
   const [atalho, setAtalho] = useState<{ aba: string; q: string; n: number } | null>(null)
   const [tema, setTema] = useState<Tema>(lerTema)
   const [densidade, setDensidade] = useState<Densidade>(lerDensidade)
-  // grupos do menu recolhidos pelo título (lembrado no navegador); o item da tela aberta continua visível
-  const [fechados, setFechados] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('ane.menu.fechados') ?? '[]') } catch { return [] } })
-  const alternarGrupo = (g: string) => setFechados((f) => {
-    const n = f.includes(g) ? f.filter((x) => x !== g) : [...f, g]
-    try { localStorage.setItem('ane.menu.fechados', JSON.stringify(n)) } catch { /* sem armazenamento: só não lembra */ }
-    return n
-  })
-  useEffect(() => { location.hash = aba }, [aba])
+  // menu em acordeão: só o grupo da tela aberta fica expandido; clicar no título abre ou recolhe
+  const grupoDe = (id: string) => ITENS.find((i) => i.id === id)?.grupo ?? ''
+  const [aberto, setAberto] = useState<string>(() => grupoDe(aba))
+  const alternarGrupo = (g: string) => setAberto((a) => (a === g ? '' : g))
+  const [buscando, setBuscando] = useState(false)
+  useEffect(() => { location.hash = aba; setAberto(grupoDe(aba)) }, [aba])
+  // atalho da busca rápida: Ctrl/⌘ K em qualquer lugar; "/" quando não está digitando
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const alvo = e.target as HTMLElement | null
+      const digitando = !!alvo && (['INPUT', 'TEXTAREA', 'SELECT'].includes(alvo.tagName) || alvo.isContentEditable)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setBuscando(true) }
+      else if (e.key === '/' && !digitando && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setBuscando(true) }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
   useEffect(() => { if (atalho && atalho.aba !== aba) setAtalho(null) }, [aba, atalho])
   const abrir = (id: string, q?: string) => { setAtalho(q ? { aba: id, q, n: Date.now() } : null); ativar(id as Aba) }
   const [permMapa, setPermMapa] = useState<{ empresa: string; perm: Record<string, NivelTela> | null } | null>(null)
@@ -328,16 +340,17 @@ function Painel() {
       <aside className={menu ? 'lateral aberta' : 'lateral'}>
         <div className="lateral-marca"><span className="marca-icone"><IMarca /></span><span><strong>Ane Brechó</strong><small>CRM</small></span></div>
         <nav className="lateral-nav" aria-label="Navegação principal" data-ajuda="menu">
+          <button type="button" className="item busca-item" data-ajuda="busca" title={`Buscar tela ou funcionalidade (${ATALHO_BUSCA})`} onClick={() => { setBuscando(true); setMenu(false) }}><IBusca /><span>Buscar <kbd>{ATALHO_BUSCA}</kbd></span></button>
           {GRUPOS.map((g) => {
             const itens = visiveis.filter((i) => i.grupo === g.rotulo)
             if (itens.length === 0) return null
-            const fechado = fechados.includes(g.rotulo)
+            const fechado = aberto !== g.rotulo
             return (
               <div className={fechado ? 'grupo fechado' : 'grupo'} key={g.rotulo}>
                 <button type="button" className="grupo-rotulo" aria-expanded={!fechado} onClick={() => alternarGrupo(g.rotulo)}>
                   <span>{g.rotulo}</span><i className="seta"><IBaixo /></i>
                 </button>
-                {itens.filter((i) => !fechado || i.id === abaAtual).map((i) => (
+                {itens.map((i) => (
                   <button key={i.id} className={i.id === abaAtual ? 'item ativo' : 'item'} title={i.rotulo} aria-current={i.id === abaAtual ? 'page' : undefined} onClick={() => { ativar(i.id); setMenu(false) }}>{i.icone}<span>{i.rotulo}</span></button>
                 ))}
               </div>
@@ -346,6 +359,7 @@ function Painel() {
         </nav>
         <div className="lateral-rodape"><span>ZAYA.IT</span><span>PAINEL V0.5</span></div>
       </aside>
+      <BuscaRapida itens={visiveis as unknown as { id: string; rotulo: string; grupo: string; icone: React.ReactNode }[]} atual={abaAtual} aberto={buscando} onFechar={() => setBuscando(false)} onAbrir={(id) => ativar(id as Aba)} />
       {menu && <button className="cortina" aria-label="Fechar menu" onClick={() => setMenu(false)} />}
       <div className="principal">
         <header className="topbar">
@@ -357,6 +371,7 @@ function Painel() {
             : <div className="empresa-chip" data-ajuda="empresa"><small>EMPRESA</small><strong>{atual.nome}</strong></div>}
           <Faixa empresa={atual.id} />
           <div className="topbar-acoes">
+            <button className="sec icone-btn" onClick={() => setBuscando(true)} title={`Buscar tela ou funcionalidade (${ATALHO_BUSCA})`} aria-label="Buscar tela ou funcionalidade"><IBusca /></button>
             <button className="sec icone-btn" onClick={alternarDensidade} title={densidade === 'compacta' ? 'Modo compacto (mais linhas) — clique para o modo confortável' : 'Modo confortável — clique para o modo compacto'} aria-label="Alternar densidade" aria-pressed={densidade === 'compacta'}>{densidade === 'compacta' ? '▤' : '☰'}</button>
             <button className="sec icone-btn" data-ajuda="tema" onClick={alternarTema} title={tema === 'escuro' ? 'Tema Escuro — clique para o tema Ane (claro)' : tema === 'ane' ? 'Tema Ane (claro) — clique para o tema ZAgent' : 'Tema ZAgent — clique para o tema Escuro'} aria-label="Alternar tema">{tema === 'escuro' ? <ILua /> : tema === 'ane' ? <ITema /> : <IFaisca />}</button>
             <BotaoAjuda empresa={atual.id} tela={abaAtual} />

@@ -213,7 +213,7 @@ export default function EditorEtiqueta({ ctx, atual, onFechar, onSalvo }: { ctx:
   )
 }
 
-function ElementoVisual({ e, escala, dados, ativo, onIniciar }: { e: Elemento; escala: number; dados: Record<string, string>; ativo: boolean; onIniciar: (ev: React.PointerEvent, e: Elemento, m: Arrasto['modo']) => void }) {
+export function ElementoVisual({ e, escala, dados, ativo, onIniciar }: { e: Elemento; escala: number; dados: Record<string, string>; ativo: boolean; onIniciar: (ev: React.PointerEvent, e: Elemento, m: Arrasto['modo']) => void }) {
   const alt = e.tipo === 'linha' ? Math.max(e.h, e.espessura ?? 0.3) : e.tipo === 'texto' ? Math.max(e.h, ((e.tam_pt ?? 10) * 0.3528 * 1.15) * (e.linhas ?? 1)) : e.tipo === 'qr' ? e.w : e.h
   const estilo: React.CSSProperties = { left: e.x * escala, top: e.y * escala, width: e.w * escala, height: Math.max(alt * escala, 4), transform: e.rot ? `rotate(${e.rot}deg)` : undefined, transformOrigin: 'top left' }
   const valor = substituir(e.valor, dados)

@@ -16,6 +16,7 @@ export interface EntradaCab {
   fin_origem: 'xml' | 'manual' | 'sem_financeiro' | null; fin_motivo: string | null; fin_negociacao: string | null
   fin_natureza_id: string | null; fin_cr_id: string | null; fin_conferido: boolean
   margem_pct?: number | null; criado_em?: string; atualizado_em?: string; confirmada_em?: string | null
+  rateio_conferido?: boolean; rateio_conferido_por?: string | null; rateio_conferido_em?: string | null
 }
 export interface EntradaItem {
   id: string; seq: number; codigo_fornecedor: string | null; descricao: string; ncm: string | null; cfop: string | null
@@ -75,6 +76,7 @@ export const apiCompra = {
   simular: (empresa: string, id: string) => rpc<SimulacaoRegime[]>('compra_simular_regimes', { p_empresa: empresa, p_entrada: id }),
   salvarRubrica: (empresa: string, id: string, rubrica: string | null, descricao: string, valor: number, criterio: string) =>
     rpc<string>('compra_salvar_rubrica', { p_empresa: empresa, p_entrada: id, p_rubrica: rubrica, p_descricao: descricao, p_valor: valor, p_criterio: criterio }),
+  rateioConferir: (empresa: string, id: string, conferido: boolean) => rpc<void>('compra_rateio_conferir', { p_empresa: empresa, p_entrada: id, p_conferido: conferido }),
   rubricaFinanceiro: (empresa: string, id: string, rubrica: string, gera: boolean) => rpc<void>('compra_rubrica_financeiro', { p_empresa: empresa, p_entrada: id, p_rubrica: rubrica, p_gera: gera }),
   rubricaFinanceiroSalvar: (empresa: string, id: string, rubrica: string, dados: Record<string, unknown>) =>
     rpc<{ pendencia: string | null }>('compra_rubrica_financeiro_salvar', { p_empresa: empresa, p_entrada: id, p_rubrica: rubrica, p_dados: dados }),

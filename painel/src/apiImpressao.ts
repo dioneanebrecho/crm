@@ -38,8 +38,9 @@ export const apiImpressao = {
   etiquetas: (empresa: string, estado: string, busca: string, offset: number, limite: number) =>
     rpc<EtiquetaLinha[]>('listar_etiquetas', { p_empresa: empresa, p_estado: estado || null, p_busca: busca || null, p_limite: limite, p_offset: offset }),
   historico: (empresa: string, unidade: string) => rpc<HistoricoImpressao[]>('historico_impressao_etiqueta', { p_empresa: empresa, p_unidade: unidade }),
-  solicitar: (empresa: string, unidades: string[], impressora: string, copias: number, motivo: string | null, confirmar: boolean) =>
-    rpc<ResultadoSolicitacao>('solicitar_impressao_etiquetas', { p_empresa: empresa, p_unidades: unidades, p_impressora: impressora, p_copias: copias, p_motivo: motivo, p_confirmar_reimpressao: confirmar }),
+  solicitar: (empresa: string, unidades: string[], impressora: string, copias: number, motivo: string | null, confirmar: boolean, modelo: string | null = null) =>
+    rpc<ResultadoSolicitacao>('solicitar_impressao_etiquetas', { p_empresa: empresa, p_unidades: unidades, p_impressora: impressora, p_copias: copias, p_motivo: motivo, p_confirmar_reimpressao: confirmar, p_modelo: modelo }),
+  previa: (empresa: string, unidade: string) => rpc<import('./PreviaEtiqueta').DadosPrevia>('etiqueta_previa', { p_empresa: empresa, p_unidade: unidade }),
   teste: (empresa: string, impressora: string) => rpc<string>('solicitar_teste_impressao', { p_empresa: empresa, p_impressora: impressora }),
   fila: (empresa: string, status: string) => rpc<JobFila[]>('listar_fila_impressao', { p_empresa: empresa, p_status: status || null, p_limite: 100 }),
   cancelarJob: (empresa: string, job: string) => rpc<void>('cancelar_job_impressao', { p_empresa: empresa, p_job: job }),

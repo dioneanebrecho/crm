@@ -587,7 +587,7 @@ function Rateio({ ctx, d, editavel, acao }: { ctx: Contexto; d: EntradaDetalhe; 
   const fecha = e.diferenca === 0
   const NOME = REGIME
   return (
-    <Painel titulo="Rateio e custo" resumo={`${NOME[e.regime_sim]} · custo gerencial ${brl(d.resumo.custo_gerencial)} · custo fixo ${String(e.pct_custo_fixo).replace('.', ',')}% · ${d.rubricas.length} rubrica(s) · diferença ${brl(e.diferenca)}`}>
+    <Painel id="painel-rateio" titulo="Rateio e custo" status={e.rateio_conferido ? <span className="st ok">✓ conferido</span> : <span className="st pend">falta conferir</span>} resumo={`${NOME[e.regime_sim]} · custo gerencial ${brl(d.resumo.custo_gerencial)} · custo fixo ${String(e.pct_custo_fixo).replace('.', ',')}% · ${d.rubricas.length} rubrica(s) · diferença ${brl(e.diferenca)}`}>
       <div className="sub" style={{ marginBottom: '.3rem' }}>Regime (a escolha aqui é só simulação; confirmar a entrada grava o último regime usado como padrão)</div>
       <div className="reg">
         {(sim.dados ?? []).map((s: SimulacaoRegime) => (
@@ -618,6 +618,13 @@ function Rateio({ ctx, d, editavel, acao }: { ctx: Contexto; d: EntradaDetalhe; 
       <div className="lin"><span>Custo-base (soma das peças)</span><strong>{brl(d.resumo.base_custo)}</strong></div>
       <div className="lin"><span>Custo gerencial (é o que vale para a peça)</span><strong>{brl(d.resumo.custo_gerencial)}</strong></div>
       <div className={fecha ? 'dif ok' : 'dif x'}><span>Diferença para a nota</span><span>{brl(e.diferenca)}</span></div>
+      <div className="barra" style={{ marginTop: '.6rem', alignItems: 'center' }}>
+        {e.rateio_conferido
+          ? <><span className="st ok">✓ Rateio e custo conferidos{e.rateio_conferido_em ? ` em ${dh(e.rateio_conferido_em)}` : ''}{e.rateio_conferido_por ? ` por ${e.rateio_conferido_por}` : ''}</span>
+              {editavel && <button type="button" className="sec" onClick={() => void acao(() => apiCompra.rateioConferir(ctx.empresa, e.id, false), 'Conferência removida.')}>Desmarcar</button>}</>
+          : editavel && <button type="button" disabled={!fecha} title={fecha ? '' : 'A nota precisa fechar (diferença zero) para conferir'} onClick={() => void acao(() => apiCompra.rateioConferir(ctx.empresa, e.id, true), 'Rateio e custo conferidos.')}>Marcar rateio e custo como conferidos</button>}
+        {!e.rateio_conferido && !fecha && <span className="sub">A nota não fecha: diferença de {brl(e.diferenca)}.</span>}
+      </div>
     </Painel>
   )
 }
@@ -700,11 +707,12 @@ function PagamentosRubrica({ ctx, d, lancs, editavel, nats, crs, acao }: { ctx: 
   const [busca, setBusca] = useState<string | null>(null)
   const [achados, setAchados] = useState<ParceiroLinha[]>([])
   const [alvo, setAlvo] = useState<string | null>(null)
+  const [soForn, setSoForn] = useState(true)
   useEffect(() => {
     if (busca == null) return
-    const t = setTimeout(() => { apiParceiros.listar(ctx.empresa, { busca, papel: '', ativo: 'sim', tipo: '', minContatos: '', soRevisao: false }, 0, 20).then(setAchados).catch(() => setAchados([])) }, 250)
+    const t = setTimeout(() => { apiParceiros.listar(ctx.empresa, { busca, papel: soForn ? 'fornecedor' : '', ativo: 'sim', tipo: '', minContatos: '', soRevisao: false }, 0, 20).then(setAchados).catch(() => setAchados([])) }, 250)
     return () => clearTimeout(t)
-  }, [busca, ctx.empresa])
+  }, [busca, soForn, ctx.empresa])
   const salvar = (rid: string, dados: Record<string, unknown>) => acao(async () => { await apiCompra.rubricaFinanceiroSalvar(ctx.empresa, e.id, rid, dados) })
   return (
     <div style={{ marginTop: '.9rem' }}>
@@ -734,9 +742,10 @@ function PagamentosRubrica({ ctx, d, lancs, editavel, nats, crs, acao }: { ctx: 
       {busca != null && alvo && (
         <Modal titulo="Escolher parceiro" onFechar={() => { setBusca(null); setAlvo(null) }}>
           <input autoFocus value={busca} onChange={(x) => setBusca(x.target.value)} placeholder="Digite o nome do parceiro" style={{ width: '100%' }} />
+          <label style={{ display: 'block', marginTop: '.4rem' }}><input type="checkbox" checked={soForn} onChange={(x) => setSoForn(x.target.checked)} /> Mostrar só fornecedores (desmarque para ver clientes e funcionários também)</label>
           <div style={{ maxHeight: 280, overflow: 'auto', marginTop: '.5rem' }}>
-            {achados.length === 0 && <p className="sub">Nenhum parceiro encontrado.</p>}
-            {achados.map((a) => <div key={a.id} className="lin"><span>{a.nome}</span><button type="button" className="sec" onClick={() => { const r = alvo; setBusca(null); setAlvo(null); void salvar(r, { parceiro_id: a.id }) }}>Escolher</button></div>)}
+            {achados.length === 0 && <p className="sub">Nenhum parceiro encontrado{soForn ? ' entre os fornecedores. Se a transportadora ainda não está cadastrada, cadastre-a em Parceiros como fornecedor, ou desmarque o filtro acima' : ''}.</p>}
+            {achados.map((a) => <div key={a.id} className="lin"><span>{a.nome} <span className="sub">{(a.papeis ?? []).join(', ')}</span></span><button type="button" className="sec" onClick={() => { const r = alvo; setBusca(null); setAlvo(null); void salvar(r, { parceiro_id: a.id }) }}>Escolher</button></div>)}
           </div>
         </Modal>)}
     </div>
@@ -757,6 +766,7 @@ function Confirmar({ ctx, d, editavel, locais, onConfirmada, onErro }: {
     { ok: d.fornecedor_ok, texto: d.fornecedor_ok ? 'Fornecedor vinculado ao cadastro' : 'Vincule ou cadastre o fornecedor' },
     { ok: r.liberadas === r.linhas && r.linhas > 0, texto: `Peças revisadas e liberadas: ${r.liberadas} de ${r.linhas} linhas` },
     { ok: d.entrada.diferenca === 0, texto: `Nota fecha: diferença de ${brl(d.entrada.diferenca)}` },
+    { ok: !!d.entrada.rateio_conferido, texto: d.entrada.rateio_conferido ? 'Rateio e custo conferidos' : 'Confira o rateio e custo (painel Rateio e custo)' },
     { ok: d.pendencia_financeiro == null, texto: d.pendencia_financeiro ?? 'Financeiro conferido' },
     { ok: !!local, texto: local ? 'Local do estoque informado' : 'Informe o local do estoque onde as peças vão entrar' },
   ]

@@ -19,7 +19,7 @@ export interface Verbete {
   passos: PassoTour[]  // tutorial guiado da tela
 }
 
-export const VERSAO_DOC = '0.9.2'
+export const VERSAO_DOC = '0.9.3'
 export const ATUALIZADO_EM = '2026-11-24'
 
 // escopo da tela aberta (só o painel visível responde aos seletores)
@@ -421,7 +421,8 @@ export const AJUDA: Record<string, Verbete> = {
 // Tour de boas-vindas: roda uma vez por usuário, destacando a estrutura do painel.
 export const TOUR_BOAS_VINDAS: PassoTour[] = [
   { titulo: 'Bem-vinda(o) ao painel da Ane Brechó', texto: 'Um tour rápido de 30 segundos pela estrutura. Você pode pular a qualquer momento e reabrir pelo menu de Ajuda.' },
-  { alvo: '[data-ajuda="menu"]', titulo: 'Menu', texto: 'As telas ficam agrupadas por tema (Catálogo, Relacionamento, Live, Inteligência, Configuração). Clique num grupo para recolher.' },
+  { alvo: '[data-ajuda="menu"]', titulo: 'Menu', texto: 'As telas seguem o ciclo da operação: Compras e estoque, Preparar live, Live e vendas, Clientes e pós-venda, Financeiro, Cadastros e Configuração. Só o grupo da tela aberta fica expandido; clique no título de outro grupo para abri-lo.' },
+  { alvo: '[data-ajuda="busca"]', titulo: 'Busca rápida', texto: 'Não sabe em que grupo está a tela? Digite o que quer fazer (nota fiscal, etiqueta, fornecedor, rastreio) e abra direto. Atalho: Ctrl K (⌘ K no Mac) ou a tecla /.' },
   { alvo: '[data-ajuda="abas"]', titulo: 'Abas de trabalho', texto: 'Cada tela aberta vira uma aba aqui em cima. Troque entre elas sem perder os filtros.' },
   { alvo: '[data-ajuda="empresa"]', titulo: 'Empresa', texto: 'Tudo que você vê é da empresa selecionada aqui.' },
   { alvo: '[data-ajuda="tema"]', titulo: 'Tema', texto: 'Alterne entre o tema escuro e o tema claro com as cores da Ane Brechó.' },

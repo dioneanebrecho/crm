@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Abas, Busca, Campo, Formulario, Modal, Paginacao, useCarregar, Vazio, Titulo } from '../ui'
 import { useEstadoTela } from '../abas'
 import { apiImpressao, type EtiquetaLinha, type Impressora, type JaImpressa, type Modelo } from '../apiImpressao'
 import type { Contexto } from '../App'
 import EditorEtiqueta from '../EditorEtiqueta'
+import { PreviaEtiqueta, type DadosPrevia } from '../PreviaEtiqueta'
+
+// Lembra a última impressora e o último modelo usados neste navegador (por empresa). Nunca quebra a tela se o navegador bloquear o armazenamento.
+const lembrar = (chave: string, valor?: string): string | null => {
+  try { if (valor !== undefined) { localStorage.setItem(chave, valor); return valor } return localStorage.getItem(chave) } catch { return null }
+}
 
 type Aba = 'etiquetas' | 'fila' | 'impressoras' | 'modelos' | 'agentes'
 const LIMITE = 50
@@ -145,16 +151,36 @@ export function ModalHistorico({ ctx, etiqueta, onFechar }: { ctx: Contexto; eti
 
 export function ModalImprimir({ ctx, unidades, onFechar, onConcluido }: { ctx: Contexto; unidades: string[]; onFechar: () => void; onConcluido: () => void }) {
   const imps = useCarregar(() => apiImpressao.impressoras(ctx.empresa), [ctx.empresa])
+  const mods = useCarregar(() => apiImpressao.modelos(ctx.empresa), [ctx.empresa])
   const [imp, setImp] = useState('')
+  const [modEsc, setModEsc] = useState('')
+  const [pos, setPos] = useState(0)
+  const [dadosPrev, setDadosPrev] = useState<DadosPrevia | null>(null)
+  const [erroPrev, setErroPrev] = useState<string | null>(null)
   const [copias, setCopias] = useState('1')
   const [motivo, setMotivo] = useState('')
   const [jaImpressas, setJa] = useState<JaImpressa[] | null>(null)
   const [pronto, setPronto] = useState<string | null>(null)
   const ativas = (imps.dados ?? []).filter((i) => i.ativa)
-  const escolhida = imp || ativas[0]?.id || ''
+  const modelosAtivos = (mods.dados ?? []).filter((m) => m.ativo)
+  const ultimaImp = lembrar(`etq_impressora_${ctx.empresa}`)
+  const escolhida = imp || (ativas.find((i) => i.id === ultimaImp) ?? ativas[0])?.id || ''
+  const impSel = ativas.find((i) => i.id === escolhida)
+  const ultimoMod = lembrar(`etq_modelo_${ctx.empresa}`)
+  const modeloId = modEsc
+    || (modelosAtivos.find((m) => m.id === ultimoMod) ?? modelosAtivos.find((m) => m.id === impSel?.modelo_id) ?? modelosAtivos.find((m) => m.padrao) ?? modelosAtivos[0])?.id || ''
+  const modelo = modelosAtivos.find((m) => m.id === modeloId) ?? null
+  const unidadePrev = unidades[Math.min(pos, unidades.length - 1)]
+  useEffect(() => {
+    let vivo = true
+    setErroPrev(null)
+    apiImpressao.previa(ctx.empresa, unidadePrev).then((d) => { if (vivo) setDadosPrev(d) }).catch((e) => { if (vivo) { setDadosPrev(null); setErroPrev((e as Error).message) } })
+    return () => { vivo = false }
+  }, [ctx.empresa, unidadePrev])
 
   async function enviar(confirmar: boolean) {
-    const r = await apiImpressao.solicitar(ctx.empresa, unidades, escolhida, Number(copias), confirmar ? motivo : null, confirmar)
+    const r = await apiImpressao.solicitar(ctx.empresa, unidades, escolhida, Number(copias), confirmar ? motivo : null, confirmar, modeloId || null)
+    if (r.ok) { lembrar(`etq_impressora_${ctx.empresa}`, escolhida); if (modeloId) lembrar(`etq_modelo_${ctx.empresa}`, modeloId) }
     if (r.ok) setPronto(`${r.enfileiradas} etiqueta(s) na fila${r.reimpressoes ? `, sendo ${r.reimpressoes} reimpressão(ões)` : ''}. O agente da impressora envia em instantes.`)
     else setJa(r.ja_impressas)
   }
@@ -177,12 +203,32 @@ export function ModalImprimir({ ctx, unidades, onFechar, onConcluido }: { ctx: C
     )
   }
   return (
-    <Modal titulo={`Imprimir ${unidades.length} etiqueta(s)`} onFechar={onFechar}>
+    <Modal titulo={`Imprimir ${unidades.length} etiqueta(s)`} larga onFechar={onFechar}>
       {imps.erro && <div className="erro">{imps.erro}</div>}
       {imps.dados && ativas.length === 0 && <div className="erro">Cadastre uma impressora na aba Impressoras antes de imprimir.</div>}
       <Formulario enviarRotulo="Enviar para a fila" onCancelar={onFechar} onEnviar={async () => { if (!escolhida) throw new Error('Escolha uma impressora.'); await enviar(false) }}>
         <Campo rotulo="Impressora"><select value={escolhida} onChange={(e) => setImp(e.target.value)}>{ativas.map((i) => <option key={i.id} value={i.id}>{i.nome}{i.setor ? ` · ${i.setor}` : ''}</option>)}</select></Campo>
+        <Campo rotulo="Modelo (layout) da etiqueta" dica="Fica salvo como o último usado neste computador.">
+          <select value={modeloId} onChange={(e) => setModEsc(e.target.value)}>
+            {modelosAtivos.length === 0 && <option value="">Padrão 60×40</option>}
+            {modelosAtivos.map((m) => <option key={m.id} value={m.id}>{m.nome} · {m.largura_mm}×{m.altura_mm} mm{m.padrao ? ' (padrão)' : ''}</option>)}
+          </select>
+        </Campo>
         <Campo rotulo="Cópias de cada etiqueta"><input type="number" min={1} max={5} value={copias} onChange={(e) => setCopias(e.target.value)} /></Campo>
+        <div>
+          <strong>Prévia</strong>
+          {unidades.length > 1 && (
+            <span style={{ marginLeft: '.6rem' }}>
+              <button type="button" className="sec" disabled={pos === 0} onClick={() => setPos(pos - 1)} aria-label="Etiqueta anterior">‹</button>
+              {' '}{pos + 1} de {unidades.length}{' '}
+              <button type="button" className="sec" disabled={pos >= unidades.length - 1} onClick={() => setPos(pos + 1)} aria-label="Próxima etiqueta">›</button>
+            </span>)}
+          {erroPrev && <div className="erro">{erroPrev}</div>}
+          <div className="editor-area" style={{ marginTop: '.4rem' }}>
+            {modelo && dadosPrev ? <PreviaEtiqueta modelo={modelo} dados={dadosPrev} /> : !erroPrev && <p className="sub">{modelo ? 'Carregando a prévia…' : 'Sem modelo cadastrado: será usado o padrão 60×40 mm.'}</p>}
+            <small className="mudo">{modelo ? `${modelo.largura_mm} × ${modelo.altura_mm} mm. ` : ''}Dados reais da peça. A impressora usa as fontes internas dela, então o tamanho das letras pode variar um pouco.</small>
+          </div>
+        </div>
       </Formulario>
     </Modal>
   )
