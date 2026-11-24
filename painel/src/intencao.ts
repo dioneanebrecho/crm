@@ -14,6 +14,8 @@ export type Intencao =
   | { tipo: 'comparativo'; periodos: PeriodoComparado[]; opcoes: Opcao[]; grafico?: true; entendimento?: string }
   // pergunta de número sem ferramenta que a responda (ex.: margem, lucro, por cidade): resposta honesta, nunca RAG.
   | { tipo: 'indisponivel'; motivo: string; entendimento?: string; sugestao?: string; consultaConhecimento?: string }
+  // margem bruta de um período (api.assistente_margem); a resposta traz cobertura e aviso do custo atual
+  | { tipo: 'margem'; de: string | null; ate: string | null; rotulo: string; assumido?: string; opcoes?: Opcao[]; entendimento?: string }
   | { tipo: 'documentos' }
 
 const RE_ARROBA = /(?<![\w.@])@([A-Za-z0-9._]{2,30})/
@@ -195,6 +197,26 @@ function esclarecerSemana(t: string, h: Date, graf: { grafico?: true }): Intenca
 
 const RE_ULTIMAS = /\b[uú]ltim[ao]s?\s+(?:\d+\s+)?(nota|notas|venda|vendas|nf|nfe)\b/i
 
+// Margem sem IA (modo básico): "margem bruta do mês passado" vira dado; "como a margem é calculada?" segue para documentos;
+// margem de contribuição/líquida ainda não é calculável (frete, comissão, taxas e imposto não vêm do Bling).
+const RE_MARGEM = /\bmarg\w*/i
+const RE_MARGEM_REGRA = /\b(como|regra|pol[ií]tica|m[ií]nim\w*|defini\w*|calcul\w*|f[oó]rmula|configur\w*|funciona)\b/i
+const RE_MARGEM_COMPLETA = /\b(contribui\w*|l[ií]quid\w*|rentabilid\w*|ebitda|operacional)\b/i
+function classificarMargem(t: string, hoje: Date): Intencao | null {
+  if (!RE_MARGEM.test(t) || RE_MARGEM_REGRA.test(t)) return null
+  if (RE_MARGEM_COMPLETA.test(t)) {
+    return { tipo: 'indisponivel', motivo: 'A margem de contribuição depende de frete, comissão, repasse ao consignante, taxas de pagamento e imposto, que o Bling não registra nos pedidos e ainda não foram carregados; hoje só calculo a margem bruta (preço − custo atual do produto).', sugestao: 'margem bruta do mês passado' }
+  }
+  const per = resolverPeriodo(t, hoje)
+  if (per) return { tipo: 'margem', ...per }
+  if (!/\b(qual|quanto|quanta|total|apurad\w*)\b/i.test(t)) return null
+  const h = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()), ini = soma(h, -29)
+  return {
+    tipo: 'margem', de: ymd(ini), ate: ymd(h), rotulo: `Últimos 30 dias (${br(ini)} a ${br(h)})`,
+    assumido: `Você não informou o período, então calculei os últimos 30 dias (${br(ini)} a ${br(h)}).`, opcoes: opcoesPeriodo(t),
+  }
+}
+
 function opcoesPeriodo(pergunta: string): Opcao[] {
   const b = base(pergunta)
   return [
@@ -211,6 +233,8 @@ export function classificar(pergunta: string, hoje: Date = new Date()): Intencao
   const h = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
   const a = t.match(RE_ARROBA)
   if (a) return { tipo: 'cliente', termo: a[1] }
+  const mg = classificarMargem(t, hoje)
+  if (mg) return mg
   if (RE_VENDA.test(t)) {
     const m = t.match(RE_CLIENTE2) ?? t.match(RE_CLIENTE)
     const nome = m && !RE_PERIODO_INICIO.test(m[1].trim()) ? limpa(m[1]) : ''
@@ -274,7 +298,7 @@ export function entender(pergunta: string, ctx: ContextoDados | null, hoje: Date
 
 // ---- Interpretação por IA (Edge Function assistente-ia): a ficha já vem validada pelo servidor; aqui vira a Intencao que o painel executa.
 export interface FichaIA {
-  intencao: 'vendas' | 'cliente' | 'documentos' | 'esclarecer' | 'comparativo' | 'indisponivel'; entendimento: string
+  intencao: 'vendas' | 'cliente' | 'documentos' | 'esclarecer' | 'comparativo' | 'margem' | 'indisponivel'; entendimento: string
   cliente_termo?: string
   periodo?: { de: string; ate: string; rotulo: string } | null; todo_periodo?: boolean; periodo_assumido?: boolean
   dimensao?: Dimensao | null; metrica?: Metrica | null; tipo_grafico?: TipoPedido | null; mostrar_grafico?: boolean; limite?: number | null
@@ -288,6 +312,13 @@ export function deFichaIA(f: FichaIA, pergunta: string): (Intencao & { entendime
   if (f.intencao === 'documentos') return { tipo: 'documentos' }
   if (f.intencao === 'indisponivel') {
     return { tipo: 'indisponivel', motivo: f.lacuna || 'Ainda não consigo calcular isso com os dados disponíveis.', entendimento, sugestao: f.sugestao || undefined, consultaConhecimento: f.consulta_conhecimento || undefined }
+  }
+  if (f.intencao === 'margem') {
+    const per = f.periodo
+    const rotulo = per ? `${per.rotulo} (${fmtIso(per.de)} a ${fmtIso(per.ate)})` : 'Todo o período carregado'
+    const base: Intencao = { tipo: 'margem', de: per ? per.de : null, ate: per ? per.ate : null, rotulo, entendimento }
+    if (f.periodo_assumido && per) return { ...base, assumido: `Você não informou o período, então calculei ${per.rotulo.toLowerCase()} (${fmtIso(per.de)} a ${fmtIso(per.ate)}).`, opcoes: opcoesPeriodo(pergunta) }
+    return base
   }
   if (f.intencao === 'cliente') return f.cliente_termo ? { tipo: 'cliente', termo: f.cliente_termo, entendimento } : null
   if (f.intencao === 'esclarecer' && f.esclarecimento) {

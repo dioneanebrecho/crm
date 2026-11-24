@@ -313,6 +313,12 @@ export interface VendasPeriodo {
   base_ate: string | null; base_pedidos: number; primeira_data: string | null; contas_desde: string | null; carga_em_andamento: boolean
   pedidos: PedidoPeriodo[]
 }
+// Margem bruta (migration 0060): valores nulos para quem não é admin/gestor/financeiro; cobertura = pedidos do período que já têm os itens lidos.
+export interface MargemBruta {
+  ok: boolean; ve_valores: boolean; de: string | null; ate: string | null
+  receita_itens: number | null; custo_total: number | null; margem_bruta: number | null; margem_pct: number | null
+  pedidos_validos_no_periodo: number; pedidos_com_itens: number; cobertura_pct: number; cobertura_baixa: boolean; itens_sem_custo: number; aviso: string
+}
 export interface PedidosDetalhe { ok: boolean; motivo?: string; ve_valores: boolean; qtd: number; valor_total: number | null; pedidos: PedidoPeriodo[] }
 export interface LinhaSerieVendas { chave: string; rotulo: string; qtd: number; valor: number | null; qtd_sem_valor?: number; de?: string; ate?: string; outros?: boolean; valida?: boolean }
 export interface SerieVendas {
@@ -341,6 +347,8 @@ export const apiAssistenteDados = {
     rpc<SerieVendas>('assistente_serie_vendas', { p_empresa: empresa, p_de: de, p_ate: ate, p_dimensao: dimensao, p_limite: limite }),
   pedidosDetalhe: (empresa: string, de: string | null, ate: string | null, filtro: string | null, valor: string | null, limite = 30) =>
     rpc<PedidosDetalhe>('assistente_pedidos_detalhe', { p_empresa: empresa, p_de: de, p_ate: ate, p_filtro: filtro, p_valor: valor, p_limite: limite }),
+  margem: (empresa: string, de: string | null, ate: string | null) =>
+    rpc<MargemBruta>('assistente_margem', { p_empresa: empresa, p_de: de, p_ate: ate }),
   notasPeriodo: (empresa: string, de: string | null, ate: string | null, limite = 10) =>
     rpc<NotasPeriodo>('assistente_notas_periodo', { p_empresa: empresa, p_de: de, p_ate: ate, p_limite: limite }),
   vendasCliente: (empresa: string, busca: string) => rpc<VendasCliente>('assistente_vendas_cliente', { p_empresa: empresa, p_busca: busca, p_limite: 10 }),

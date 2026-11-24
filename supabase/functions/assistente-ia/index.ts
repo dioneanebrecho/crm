@@ -11,7 +11,7 @@ const BASE_OK = /^https:\/\/(generativelanguage|aiplatform)\.googleapis\.com(\/[
 const DIMS = ['dia', 'semana', 'mes', 'cliente', 'situacao', 'recebimento']
 const METRICAS = ['valor', 'qtd', 'ticket']
 const TIPOS = ['coluna', 'barra', 'linha', 'area', 'pizza', 'rosca', 'waterfall', 'funil', 'pareto', 'calor', 'dispersao']
-const INTENCOES = ['vendas', 'cliente', 'documentos', 'esclarecer', 'comparativo', 'indisponivel']
+const INTENCOES = ['vendas', 'cliente', 'documentos', 'esclarecer', 'comparativo', 'margem', 'indisponivel']
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const txt = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n) : '')
 
@@ -93,6 +93,14 @@ function validarFicha(f: any, hoje: string) {
     if (!q || ops.length < 2) return null
     out.esclarecimento = { pergunta: q, opcoes: ops }
   }
+  // "margem": margem bruta de um período (api.assistente_margem, migration 0060). O período segue as mesmas regras de "vendas".
+  if (f.intencao === 'margem') {
+    out.periodo = f.periodo === null || f.periodo === undefined ? null : periodoValido(f.periodo, hoje)
+    if (f.periodo && !out.periodo) return null
+    out.todo_periodo = f.todo_periodo === true && !out.periodo
+    out.periodo_assumido = f.periodo_assumido === true
+    if (!out.periodo && !out.todo_periodo) out.periodo_assumido = true
+  }
   // "indisponivel": é pergunta de número, mas nenhuma ferramenta responde a métrica/dimensão pedida.
   // Nunca vira "documentos": o painel mostra a resposta honesta (lacuna) e, se houver, a regra relacionada como contexto.
   if (f.intencao === 'indisponivel') {
@@ -112,16 +120,17 @@ Os dados de vendas são PEDIDOS DE VENDA do Bling (com situação, cliente, valo
 PRINCÍPIO CENTRAL — a intenção vence a palavra-chave: classifique pelo que a pessoa QUER, não pelo assunto que a frase menciona.
 - Se pede um NÚMERO / APURAÇÃO (quanto, qual o total, quantos, ranking, "apurada", "do mês passado", "por cliente/mês/cidade/categoria", ticket, faturamento, margem, lucro, rentabilidade) => é intenção de DADO ("vendas", "cliente", "comparativo" ou "indisponivel"), NUNCA "documentos", mesmo que o termo também apareça numa regra.
 - Se pede COMO FUNCIONA / POLÍTICA / DEFINIÇÃO (como funciona, qual a regra, quanto tempo dura a reserva, o que acontece se, posso, está dentro da política) => "documentos".
-- Exemplo decisivo: "qual a margem de contribuição apurada no mês passado" => é DADO (ela quer o VALOR do período), e como ainda não há ferramenta de margem, use "indisponivel"; JAMAIS "documentos". Já "como a margem é calculada?" ou "qual a margem mínima da gestão?" => "documentos".
+- Exemplos decisivos: "qual a margem bruta do mês passado" ou "qual foi a margem de outubro" => "margem" (ela quer o VALOR do período: preço − custo dos itens vendidos). "qual a margem de contribuição apurada no mês passado" => é DADO, mas a margem de contribuição ainda não é calculável: use "indisponivel"; JAMAIS "documentos". Já "como a margem é calculada?" ou "qual a margem mínima da gestão?" => "documentos".
 
 Campos:
-- intencao: "vendas" (números de vendas por período/agrupamento/ranking/gráfico), "cliente" (vendas de UM cliente citado por @instagram ou nome), "comparativo" (comparar 2+ períodos), "documentos" (regras, processos, políticas, "como fazer"), "esclarecer" (pergunta ambígua), "indisponivel" (ver abaixo).
-- Use "indisponivel" quando a pergunta é de DADO/número mas NENHUMA ferramenta responde a métrica ou a dimensão pedida. Hoje as ferramentas respondem APENAS: métrica valor/qtd/ticket; dimensão dia/semana/mes/cliente/situacao/recebimento. Ainda NÃO existe ferramenta para: margem, margem de contribuição, lucro, rentabilidade, custo; nem para as dimensões cidade, categoria, marca, fornecedor/consignante. Pergunta de número sobre qualquer um desses => "indisponivel" (nunca "documentos", nunca invente que é "vendas").
+- intencao: "vendas" (números de vendas por período/agrupamento/ranking/gráfico), "margem" (margem bruta de um período: receita dos itens vendidos − custo dos produtos), "cliente" (vendas de UM cliente citado por @instagram ou nome), "comparativo" (comparar 2+ períodos), "documentos" (regras, processos, políticas, "como fazer"), "esclarecer" (pergunta ambígua), "indisponivel" (ver abaixo).
+- Use "indisponivel" quando a pergunta é de DADO/número mas NENHUMA ferramenta responde a métrica ou a dimensão pedida. Hoje as ferramentas respondem APENAS: métrica valor/qtd/ticket; dimensão dia/semana/mes/cliente/situacao/recebimento; e a MARGEM BRUTA de um período (intenção "margem"). Ainda NÃO existe ferramenta para: margem de contribuição, lucro líquido, rentabilidade (exigem frete, comissão, taxas e imposto); custo por produto; nem para as dimensões cidade, categoria, marca, fornecedor/consignante. Pergunta de número sobre qualquer um desses => "indisponivel" (nunca "documentos", nunca invente que é "vendas").
 - entendimento: uma frase curta em português dizendo como você entendeu o pedido (ex.: "Top 10 clientes por valor vendido, nos últimos 6 meses").
 - Para "vendas": periodo {de, ate, rotulo} em AAAA-MM-DD (use a data de hoje informada para calcular "últimos N meses/dias", "mês passado", "este ano" etc.; "últimos 6 meses" = de 6 meses atrás +1 dia até hoje); todo_periodo (true se pediu tudo/histórico completo); periodo_assumido (true se a pessoa NÃO informou período: então use periodo = últimos 30 dias); dimensao: "dia"|"semana"|"mes"|"cliente"|"situacao"|"recebimento"|null ("top/maiores clientes", "por cliente" => "cliente"; evolução/por mês => "mes" ou "dia"; "pagos/recebidos/em aberto" => "recebimento"; "cancelados/situação" => "situacao"); metrica: "valor"|"qtd"|"ticket"|null; limite (quantos itens num ranking, ex.: top 10 => 10; sem número e ranking => 10); tipo_grafico: "coluna"|"barra"|"linha"|"area"|"pizza"|"rosca"|"waterfall"|"funil"|"pareto"|"calor"|"dispersao"|null (só se a pessoa pediu um tipo); mostrar_grafico (true se pediu gráfico, ranking, evolução ou distribuição; false para um total simples).
 - Para "cliente": cliente_termo (o @ sem o @, ou o nome).
 - Para "comparativo": periodos [ {de, ate, rotulo}, ... ] (2 a 6).
-- Para "indisponivel": lacuna (UMA frase honesta do que falta para calcular, sem prometer o número — ex.: "A margem de contribuição completa depende das despesas variáveis (comissão, repasse ao consignante, taxas de pagamento) que ainda não estão carregadas; só a margem bruta (preço − custo) seria calculável, e ainda não há ferramenta para ela."; para dimensão ausente: "A venda por cidade ainda não está disponível: as ferramentas de venda não têm essa dimensão."); consulta_conhecimento (texto curto para o sistema buscar a regra relacionada, se existir — ex.: "margem mínima precificação"); sugestao (opcional: a pergunta de dado MAIS PRÓXIMA que o sistema JÁ responde hoje, ex.: "total de vendas do mês passado").
+- Para "margem": periodo {de, ate, rotulo} em AAAA-MM-DD, todo_periodo e periodo_assumido exatamente como em "vendas" (sem período informado: últimos 30 dias, com periodo_assumido true).
+- Para "indisponivel": lacuna (UMA frase honesta do que falta para calcular, sem prometer o número — ex.: "A margem de contribuição depende de frete, comissão, repasse ao consignante, taxas de pagamento e imposto, que o Bling não registra nos pedidos e ainda não foram carregados; hoje só calculo a margem bruta (preço − custo atual do produto).", com sugestao "margem bruta do mês passado"; para dimensão ausente: "A venda por cidade ainda não está disponível: as ferramentas de venda não têm essa dimensão."); consulta_conhecimento (texto curto para o sistema buscar a regra relacionada, se existir — ex.: "margem mínima precificação"); sugestao (opcional: a pergunta de dado MAIS PRÓXIMA que o sistema JÁ responde hoje, ex.: "total de vendas do mês passado").
 - Para "esclarecer": esclarecimento {pergunta, opcoes:[{rotulo, pergunta_completa}, ...]} com 2 a 4 opções, cada pergunta_completa já pronta para ser enviada. Use quando a pessoa disser "última semana" (pergunte: últimos 7 dias ou semana passada de segunda a domingo) ou quando faltar algo essencial que você não pode assumir.
 Nunca invente cliente, número ou período que a pessoa não pediu.`
 

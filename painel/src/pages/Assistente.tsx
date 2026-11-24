@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { paraTrecho, resumir } from '../textoLimpo'
-import { apiConhecimento as api, apiAssistenteDados, apiAssistenteIA, apiConversas, type AchadoConhecimento, type VendasCliente, type ClienteVendas, type VendasPeriodo, type Recebimento } from '../api'
+import { apiConhecimento as api, apiAssistenteDados, apiAssistenteIA, apiConversas, type AchadoConhecimento, type VendasCliente, type ClienteVendas, type VendasPeriodo, type Recebimento, type MargemBruta } from '../api'
 import { entender, deFichaIA, pareceDado, type Intencao, type Opcao, type PeriodoComparado } from '../intencao'
 import { Vazio, useCarregar } from '../ui'
 import { NOME_TELA, acharReferencias, quando, type Referencia } from '../referencias'
@@ -13,6 +13,7 @@ const EXEMPLOS = [
   'Quais as vendas do cliente @deboraclemente?',
   'Qual foi a última nota emitida?',
   'Total de vendas do mês passado',
+  'Qual a margem bruta do mês passado?',
   'Quanto tempo posso deixar um pedido pago sem nota?',
   'O que fazer com cliente que não responde ao link de pagamento?',
   'Como tratar pedido faturado e ainda não expedido?',
@@ -23,6 +24,7 @@ interface Resposta {
   assumido?: string; opcoes?: Opcao[]; esclarecer?: { pergunta: string; opcoes: Opcao[] }; comparativo?: { periodos: PeriodoComparado[]; opcoes: Opcao[] }; grafico?: boolean
   graf?: { de: string | null; ate: string | null; rotulo: string; dimensao?: Dimensao; metrica?: Metrica; tipo?: TipoPedido; limite?: number }
   indispo?: { motivo: string; sugestao?: string; regra?: { titulo: string; trecho: string } }
+  margem?: MargemBruta
 }
 
 // Sugestões clicáveis: "enviar" executa a pergunta; "preencher" coloca no campo para a pessoa completar.
@@ -77,6 +79,24 @@ function ResumoVendas({ n, rotulo, semTabela }: { n: VendasPeriodo; rotulo: stri
         Base: {n.base_pedidos} pedidos de venda do Bling, atualizada em {diaHora(n.base_ate)}. Considera pedidos de venda (cancelados e em digitação ficam de fora do total); devoluções vêm das notas de entrada.
         {n.carga_em_andamento && ` A carga do histórico ainda está em andamento: a base cobre a partir de ${dia(n.primeira_data)}.`}
       </p>
+    </article>)
+}
+
+// Margem bruta do período: valores só para admin/gestor/financeiro; cobertura baixa nunca aparece como total completo.
+function ResumoMargem({ m, rotulo }: { m: MargemBruta; rotulo: string }) {
+  const semItens = m.pedidos_com_itens === 0
+  return (
+    <article className="aviso-caixa" style={{ marginBottom: 10 }}>
+      <strong>Margem bruta · {rotulo}</strong>
+      {semItens
+        ? <p style={{ margin: '6px 0 0' }}>Ainda não há itens lidos para os {m.pedidos_validos_no_periodo} pedidos válidos desse período, então não dá para calcular a margem. A leitura dos itens segue em andamento.</p>
+        : m.ve_valores
+          ? <p style={{ margin: '6px 0 0' }}>
+              Receita dos itens <strong>{brl(m.receita_itens)}</strong> · custo <strong>{brl(m.custo_total)}</strong> · margem bruta <strong>{brl(m.margem_bruta)}</strong>
+              {m.margem_pct != null && <> (<strong>{m.margem_pct.toLocaleString('pt-BR')}%</strong>)</>}.
+            </p>
+          : <p style={{ margin: '6px 0 0' }}>Você não tem permissão para ver os valores de margem.</p>}
+      <p className={m.cobertura_baixa ? undefined : 'sub'} style={{ margin: '6px 0 0' }}>{m.cobertura_baixa ? <strong>{m.aviso}</strong> : m.aviso}</p>
     </article>)
 }
 
@@ -183,6 +203,12 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
         setResp({ ...extra, pergunta: t, resultados: [], aviso: null, refs: [], indispo: { motivo: it.motivo, sugestao: it.sugestao, regra } })
         setOcupado(false); return
       }
+      if (it.tipo === 'margem') {
+        const m = await apiAssistenteDados.margem(ctx.empresa, it.de, it.ate)
+        void apiAssistenteDados.registrar(ctx.empresa, t).then(() => hist.recarregar()).catch(() => undefined)
+        setResp({ ...extra, pergunta: t, resultados: [], aviso: null, refs: [], margem: m, rotulo: it.rotulo, assumido: it.assumido, opcoes: it.opcoes })
+        setOcupado(false); return
+      }
       if (it.tipo === 'cliente') {
         const v = await apiAssistenteDados.vendasCliente(ctx.empresa, it.termo)
         void apiAssistenteDados.registrar(ctx.empresa, t).then(() => hist.recarregar()).catch(() => undefined)
@@ -281,6 +307,7 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
                   {resp.opcoes && <Chips opcoes={resp.opcoes} escolher={escolher} rotulo="Mudar o período:" />}
                 </article>)}
               {resp.graf && <GraficoVendas empresa={ctx.empresa} {...resp.graf} pergunta={resp.pergunta} usarIA={!!resp.ia} onSugestao={(x) => void perguntar(x)} />}
+              {resp.margem && <ResumoMargem m={resp.margem} rotulo={resp.rotulo ?? ''} />}
               {resp.notas && <ResumoVendas n={resp.notas} rotulo={resp.rotulo ?? ''} semTabela={!!resp.graf} />}
               {resp.vendas && (!resp.vendas.ok
                 ? <Vazio titulo="Informe o cliente" texto="Escreva o @ do Instagram ou o nome do cliente (pelo menos 3 letras)." />
@@ -291,7 +318,7 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
                     {resp.vendas.clientes.map((c) => <CartaoCliente key={c.parceiro_id} c={c} valores={resp.vendas!.ve_valores} abrir={abrir} podeNota={podeAbrir('fiscal')} />)}
                     <p className="sub">Base: {resp.vendas.base_notas} notas do Bling carregadas ({resp.vendas.base_com_detalhe} com detalhe), atualizada em {diaHora(resp.vendas.base_ate)}. Considera só notas fiscais emitidas, não os pedidos.</p>
                   </>)}
-              {!resp.vendas && !resp.notas && !resp.esclarecer && !resp.comparativo && !resp.indispo && resp.resultados.length === 0
+              {!resp.vendas && !resp.notas && !resp.esclarecer && !resp.comparativo && !resp.indispo && !resp.margem && resp.resultados.length === 0
                 ? <Vazio titulo="Não encontrei isso nos documentos" texto="Tente outras palavras. Se o assunto deveria estar documentado, peça a um gestor para incluir na base de conhecimento." />
                 : resp.resultados.map((r, i) => (
                   <article key={r.chunk_id} className="aviso-caixa" style={{ marginBottom: 10 }}>
