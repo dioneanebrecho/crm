@@ -591,3 +591,30 @@ button.sec.sel { background: var(--marca-suave); border-color: var(--marca); }
 .faixa-listas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .faixa-listas textarea{width:100%;font-size:12px}
 @media (max-width:900px){.faixa-listas{grid-template-columns:1fr}}
+
+/* ---------------------------------------------------------------- Editor visual de etiqueta */
+.modal.larga:has(.editor-etq) { width: min(1280px, 100%); }
+.editor-etq { display: grid; gap: .8rem; outline: none; }
+.editor-topo { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto auto; gap: .7rem; align-items: end; }
+.editor-topo .marca { align-self: end; padding-bottom: .5rem; }
+.editor-corpo { display: grid; grid-template-columns: 170px minmax(0, 1fr) 270px; gap: 1rem; align-items: start; }
+.editor-paleta, .editor-props { display: grid; gap: .5rem; align-content: start; font-size: .85rem; }
+.editor-paleta button { text-align: left; }
+.editor-paleta hr { border: 0; border-top: 1px solid var(--borda); width: 100%; margin: .2rem 0; }
+.editor-area { display: grid; gap: .4rem; justify-items: start; overflow: auto; max-width: 100%; padding-bottom: .4rem; }
+.editor-tela { position: relative; background-color: #fff; background-image: linear-gradient(to right, #e6e6ea 1px, transparent 1px), linear-gradient(to bottom, #e6e6ea 1px, transparent 1px); border: 1px solid var(--borda); box-shadow: 0 2px 10px rgba(0,0,0,.25); touch-action: none; overflow: hidden; color: #000; }
+.editor-regua-h { position: relative; height: 14px; font-size: 10px; color: var(--mudo); }
+.editor-regua-h span { position: absolute; top: 0; transform: translateX(-1px); }
+.el-etq { position: absolute; cursor: move; color: #000; box-sizing: border-box; }
+.el-etq:hover { outline: 1px dashed #7a8; }
+.el-etq.ativo { outline: 2px solid var(--marca, #c9a86a); z-index: 2; }
+.el-texto { width: 100%; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; word-break: break-word; pointer-events: none; }
+.el-barras { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.el-barras > div { width: 100%; } .el-barras svg { width: 100%; height: 100%; display: block; } .el-barras small { line-height: 1; color: #000; }
+.el-qr { width: 100%; height: 100%; pointer-events: none; } .el-qr svg { width: 100%; height: 100%; display: block; }
+.el-vazio { width: 100%; height: 100%; display: grid; place-items: center; border: 1px dashed #999; color: #666; font-size: 11px; }
+.el-alca { position: absolute; right: -6px; bottom: -6px; width: 12px; height: 12px; background: var(--marca, #c9a86a); border: 1px solid #fff; border-radius: 3px; cursor: nwse-resize; }
+.editor-props .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.editor-props .chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .3rem; }
+.editor-props .chip { padding: .15rem .5rem; font-size: .72rem; border-radius: 999px; background: var(--card2); border: 1px solid var(--borda); color: inherit; cursor: pointer; }
+@media (max-width: 1000px) { .editor-corpo { grid-template-columns: 1fr; } .editor-topo { grid-template-columns: 1fr 1fr; } }

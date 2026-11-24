@@ -3,6 +3,7 @@ import { Abas, Busca, Campo, Formulario, Modal, Paginacao, useCarregar, Vazio } 
 import { useEstadoTela } from '../abas'
 import { apiImpressao, type EtiquetaLinha, type Impressora, type JaImpressa, type Modelo } from '../apiImpressao'
 import type { Contexto } from '../App'
+import EditorEtiqueta from '../EditorEtiqueta'
 
 type Aba = 'etiquetas' | 'fila' | 'impressoras' | 'modelos' | 'agentes'
 const LIMITE = 50
@@ -299,41 +300,15 @@ function Modelos({ ctx, pode }: { ctx: Contexto; pode: boolean }) {
           <tbody>{l.dados.map((m) => (
             <tr key={m.id} className={m.ativo ? '' : 'linha-inativa'}>
               <td>{m.nome}</td><td>{m.largura_mm} × {m.altura_mm} mm</td>
-              <td className="mudo">QR + número{m.opcoes.mostrar_tamanho !== false ? ' + tamanho' : ''}{m.opcoes.mostrar_preco !== false ? ' + preço' : ''}{m.opcoes.mostrar_barras !== false ? ' + código de barras' : ''}</td>
+              <td className="mudo">{m.opcoes.layout ? `Layout livre (${m.opcoes.layout.elementos.length} elementos)` : <>QR + número{m.opcoes.mostrar_tamanho !== false ? ' + tamanho' : ''}{m.opcoes.mostrar_preco !== false ? ' + preço' : ''}{m.opcoes.mostrar_barras !== false ? ' + código de barras' : ''}</>}</td>
               <td>{m.padrao ? 'Sim' : ''}</td><td>{m.ativo ? 'Sim' : 'Não'}</td><td>{pode && <button className="sec" onClick={() => setEdit(m)}>Editar</button>}</td>
             </tr>))}</tbody>
         </table></div>
       )}
-      {edit && <Modal titulo={edit === 'novo' ? 'Novo modelo' : `Editar ${edit.nome}`} onFechar={() => setEdit(null)}>
-        <FormModelo ctx={ctx} atual={edit === 'novo' ? null : edit} onFechar={() => setEdit(null)} onSalvo={() => { setEdit(null); l.recarregar() }} />
+      {edit && <Modal titulo={edit === 'novo' ? 'Novo modelo' : `Editar ${edit.nome}`} onFechar={() => setEdit(null)} larga>
+        <EditorEtiqueta ctx={ctx} atual={edit === 'novo' ? null : edit} onFechar={() => setEdit(null)} onSalvo={() => { setEdit(null); l.recarregar() }} />
       </Modal>}
     </>
-  )
-}
-
-function FormModelo({ ctx, atual, onFechar, onSalvo }: { ctx: Contexto; atual: Modelo | null; onFechar: () => void; onSalvo: () => void }) {
-  const [nome, setNome] = useState(atual?.nome ?? '')
-  const [w, setW] = useState(String(atual?.largura_mm ?? 60))
-  const [h, setH] = useState(String(atual?.altura_mm ?? 40))
-  const [preco, setPreco] = useState(atual?.opcoes.mostrar_preco !== false)
-  const [tam, setTam] = useState(atual?.opcoes.mostrar_tamanho !== false)
-  const [barras, setBarras] = useState(atual?.opcoes.mostrar_barras !== false)
-  const [padrao, setPadrao] = useState(atual?.padrao ?? false)
-  const [ativo, setAtivo] = useState(atual?.ativo ?? true)
-  return (
-    <Formulario onCancelar={onFechar} onEnviar={async () => {
-      await apiImpressao.salvarModelo(ctx.empresa, atual?.id ?? null, { nome, largura_mm: Number(w), altura_mm: Number(h), opcoes: { mostrar_preco: preco, mostrar_tamanho: tam, mostrar_barras: barras }, padrao, ativo })
-      onSalvo()
-    }}>
-      <Campo rotulo="Nome"><input value={nome} onChange={(e) => setNome(e.target.value)} required autoFocus /></Campo>
-      <Campo rotulo="Largura (mm)"><input type="number" min={20} max={120} step="0.5" value={w} onChange={(e) => setW(e.target.value)} /></Campo>
-      <Campo rotulo="Altura (mm)"><input type="number" min={15} max={100} step="0.5" value={h} onChange={(e) => setH(e.target.value)} /></Campo>
-      <label className="campo"><span><input type="checkbox" checked={tam} onChange={(e) => setTam(e.target.checked)} /> Mostrar tamanho</span></label>
-      <label className="campo"><span><input type="checkbox" checked={preco} onChange={(e) => setPreco(e.target.checked)} /> Mostrar preço</span></label>
-      <label className="campo"><span><input type="checkbox" checked={barras} onChange={(e) => setBarras(e.target.checked)} /> Mostrar código de barras</span></label>
-      <label className="campo"><span><input type="checkbox" checked={padrao} onChange={(e) => setPadrao(e.target.checked)} /> Modelo padrão da empresa</span></label>
-      <label className="campo"><span><input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} /> Ativo</span></label>
-    </Formulario>
   )
 }
 

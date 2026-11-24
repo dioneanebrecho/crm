@@ -1,4 +1,5 @@
 import { rpc } from './api'
+import type { Layout } from './etiquetaLayout'
 
 export interface ConfigCodigoCurto { maximo: number; ultimo_numero: number; quarentena_min: number; em_uso: number; em_quarentena: number; livres: number }
 export interface EtiquetaLinha {
@@ -28,7 +29,7 @@ export interface Impressora {
   id: string; nome: string; setor: string | null; tipo_conexao: 'zpl_windows' | 'zpl_tcp'; caminho_rede: string; modelo_id: string | null
   agente_id: string | null; dpi: number; ajuste_x_mm: number; ajuste_y_mm: number; ativa: boolean
 }
-export interface Modelo { id: string; nome: string; largura_mm: number; altura_mm: number; opcoes: { mostrar_preco?: boolean; mostrar_tamanho?: boolean; mostrar_barras?: boolean }; padrao: boolean; ativo: boolean }
+export interface Modelo { id: string; nome: string; largura_mm: number; altura_mm: number; opcoes: { mostrar_preco?: boolean; mostrar_tamanho?: boolean; mostrar_barras?: boolean; layout?: Layout }; padrao: boolean; ativo: boolean }
 export interface Agente { id: string; nome: string; hostname: string; versao: string | null; status: 'aguardando_aprovacao' | 'ativo' | 'revogado' | 'expirado'; aprovado_em: string | null; ultimo_contato_em: string | null }
 
 export const apiImpressao = {
