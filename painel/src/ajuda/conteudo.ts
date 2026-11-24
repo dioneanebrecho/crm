@@ -19,8 +19,8 @@ export interface Verbete {
   passos: PassoTour[]  // tutorial guiado da tela
 }
 
-export const VERSAO_DOC = '0.8.0'
-export const ATUALIZADO_EM = '2026-11-23'
+export const VERSAO_DOC = '0.9.2'
+export const ATUALIZADO_EM = '2026-11-24'
 
 // escopo da tela aberta (só o painel visível responde aos seletores)
 const T = '.aba-painel:not([hidden])'
@@ -200,6 +200,83 @@ export const AJUDA: Record<string, Verbete> = {
     passos: [
       { titulo: 'Assistente', texto: 'Pergunte em português sobre vendas, estoque, fila e regras. Ele responde com dados e cita as fontes.' },
       { alvo: `${T}`, titulo: 'Converse', texto: 'Digite a pergunta. Use o histórico e os atalhos para abrir o que foi citado.' },
+    ],
+  },
+  naturezas: {
+    titulo: 'Natureza financeira',
+    explicacao:
+      'Define o que é cada receita, custo ou despesa, em até 4 níveis (9.99.99.999). Só o 4º nível recebe lançamentos; os demais agrupam e somam. Cada natureza aponta para uma linha do DRE. Tudo é gerencial no CRM: nada é enviado ao Bling.',
+    casoDeUso:
+      'Uma conta de energia chega do Bling com uma categoria de utilidades. O De-Para leva essa categoria para a natureza correspondente e a regra por fornecedor indica o centro de resultado de administração.',
+    dicas: [
+      'O código é gerado sozinho ao criar uma natureza; ele e o pai não mudam depois.',
+      'Natureza em uso (com lançamentos) não pode ser excluída nem perder o nível analítico: inative.',
+      'Natureza de receita, dedução ou CMV só aceita centro de resultado de canal.',
+      'Na aba De-Para, categorias em amarelo ainda não foram mapeadas.',
+      'Regras não são excluídas: desligue a regra para parar de usá-la. Cada edição aumenta a versão.',
+    ],
+    passos: [
+      { alvo: `${T} .abas-pagina`, titulo: 'Três áreas', texto: 'Árvore de naturezas, De-Para das categorias do Bling e Regras de apropriação.' },
+      { titulo: 'Criar', texto: 'Use “+ Filha” na natureza pai (sintética). O sinal, o DRE e o centro padrão são herdados do pai e podem ser ajustados.' },
+      { titulo: 'De-Para', texto: 'Escolha a natureza analítica de cada categoria do Bling ou marque “ignorar” para os grupos do Bling sem lançamento.' },
+    ],
+  },
+  centros_resultado: {
+    titulo: 'Centro de resultado',
+    explicacao:
+      'Define quem responde pelo resultado: área, departamento ou canal de venda (por exemplo Instagram Lives, WhatsApp, Loja física). Não é o tipo de gasto; isso é a Natureza. Cada lançamento recebe uma natureza e um centro de resultado.',
+    casoDeUso:
+      'Para ver quanto o Instagram realmente deixa de resultado, a receita e o CMV entram nos centros de canal e as despesas de marketing e expedição são apropriadas aos centros de apoio.',
+    dicas: [
+      'Receita só entra em centro analítico do tipo canal que aceita receita.',
+      'O grupo 9 (Sem centro de resultado) é usado pelo motor para o que ainda não foi classificado e não pode ser excluído.',
+      'Centro com lançamentos, regras ou filhos não pode ser excluído: inative.',
+      'O código (9.99.99.999) é gerado automaticamente e não muda.',
+    ],
+    passos: [
+      { titulo: 'Criar', texto: 'Use “+ Nova área” para o nível 1 ou “+ Filho” em um centro agrupador.' },
+      { titulo: 'Canal', texto: 'Para um centro de canal que recebe receita, marque “Aceita receita” e escolha o canal do CRM.' },
+    ],
+  },
+  entrada_compra: {
+    titulo: 'Entrada de mercadoria (NF-e)',
+    explicacao:
+      'Importa o XML da NF-e de compra, cadastra as peças novas (grupo, marca, características e grade), rateia frete e despesas no custo, confere o financeiro da nota e dá entrada no estoque do CRM. Nada é enviado ao Bling.',
+    casoDeUso:
+      'Chegou a nota do fornecedor: você importa o XML, aceita as sugestões de cadastro, revisa cada peça e libera, confere as parcelas e confirma. As peças nascem com o custo fechado com a nota.',
+    dicas: [
+      'A confirmação só libera com fornecedor vinculado, todas as peças revisadas e liberadas, diferença de R$ 0,00 e financeiro conferido.',
+      'Qualquer mudança no rateio, nas rubricas ou no regime tira a liberação das peças afetadas: revise de novo.',
+      'Se o fornecedor não existir, a importação oferece cadastrá-lo com o CNPJ da nota.',
+      'Se o XML não trouxer parcelas, informe vencimento, valor, natureza e centro de resultado na seção Financeiro.',
+      'O financeiro fica vinculado à nota (número e chave). Lançamentos criados direto, sem nota, não têm esse vínculo.',
+    ],
+    passos: [
+      { titulo: 'Importar', texto: 'Clique em “Importar XML”, confira o resumo e o fornecedor e importe.' },
+      { titulo: 'Peças', texto: 'As peças vêm abertas. Ajuste grupo, marca, características e grade, e use “Revisei: liberar peça”.' },
+      { titulo: 'Rateio e financeiro', texto: 'Escolha o regime, lance rubricas extras se houver e confira as parcelas.' },
+      { titulo: 'Confirmar', texto: 'Com todos os itens do checklist marcados, escolha o local do estoque e confirme.' },
+    ],
+  },
+  grupos_produto: {
+    titulo: 'Grupos de produto',
+    explicacao:
+      'Organiza o catálogo em até 4 níveis (departamento, família, tipo de peça e subtipo) para relatórios de venda, margem e estoque por grupo. Marca, material e comprimento ficam no produto, como características, e não na árvore. Tudo é gerencial no CRM: nada é enviado ao Bling.',
+    casoDeUso:
+      'Os produtos que o motor não reconheceu caem em “A classificar”. Você filtra por essa fila, seleciona os que são, por exemplo, “Tricô”, e move todos para o grupo certo de uma vez, marcando também o material.',
+    dicas: [
+      'Só grupos analíticos recebem produtos; grupos sintéticos apenas organizam a árvore.',
+      'O que você altera à mão (grupo, marca ou característica) nunca é sobrescrito quando as regras são reaplicadas.',
+      'Cadastre uma palavra na aba Regras para o motor classificar sozinho os próximos produtos parecidos, depois use “Reaplicar regras”.',
+      'Com todos os itens da página marcados, aparece “Selecionar todos do filtro” para alterar milhares de uma vez (até 20.000 por operação).',
+      'No campo Marca, ao clicar ou digitar aparecem as marcas já cadastradas: escolha da lista para manter o nome padronizado. Uma marca nova é cadastrada ao salvar.',
+      '“Só com estoque” usa o estoque do CRM (unidades disponíveis ou reservadas das Peças). Produto do Bling que ainda não virou Peça aparece sem estoque.',
+    ],
+    passos: [
+      { alvo: `${T} .abas-pagina`, titulo: 'Três áreas', texto: 'Produtos (classificação e lote), Árvore de grupos (cadastro) e Regras e características (palavras que o motor usa).' },
+      { titulo: 'Fila “A classificar”', texto: 'A tela abre filtrada nos produtos pendentes. Filtre por busca, grupo, marca, característica ou estoque para achar os que quer ajustar.' },
+      { titulo: 'Alterar em lote', texto: 'Marque os produtos, clique em “Alterar em lote…” e escolha grupo, marca e características. Cada campo pode ser mantido, definido ou removido.' },
+      { titulo: 'Árvore', texto: 'Na aba Árvore de grupos você cria, move e inativa grupos. Um grupo só pode ser excluído quando não tem produtos nem subgrupos.' },
     ],
   },
   grades: {

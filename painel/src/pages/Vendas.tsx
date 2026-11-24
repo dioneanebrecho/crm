@@ -4,7 +4,7 @@ import type { Contexto } from '../App'
 import { api, type PecaLinha, type PecaDetalhe } from '../api'
 import { apiVendas, CANAIS, CANAIS_PUBLICAVEIS, urlPublica, restante, mmss, brl, hora, curto,
          type Canal, type OfertaLinha, type DetalheOferta, type ClienteVendasLinha, type DetalheCliente } from '../apiVendas'
-import { Abas, Busca, Campo, Formulario, Modal, useCarregar, Vazio } from '../ui'
+import { Abas, Busca, Campo, Formulario, Modal, useCarregar, Vazio, Titulo } from '../ui'
 import MontarOferta from './MontarOferta'
 
 // Central de vendas: a mesma oferta (peça + tamanho) com um link único divulgado em vários canais e UMA fila.
@@ -71,7 +71,7 @@ export default function Vendas({ ctx }: { ctx: Contexto }) {
   return (
     <section>
       <div className="topo">
-        <div><h1>Central de vendas</h1><p className="sub">Um link por peça em todos os canais e uma fila só. Atualiza sozinha a cada 15 segundos.</p></div>
+        <div><Titulo ajuda={<>Um link por peça em todos os canais e uma fila só. Atualiza sozinha a cada 15 segundos.</>}>Central de vendas</Titulo></div>
         {podeOperar && <button onClick={() => setPublicando(true)}>+ Publicar peça</button>}
       </div>
 

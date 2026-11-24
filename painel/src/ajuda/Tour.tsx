@@ -93,7 +93,7 @@ function Holofote({ passos, onFechar }: { passos: PassoTour[]; onFechar: () => v
       ) : (
         <div className="tour-veu" onClick={onFechar} />
       )}
-      <div ref={balaoRef} className={centralizado ? 'tour-balao centro' : 'tour-balao'} style={estiloBalao}>
+      <div ref={balaoRef} className={centralizado ? 'tour-balao tour-centro' : 'tour-balao'} style={estiloBalao}>
         <div className="tour-balao-topo">
           <strong>{passo.titulo}</strong>
           <button type="button" className="tour-x" aria-label="Fechar tutorial" onClick={onFechar}>×</button>

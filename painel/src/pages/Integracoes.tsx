@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiIntegracoes as api, apiAssistente, type ConfigAssistente, type Integracao, type ModoIntegracao, type TesteLinha } from '../api'
-import { Abas, Campo, Modal, Vazio, useCarregar } from '../ui'
+import { Abas, Campo, Modal, Vazio, useCarregar, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
 interface CampoDef { chave: string; rotulo: string; dica?: string; numerico?: boolean; opcoes?: { valor: string; rotulo: string }[]; padrao?: string }
@@ -77,8 +77,7 @@ export default function Integracoes({ ctx }: { ctx: Contexto }) {
   const pontos = (ids: string[]) => ids.map((id) => dados?.find((x) => x.integracao === id)?.status).some((st) => st === 'testada_ok') ? ' ●' : ''
   return (
     <section>
-      <div className="topo"><div><h1>Integrações</h1>
-        <p className="sub">Conecte cada serviço, teste e só então ligue. Senhas e tokens ficam no cofre e nunca voltam para a tela.</p></div></div>
+      <div className="topo"><div><Titulo ajuda={<>Conecte cada serviço, teste e só então ligue. Senhas e tokens ficam no cofre e nunca voltam para a tela.</>}>Integrações</Titulo></div></div>
       {retorno && <div className={retorno.ok ? 'info' : 'erro'} role="status">{retorno.texto}</div>}
       {erro && <div className="erro">{erro}</div>}
       {carregando && !dados && <p className="sub">Carregando…</p>}

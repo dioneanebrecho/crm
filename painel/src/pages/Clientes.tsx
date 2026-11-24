@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api, data, type ClienteLinha } from '../api'
-import { Busca, Campo, Formulario, LimparFiltros, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { Busca, Campo, Formulario, LimparFiltros, Modal, Paginacao, useCarregar, Vazio, Titulo } from '../ui'
 import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 
@@ -16,7 +16,7 @@ export default function Clientes({ ctx, inicial }: { ctx: Contexto; inicial?: st
   return (
     <section>
       <div className="topo">
-        <div><h1>Clientes</h1><p className="sub">Quem participa das lives. Contato (telefone e e-mail) aparece só para quem atende clientes.</p></div>
+        <div><Titulo ajuda={<>Quem participa das lives. Contato (telefone e e-mail) aparece só para quem atende clientes.</>}>Clientes</Titulo></div>
         {ctx.podeCliente && <button onClick={() => setForm('novo')}>+ Novo cliente</button>}
       </div>
       <div className="filtros">

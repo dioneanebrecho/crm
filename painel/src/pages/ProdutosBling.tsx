@@ -1,11 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useEstadoTela } from '../abas'
 import { apiBling, brl, data, type ProdutoBlingLinha } from '../api'
-import { Abas, Busca, Campo, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import GradeDados, { type Coluna } from '../GradeDados'
+import { fmtMargem, margemBruta } from '../rentabilidade'
+import { Abas, Busca, Campo, Modal, Paginacao, useCarregar, Vazio, Titulo } from '../ui'
 import { apiGrades, ehPadrao, sugerirLocal, useTiposGrade } from '../apiGrades'
 import type { Contexto } from '../App'
 
-const LIMITE = 50
+const LIMITE = 200
 const ALERTAS: Record<string, string> = {
   sem_custo: 'Sem custo', preco_menor_igual_custo: 'Preço ≤ custo', grade_desconhecida: 'Tamanho fora da lista',
   sem_grade_no_nome: 'Sem tamanho no nome', espaco_duplo: 'Espaço duplo', rotulo_tam_fora_padrao: 'Rótulo "TAM" fora do padrão',
@@ -28,17 +30,31 @@ export default function ProdutosBling({ ctx }: { ctx: Contexto }) {
   const [det, setDet] = useState<number | null>(null)
   const resumo = useCarregar(() => apiBling.resumoProdutos(ctx.empresa), [ctx.empresa])
   const { dados, erro, carregando } = useCarregar(() => apiBling.produtos(ctx.empresa, f, offset, LIMITE), [ctx.empresa, f, offset])
-  const mudar = (k: keyof typeof VAZIO, v: string) => { setOffset(0); setF((x) => ({ ...x, [k]: v })) }
+  const mudar = (k: keyof typeof VAZIO, v: string) => { if (f[k] === v) return; setOffset(0); setF((x) => ({ ...x, [k]: v })) }
   const r = resumo.dados
   const total = dados?.[0]?.total ?? 0
+  const colunas = useMemo<Coluna<ProdutoBlingLinha>[]>(() => [
+    { id: 'id', titulo: 'ID Bling', texto: (p) => String(p.bling_id), valor: (p) => p.bling_id, somar: false },
+    { id: 'sku', titulo: 'Código (SKU)', texto: (p) => `${p.codigo ?? '—'}${p.formato === 'V' ? ' (pai)' : ''}` },
+    { id: 'nome', titulo: 'Nome no Bling (original)', texto: (p) => p.nome_cru ?? '—', max: 380 },
+    { id: 'padrao', titulo: 'Nome padrão proposto', texto: (p) => p.nome_padrao ?? '—', max: 380 },
+    { id: 'ref', titulo: 'Ref. fornecedor', texto: (p) => p.ref_fornecedor ?? '—' },
+    { id: 'tamcru', titulo: 'Tamanho (original)', texto: (p) => p.grade_valor_cru ?? '—' },
+    { id: 'tampad', titulo: 'Tamanho (padrão)', texto: (p) => p.grade_valor_padrao ?? (p.grade_valor_cru ? '?' : '—') },
+    { id: 'sit', titulo: 'Situação', texto: (p) => SIT[p.situacao ?? ''] ?? p.situacao ?? '—' },
+    { id: 'preco', titulo: 'Preço de venda', texto: (p) => brl(p.preco), valor: (p) => p.preco, direita: true, somar: false },
+    ...(ctx.veRentabilidade ? [{ id: 'custo', titulo: 'Custo', texto: (p: ProdutoBlingLinha) => brl(p.custo_cru), valor: (p: ProdutoBlingLinha) => p.custo_cru, direita: true, somar: false },
+      { id: 'margem', titulo: 'Margem bruta', texto: (p: ProdutoBlingLinha) => fmtMargem(margemBruta(p.preco, p.custo_cru)), valor: (p: ProdutoBlingLinha) => margemBruta(p.preco, p.custo_cru), direita: true, somar: false,
+        render: (p: ProdutoBlingLinha) => { const m = margemBruta(p.preco, p.custo_cru); return <span className={m != null && m <= 0 ? 'texto-erro' : ''}>{fmtMargem(m)}</span> } }] : []),
+    { id: 'alertas', titulo: 'Alertas', texto: (p) => p.alertas.map((a) => ALERTAS[a] ?? a).join(' · ') || 'ok', max: 300 },
+  ], [ctx.veRentabilidade])
   const gradesOrdenadas = r ? Object.entries(r.por_grade).sort((a, b) => b[1] - a[1]) : []
 
   return (
     <section>
       <div className="topo">
         <div>
-          <h1>Produtos Bling</h1>
-          <p className="sub">Cópia do cadastro de produtos do Bling, com o nome e o tamanho padronizados que o CRM propõe. <strong>Somente leitura:</strong> nada é gravado no Bling. Para cadastrar uma peça nova, com grade, estoque, QR e fotos, use <strong>Catálogo › Peças</strong>.</p>
+          <Titulo ajuda={<>Cópia do cadastro de produtos do Bling, com o nome e o tamanho padronizados que o CRM propõe. <strong>Somente leitura:</strong> nada é gravado no Bling. Para cadastrar uma peça nova, com grade, estoque, QR e fotos, use <strong>Catálogo › Peças</strong>.</>}>Produtos Bling</Titulo>
         </div>
       </div>
       {r && (
@@ -75,28 +91,8 @@ export default function ProdutosBling({ ctx }: { ctx: Contexto }) {
       {carregando && !dados && <p className="sub">Carregando…</p>}
       {dados && dados.length === 0 && <Vazio titulo="Nada encontrado" texto="Ajuste a busca ou os filtros." />}
       {dados && dados.length > 0 && (
-        <div className="tabela-rolavel">
-          <table>
-            <thead><tr><th>ID Bling</th><th>Código (SKU)</th><th>Nome no Bling (original)</th><th>Nome padrão proposto</th><th>Ref. fornecedor</th><th>Tamanho (original)</th><th>Tamanho (padrão)</th><th>Situação</th><th className="num">Preço de venda</th>{ctx.veCusto && <th className="num">Custo</th>}<th>Alertas</th></tr></thead>
-            <tbody>
-              {dados.map((p: ProdutoBlingLinha) => (
-                <tr key={p.bling_id} className="clicavel" onClick={() => setDet(p.bling_id)}>
-                  <td>{p.bling_id}</td>
-                  <td>{p.codigo ?? '—'}{p.formato === 'V' && <span className="mudo"> (pai)</span>}</td>
-                  <td>{p.nome_cru}</td>
-                  <td>{p.nome_padrao ?? '—'}</td>
-                  <td>{p.ref_fornecedor ?? '—'}</td>
-                  <td>{p.grade_valor_cru ?? '—'}</td>
-                  <td>{p.grade_valor_padrao ?? (p.grade_valor_cru ? <strong title="Tamanho fora da lista padrão">?</strong> : '—')}</td>
-                  <td>{SIT[p.situacao ?? ''] ?? p.situacao}</td>
-                  <td className="num">{brl(p.preco)}</td>
-                  {ctx.veCusto && <td className="num">{brl(p.custo_cru)}</td>}
-                  <td>{p.alertas.map((a) => ALERTAS[a] ?? a).join(' · ') || <span className="mudo">ok</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <GradeDados id={`produtosbling.lista.${ctx.veRentabilidade ? 'c' : 's'}`} titulo="Produtos Bling" colunas={colunas} linhas={dados} chave={(p) => String(p.bling_id)} altura="66vh"
+          aoClicar={(p) => setDet(p.bling_id)} />
       )}
       <Paginacao total={total} offset={offset} limite={LIMITE} onMudar={setOffset} />
       {det !== null && <DetalheProduto ctx={ctx} id={det} onFechar={() => setDet(null)} onAbrir={setDet} />}
@@ -147,7 +143,7 @@ function DetalheProduto({ ctx, id, onFechar, onAbrir }: { ctx: Contexto; id: num
   const outros = p ? Object.entries(p).filter(([k]) => !conhecidos.has(k) && !OCULTOS.has(k)) : []
   const alertas = Array.isArray(p?.alertas) ? (p?.alertas as string[]) : []
   const ficha = (titulos: string[]) => GRUPOS_CAMPOS.filter((g) => titulos.includes(g.titulo)).map((g) => {
-    const linhas = g.campos.filter((c) => !(c.soCusto && !ctx.veCusto))
+    const linhas = g.campos.filter((c) => !(c.soCusto && !ctx.veRentabilidade))
     return (
       <div key={g.titulo}>
         <h3>{g.titulo}</h3>

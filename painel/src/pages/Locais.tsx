@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api, type Local } from '../api'
-import { Campo, Formulario, Modal, useCarregar, Vazio } from '../ui'
+import { Campo, Formulario, Modal, useCarregar, Vazio, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
 export default function Locais({ ctx }: { ctx: Contexto }) {
@@ -10,7 +10,7 @@ export default function Locais({ ctx }: { ctx: Contexto }) {
   return (
     <section>
       <div className="topo">
-        <div><h1>Locais de estoque</h1><p className="sub">Onde as peças ficam guardadas (estoque principal, loja física, live…).</p></div>
+        <div><Titulo ajuda={<>Onde as peças ficam guardadas (estoque principal, loja física, live…).</>}>Locais de estoque</Titulo></div>
         {ctx.podeCatalogo && <button onClick={() => setEditando('novo')}>+ Novo local</button>}
       </div>
       {erro && <div className="erro">{erro}</div>}

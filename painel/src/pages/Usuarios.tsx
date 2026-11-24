@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { apiPermissoes, apiUsuarios, type ConviteLinha, type GrupoAcesso, type MatrizPermissoes, type NivelTela, type ResultadoConvite, type UsuarioAcesso } from '../api'
-import { Abas, Campo, Formulario, Modal, Vazio, useCarregar } from '../ui'
+import { Abas, Campo, Formulario, Modal, Vazio, useCarregar, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
-const PAPEL: Record<string, string> = { admin: 'Administrador', gestor: 'Gestor', suporte: 'Suporte', apresentadora: 'Apresentadora', expedicao: 'Expedição', financeiro: 'Financeiro', leitura: 'Consulta' }
-const PAPEIS_GRUPO = ['gestor', 'suporte', 'apresentadora', 'expedicao', 'financeiro', 'leitura']
+const PAPEL: Record<string, string> = { admin: 'Administrador', gestor: 'Gestor', suporte: 'Suporte', apresentadora: 'Apresentadora', expedicao: 'Expedição', financeiro: 'Financeiro', rentabilidade: 'Ver custo e margem', leitura: 'Consulta' }
+const PAPEIS_GRUPO = ['gestor', 'suporte', 'apresentadora', 'expedicao', 'financeiro', 'leitura', 'rentabilidade']
 const PAPEIS_DIRETOS = ['admin', ...PAPEIS_GRUPO]
 const RANK: Record<NivelTela, number> = { nenhum: 0, ver: 1, editar: 2 }
 const NIVEL_ROTULO: Record<string, string> = { ver: 'Só ver', editar: 'Ver e editar' }
@@ -90,8 +90,7 @@ export default function Usuarios({ ctx }: { ctx: Contexto }) {
   return (
     <section>
       <div className="topo">
-        <div><h1>Usuários e acessos</h1>
-          <p className="sub">Convide pessoas por e-mail e libere o acesso por grupos. O que cada papel vê e edita é definido em Permissões.</p></div>
+        <div><Titulo ajuda={<>Convide pessoas por e-mail e libere o acesso por grupos. O que cada papel vê e edita é definido em Permissões.</>}>Usuários e acessos</Titulo></div>
         <button onClick={() => setConvidando(true)}>Convidar pessoa</button>
       </div>
       {msg && <div className={msg.ok ? 'info' : 'erro'} role="status">{msg.texto}</div>}
@@ -208,7 +207,7 @@ function ModalAcesso({ ctx, modo, usuario, grupos, matriz, onFechar, onFeito }: 
         </Campo>
         <details>
           <summary>Papéis diretos (avançado)</summary>
-          <Selecao itens={PAPEIS_DIRETOS.map((p) => ({ id: p, rotulo: PAPEL[p], dica: p === 'admin' ? 'acesso total, inclusive usuários e permissões' : undefined }))} marcados={pSel} onAlternar={(id) => setPSel(alterna(pSel, id))} />
+          <Selecao itens={PAPEIS_DIRETOS.map((p) => ({ id: p, rotulo: PAPEL[p], dica: p === 'admin' ? 'acesso total, inclusive usuários e permissões' : p === 'rentabilidade' ? 'vê custo, margem e rentabilidade em qualquer tela (administração e gestão já veem)' : undefined }))} marcados={pSel} onAlternar={(id) => setPSel(alterna(pSel, id))} />
         </details>
         <div><strong>O que este acesso libera</strong><PreviaTelas matriz={matriz} papeis={papeisEfetivos} /></div>
         {erroAcao && <div className="erro" role="alert">{erroAcao}</div>}

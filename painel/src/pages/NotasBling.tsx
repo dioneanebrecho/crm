@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { apiBling, brl, data, type NfeLinha } from '../api'
-import { Abas, Busca, LimparFiltros, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { Abas, Busca, LimparFiltros, Modal, Paginacao, useCarregar, Vazio, Titulo } from '../ui'
 import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 import PeriodoData from '../PeriodoData'
@@ -21,7 +21,7 @@ export default function NotasBling({ ctx, inicial }: { ctx: Contexto; inicial?: 
   const total = dados?.[0]?.total ?? 0
   return (
     <section>
-      <div className="topo"><div><h1>Notas Bling</h1><p className="sub">NF-e lidas do Bling (somente leitura). Contém dado pessoal: visível só para admin, gestor e financeiro. Os códigos de situação ainda precisam ser validados na conta.</p></div></div>
+      <div className="topo"><div><Titulo ajuda={<>NF-e lidas do Bling (somente leitura). Contém dado pessoal: visível só para admin, gestor e financeiro. Os códigos de situação ainda precisam ser validados na conta.</>}>Notas Bling</Titulo></div></div>
       <div className="filtros">
         <Busca valor={busca} onMudar={(v) => { setOffset(0); setBusca(v) }} placeholder="Buscar por número, cliente, código ou descrição do item" />
         <select value={sit} onChange={(e) => { setOffset(0); setSit(e.target.value) }} aria-label="Situação">

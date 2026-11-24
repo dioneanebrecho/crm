@@ -23,18 +23,23 @@ import Vendas from './pages/Vendas'
 import PreferenciasVitrine from './pages/PreferenciasVitrine'
 import Governanca from './pages/Governanca'
 import Gestao from './pages/Gestao'
+import GruposProduto from './pages/GruposProduto'
+import EntradaCompra from './pages/EntradaCompra'
+import Natureza from './pages/Natureza'
+import CentroResultado from './pages/CentroResultado'
 import Faixa from './Faixa'
 import FaixaConfig from './pages/FaixaConfig'
 import BotaoAjuda from './ajuda/Ajuda'
 import { TourProvider } from './ajuda/Tour'
 import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca, IGov, IGestao } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
+import { lerDensidade, aplicarDensidade, type Densidade } from './densidade'
 import { AbaContexto, MINUTOS_PARA_ATUALIZAR, definirEmpresaEstado } from './abas'
 
 export interface Contexto {
   empresa: string; papeis: Papel[]
   perm: Record<string, NivelTela> | null
-  podeCatalogo: boolean; podeUnidade: boolean; podeCliente: boolean; veCusto: boolean; veContato: boolean
+  podeCatalogo: boolean; podeUnidade: boolean; podeCliente: boolean; veRentabilidade: boolean; veFinanceiro: boolean; veContato: boolean
 }
 
 const tem = (p: Papel[], ...r: Papel[]) => p.includes('superadmin') || r.some((x) => p.includes(x))
@@ -44,14 +49,16 @@ const edita = (perm: Record<string, NivelTela> | null, tela: string) => perm ===
 const contexto = (empresa: string, papeis: Papel[], perm: Record<string, NivelTela> | null): Contexto => ({
   empresa, papeis, perm,
   podeCatalogo: tem(papeis, 'admin', 'gestor') && edita(perm, 'pecas'), podeUnidade: tem(papeis, 'admin', 'gestor', 'expedicao') && edita(perm, 'estoque'),
-  podeCliente: tem(papeis, 'admin', 'gestor', 'suporte') && edita(perm, 'clientes'), veCusto: tem(papeis, 'admin', 'gestor', 'financeiro'),
+  podeCliente: tem(papeis, 'admin', 'gestor', 'suporte') && edita(perm, 'clientes'), veRentabilidade: tem(papeis, 'admin', 'gestor', 'rentabilidade'), veFinanceiro: tem(papeis, 'admin', 'gestor', 'financeiro'),
   veContato: tem(papeis, 'admin', 'gestor', 'suporte'),
 })
 
 const MAX_ABAS = 8
-const GRUPOS = [{ rotulo: 'Catálogo' }, { rotulo: 'Relacionamento' }, { rotulo: 'Live' }, { rotulo: 'Inteligência' }, { rotulo: 'Configuração' }] as const
+const GRUPOS = [{ rotulo: 'Catálogo' }, { rotulo: 'Relacionamento' }, { rotulo: 'Live' }, { rotulo: 'Inteligência' }, { rotulo: 'Financeiro' }, { rotulo: 'Configuração' }] as const
 const ITENS = [
   { id: 'pecas', rotulo: 'Peças', grupo: 'Catálogo', icone: <IPecas /> },
+  { id: 'entrada_compra', rotulo: 'Entrada de mercadoria', grupo: 'Catálogo', icone: <INota /> },
+  { id: 'grupos_produto', rotulo: 'Grupos de produto', grupo: 'Catálogo', icone: <IGrade /> },
   { id: 'estoque', rotulo: 'Estoque', grupo: 'Catálogo', icone: <IEstoque /> },
   { id: 'etiquetas', rotulo: 'Etiquetas', grupo: 'Catálogo', icone: <IEtiqueta /> },
   { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Catálogo', icone: <IProdutos /> },
@@ -62,6 +69,8 @@ const ITENS = [
   { id: 'agenda', rotulo: 'Agenda', grupo: 'Live', icone: <IAgenda /> },
   { id: 'dashboards', rotulo: 'Painel de Gestão', grupo: 'Inteligência', icone: <IGestao /> },
   { id: 'assistente', rotulo: 'Assistente', grupo: 'Inteligência', icone: <IFaisca /> },
+  { id: 'naturezas', rotulo: 'Natureza financeira', grupo: 'Financeiro', icone: <IGestao /> },
+  { id: 'centros_resultado', rotulo: 'Centro de resultado', grupo: 'Financeiro', icone: <ILocais /> },
   { id: 'grades', rotulo: 'Grades e atributos', grupo: 'Configuração', icone: <IGrade /> },
   { id: 'locais', rotulo: 'Locais', grupo: 'Configuração', icone: <ILocais /> },
   { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Configuração', icone: <IAjustes /> },
@@ -200,6 +209,7 @@ function Painel() {
   // atalho entre telas: abre a tela com a busca já preenchida (ex.: da resposta do assistente para a nota citada)
   const [atalho, setAtalho] = useState<{ aba: string; q: string; n: number } | null>(null)
   const [tema, setTema] = useState<Tema>(lerTema)
+  const [densidade, setDensidade] = useState<Densidade>(lerDensidade)
   // grupos do menu recolhidos pelo título (lembrado no navegador); o item da tela aberta continua visível
   const [fechados, setFechados] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('ane.menu.fechados') ?? '[]') } catch { return [] } })
   const alternarGrupo = (g: string) => setFechados((f) => {
@@ -255,6 +265,7 @@ function Painel() {
     if (id === aba) trocar(prox)
   }
   const fecharOutras = (id: Aba) => { setAbertas([id]); salvarAbas([id]); trocar(id) }
+  const alternarDensidade = () => { const d: Densidade = densidade === 'compacta' ? 'confortavel' : 'compacta'; aplicarDensidade(d); setDensidade(d) }
   const alternarTema = () => { const ordem: Tema[] = ['escuro', 'ane', 'zagent']; const t = ordem[(ordem.indexOf(tema) + 1) % ordem.length]; aplicarTema(t); setTema(t) }
 
   if (me.erro) return <Aviso titulo="Não foi possível carregar" texto={me.erro} />
@@ -286,6 +297,10 @@ function Painel() {
   const tela = (id: Aba) => {
     switch (id) {
       case 'pecas': return <Pecas ctx={ctx} />
+      case 'entrada_compra': return <EntradaCompra ctx={ctx} />
+      case 'grupos_produto': return <GruposProduto ctx={ctx} />
+      case 'naturezas': return <Natureza ctx={ctx} />
+      case 'centros_resultado': return <CentroResultado ctx={ctx} />
       case 'estoque': return <Unidades ctx={ctx} />
       case 'etiquetas': return <Etiquetas ctx={ctx} />
       case 'saneamento': return <ProdutosBling ctx={ctx} />
@@ -342,6 +357,7 @@ function Painel() {
             : <div className="empresa-chip" data-ajuda="empresa"><small>EMPRESA</small><strong>{atual.nome}</strong></div>}
           <Faixa empresa={atual.id} />
           <div className="topbar-acoes">
+            <button className="sec icone-btn" onClick={alternarDensidade} title={densidade === 'compacta' ? 'Modo compacto (mais linhas) — clique para o modo confortável' : 'Modo confortável — clique para o modo compacto'} aria-label="Alternar densidade" aria-pressed={densidade === 'compacta'}>{densidade === 'compacta' ? '▤' : '☰'}</button>
             <button className="sec icone-btn" data-ajuda="tema" onClick={alternarTema} title={tema === 'escuro' ? 'Tema Escuro — clique para o tema Ane (claro)' : tema === 'ane' ? 'Tema Ane (claro) — clique para o tema ZAgent' : 'Tema ZAgent — clique para o tema Escuro'} aria-label="Alternar tema">{tema === 'escuro' ? <ILua /> : tema === 'ane' ? <ITema /> : <IFaisca />}</button>
             <BotaoAjuda empresa={atual.id} tela={abaAtual} />
             <div className="perfil" data-ajuda="perfil" title={atual.papeis.join(', ')}>

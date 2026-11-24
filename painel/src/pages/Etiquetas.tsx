@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Abas, Busca, Campo, Formulario, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { Abas, Busca, Campo, Formulario, Modal, Paginacao, useCarregar, Vazio, Titulo } from '../ui'
 import { useEstadoTela } from '../abas'
 import { apiImpressao, type EtiquetaLinha, type Impressora, type JaImpressa, type Modelo } from '../apiImpressao'
 import type { Contexto } from '../App'
@@ -28,7 +28,7 @@ export default function Etiquetas({ ctx }: { ctx: Contexto }) {
   ]
   return (
     <section>
-      <div className="topo"><div><h1>Etiquetas e impressão</h1><p className="sub">Número curto da live, QR de rastreio, fila e impressoras térmicas.</p></div></div>
+      <div className="topo"><div><Titulo ajuda={<>Número curto da live, QR de rastreio, fila e impressoras térmicas.</>}>Etiquetas e impressão</Titulo></div></div>
       <Abas abas={abas} ativa={aba} onMudar={setAba} />
       {aba === 'etiquetas' && <ListaEtiquetas ctx={ctx} podeImprimir={podeImprimir} ehAdmin={ehAdmin} />}
       {aba === 'fila' && <Fila ctx={ctx} podeImprimir={podeImprimir} />}
@@ -123,7 +123,7 @@ function FormConfig({ ctx, atual, quarentena, onFechar, onSalvo }: { ctx: Contex
   )
 }
 
-function ModalHistorico({ ctx, etiqueta, onFechar }: { ctx: Contexto; etiqueta: EtiquetaLinha; onFechar: () => void }) {
+export function ModalHistorico({ ctx, etiqueta, onFechar }: { ctx: Contexto; etiqueta: Pick<EtiquetaLinha, 'unidade_id' | 'unidade_codigo'>; onFechar: () => void }) {
   const h = useCarregar(() => apiImpressao.historico(ctx.empresa, etiqueta.unidade_id), [etiqueta.unidade_id])
   return (
     <Modal titulo={`Impressões de ${etiqueta.unidade_codigo}`} larga onFechar={onFechar}>
@@ -143,7 +143,7 @@ function ModalHistorico({ ctx, etiqueta, onFechar }: { ctx: Contexto; etiqueta: 
   )
 }
 
-function ModalImprimir({ ctx, unidades, onFechar, onConcluido }: { ctx: Contexto; unidades: string[]; onFechar: () => void; onConcluido: () => void }) {
+export function ModalImprimir({ ctx, unidades, onFechar, onConcluido }: { ctx: Contexto; unidades: string[]; onFechar: () => void; onConcluido: () => void }) {
   const imps = useCarregar(() => apiImpressao.impressoras(ctx.empresa), [ctx.empresa])
   const [imp, setImp] = useState('')
   const [copias, setCopias] = useState('1')

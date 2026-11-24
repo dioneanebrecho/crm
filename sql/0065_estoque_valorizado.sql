@@ -1,0 +1,5 @@
+-- 0065 · Estoque valorizado (24/11) — STATUS: aplicada no banco (crm_anebrecho)
+-- listar_unidades passa a devolver custo (nulo sem a marcação de rentabilidade) e preco (preco_tabela da peça).
+-- Nova api.resumo_estoque: qtd, valor ao custo e a preço por estado, com os mesmos filtros da lista.
+-- Reversão: recriar listar_unidades sem as 2 últimas colunas (ver 0031/0034) e `drop function api.resumo_estoque(uuid,text,text,uuid)`.
+-- O corpo completo das duas funções está na migration 0065_estoque_valorizado do banco (list_migrations).

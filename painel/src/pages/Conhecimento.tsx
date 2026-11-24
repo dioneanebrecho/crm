@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { apiConhecimento as api } from '../api'
-import { Campo, Vazio, useCarregar } from '../ui'
+import { Campo, Vazio, useCarregar, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
 const MAX_CARACTERES = 400_000
@@ -73,8 +73,7 @@ export default function Conhecimento({ ctx, abrir }: { ctx: Contexto; abrir: (ab
 
   return (
     <section>
-      <div className="topo"><div><h1>Base de conhecimento</h1>
-        <p className="sub">Documentos e regras que o assistente consulta antes de responder. A busca funciona por texto desde o envio; o vetor melhora a busca por significado e é gerado depois. Quem usa o assistente faz as perguntas na tela <strong>Assistente</strong>.</p></div>
+      <div className="topo"><div><Titulo ajuda={<>Documentos e regras que o assistente consulta antes de responder. A busca funciona por texto desde o envio; o vetor melhora a busca por significado e é gerado depois. Quem usa o assistente faz as perguntas na tela <strong>Assistente</strong>.</>}>Base de conhecimento</Titulo></div>
         <button className="sec" onClick={() => abrir('assistente')}>Testar no Assistente</button></div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>

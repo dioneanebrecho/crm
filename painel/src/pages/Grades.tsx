@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { apiGrades, useTiposGrade, type GradeAtributo, type GradeValor, type TipoGrade } from '../apiGrades'
-import { Abas, Campo, Formulario, Modal, Vazio } from '../ui'
+import { Abas, Campo, Formulario, Modal, Vazio, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
 type AbaTipo = 'tamanhos' | 'atributos' | 'palavras'
@@ -18,8 +18,7 @@ export default function Grades({ ctx }: { ctx: Contexto }) {
     <section>
       <div className="topo">
         <div>
-          <h1>Grades e atributos</h1>
-          <p className="sub">Cada tipo de peça tem a sua grade: os tamanhos possíveis e os detalhes que se pedem no cadastro (cor, material, medidas…). Ao escolher o tipo na peça, o formulário já mostra só o que vale para ele. A lista abaixo nasceu do histórico importado do Bling e pode ser ajustada.</p>
+          <Titulo ajuda={<>Cada tipo de peça tem a sua grade: os tamanhos possíveis e os detalhes que se pedem no cadastro (cor, material, medidas…). Ao escolher o tipo na peça, o formulário já mostra só o que vale para ele. A lista abaixo nasceu do histórico importado do Bling e pode ser ajustada.</>}>Grades e atributos</Titulo>
         </div>
         {podeEditar && <button onClick={() => setEdit('novo')}>+ Novo tipo de grade</button>}
       </div>

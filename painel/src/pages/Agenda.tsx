@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Calendario, { chaveDia } from '../Calendario'
-import { Abas, Vazio } from '../ui'
+import { Abas, Vazio, Titulo } from '../ui'
 
 type Modo = 'calendario' | 'proximas'
 export default function Agenda() {
@@ -9,7 +9,7 @@ export default function Agenda() {
   const [a, m, d] = dia.split('-')
   return (
     <section>
-      <div className="topo"><div><h1>Agenda de lives</h1><p className="sub">Calendário das lives e leilões. A programação será ligada aos dados na etapa de lives (F8).</p></div></div>
+      <div className="topo"><div><Titulo ajuda={<>Calendário das lives e leilões. A programação será ligada aos dados na etapa de lives (F8).</>}>Agenda de lives</Titulo></div></div>
       <Abas abas={[{ id: 'calendario', rotulo: 'Calendário' }, { id: 'proximas', rotulo: 'Próximas lives', contagem: 0 }]} ativa={modo} onMudar={setModo} />
       {modo === 'calendario' ? (
         <div className="agenda-grid">

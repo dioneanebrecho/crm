@@ -1,0 +1,4 @@
+-- 0071 · Estoque agrupado por peça e tamanho (24/11) — STATUS: aplicada no banco (crm_anebrecho)
+-- listar_unidades ganha p_variacao (filtra as unidades de um grupo); nova api.listar_estoque_agrupado (qtd, valor a preço e ao custo; custo nulo sem a marcação de rentabilidade).
+-- Sem filtro de estado, o agrupamento conta só disponível + reservada.
+-- Reversão: drop function api.listar_estoque_agrupado(uuid,text,text,uuid,integer,integer); recriar listar_unidades sem p_variacao (ver 0065).

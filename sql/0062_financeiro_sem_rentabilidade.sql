@@ -1,0 +1,2 @@
+-- 0062 · Financeiro sem custo/margem (24/11) — STATUS: aplicada. Remove 'rentabilidade' do grupo Financeiro e dos usuários só-financeiro; _semear_grupos atualizado.
+-- Reversão: array_append(papeis,'rentabilidade') no grupo Financeiro e reinserir o papel nos usuários financeiro.

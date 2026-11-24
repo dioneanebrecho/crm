@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { apiParceiros, apiReceita, brl, data, type DocumentoParceiro, type ReceitaCnpj, type FiltroParceiro, type ParceiroLinha, type PendenteLinha } from '../api'
-import { Abas, Busca, Modal, Paginacao, useCarregar, Vazio } from '../ui'
+import { Abas, Busca, Modal, Paginacao, useCarregar, Vazio, Titulo } from '../ui'
 import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 import { DetalheNota } from './NotasBling'
@@ -20,7 +20,7 @@ export default function Parceiros({ ctx, inicial }: { ctx: Contexto; inicial?: s
   return (
     <section>
       <div className="topo">
-        <div><h1>Parceiros</h1><p className="sub">Cadastro oficial único: um ID por CPF/CNPJ ou @. Cada parceiro reúne os contatos do Bling que ele representa (amarração auditável). Somente leitura.</p></div>
+        <div><Titulo ajuda={<>Cadastro oficial único: um ID por CPF/CNPJ ou @. Cada parceiro reúne os contatos do Bling que ele representa (amarração auditável). Somente leitura.</>}>Parceiros</Titulo></div>
       </div>
       <Abas abas={[{ id: 'parceiros', rotulo: 'Parceiros' }, ...(ctx.veContato ? [{ id: 'revisao' as const, rotulo: 'Em revisão' }, { id: 'proposto' as const, rotulo: 'Só nome (fora do oficial)' }] : [])]} ativa={aba} onMudar={setAba} />
       {aba === 'parceiros' ? <Lista ctx={ctx} inicial={inicial} /> : <Pendentes ctx={ctx} status={aba} />}
@@ -92,7 +92,7 @@ const SIT_NOTA_TIPO: Record<number, string> = { 0: 'Entrada', 1: 'Saída' }
 function Vinculos({ ctx, parceiro, onFechar }: { ctx: Contexto; parceiro: ParceiroLinha; onFechar: () => void }) {
   const [aba, setAba] = useState<AbaModal>('contatos')
   // Notas são dado fiscal/pessoal: mesmos papéis da tela Notas Bling (admin, gestor, financeiro).
-  const abas = [{ id: 'contatos' as const, rotulo: 'Contatos do Bling', contagem: parceiro.qtd_contatos_bling }, ...(ctx.veCusto ? [{ id: 'notas' as const, rotulo: 'Histórico de notas' }] : []), ...(ctx.veContato ? [{ id: 'documento' as const, rotulo: 'Documento e Receita' }] : [])]
+  const abas = [{ id: 'contatos' as const, rotulo: 'Contatos do Bling', contagem: parceiro.qtd_contatos_bling }, ...(ctx.veFinanceiro ? [{ id: 'notas' as const, rotulo: 'Histórico de notas' }] : []), ...(ctx.veContato ? [{ id: 'documento' as const, rotulo: 'Documento e Receita' }] : [])]
   return (
     <Modal titulo={parceiro.nome} onFechar={onFechar} larga>
       <p className="sub">Identificadores: {(parceiro.identificadores ?? []).join(' · ') || '—'} · Criado em {data(parceiro.criado_em)}</p>
@@ -146,7 +146,7 @@ function Contatos({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha })
           {lista.length === 0 ? <Vazio titulo="Nenhum contato com esses filtros" texto="Desmarque “Ocultar inativos” ou escolha “Todos”." /> : (
             <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
               <table>
-                <thead><tr><th>ID Bling</th><th>Nome no Bling (cru)</th><th>Marcas</th><th>Doc.</th><th>@</th>{ctx.veContato && <th>Telefone</th>}<th className="num">Compl.</th>{ctx.veCusto && <th className="num">Notas</th>}<th>Critério</th><th>Status</th>{ctx.veContato && !legado && <th />}</tr></thead>
+                <thead><tr><th>ID Bling</th><th>Nome no Bling (cru)</th><th>Marcas</th><th>Doc.</th><th>@</th>{ctx.veContato && <th>Telefone</th>}<th className="num">Compl.</th>{ctx.veFinanceiro && <th className="num">Notas</th>}<th>Critério</th><th>Status</th>{ctx.veContato && !legado && <th />}</tr></thead>
                 <tbody>
                   {lista.map((c) => (
                     <tr key={c.bling_id} className={c.inativo ? 'linha-inativa' : undefined}>
@@ -161,7 +161,7 @@ function Contatos({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha })
                       <td>{c.handle_social ? `@${c.handle_social}` : '—'}</td>
                       {ctx.veContato && <td>{c.telefone ?? '—'}</td>}
                       <td className="num">{c.completude}/5</td>
-                      {ctx.veCusto && <td className="num">{c.qtd_notas ?? '—'}</td>}
+                      {ctx.veFinanceiro && <td className="num">{c.qtd_notas ?? '—'}</td>}
                       <td>{CRITERIO[c.criterio] ?? c.criterio}</td>
                       <td title={c.motivo ?? undefined}>{STATUS[c.status] ?? c.status}</td>
                       {ctx.veContato && !legado && (

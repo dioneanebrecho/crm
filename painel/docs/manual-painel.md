@@ -1,6 +1,6 @@
 # Manual do painel Ane Brechó
 
-Documentação v0.8.0 · atualizada em 23/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
+Documentação v0.9.2 · atualizada em 24/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
 
 ## Catálogo
 
@@ -22,6 +22,49 @@ Documentação v0.8.0 · atualizada em 23/11/2026. Gerado de src/ajuda/conteudo.
 2. **Nova peça** — Clique aqui para cadastrar uma peça. Você informa nome, categoria, marca, condição, custo e preço, e monta a grade.
 3. **Localizar** — Busque por nome, código ou marca. Os filtros ajudam a achar o que precisa de foto, preço ou revisão.
 4. **Lista de peças** — Cada linha é uma peça. Clique em Editar para ajustar dados, fotos e grade, ou para gerar as etiquetas.
+
+### Entrada de mercadoria (NF-e)
+
+**O que é.** Importa o XML da NF-e de compra, cadastra as peças novas (grupo, marca, características e grade), rateia frete e despesas no custo, confere o financeiro da nota e dá entrada no estoque do CRM. Nada é enviado ao Bling.
+
+**Caso de uso.** Chegou a nota do fornecedor: você importa o XML, aceita as sugestões de cadastro, revisa cada peça e libera, confere as parcelas e confirma. As peças nascem com o custo fechado com a nota.
+
+**Dicas**
+
+- A confirmação só libera com fornecedor vinculado, todas as peças revisadas e liberadas, diferença de R$ 0,00 e financeiro conferido.
+- Qualquer mudança no rateio, nas rubricas ou no regime tira a liberação das peças afetadas: revise de novo.
+- Se o fornecedor não existir, a importação oferece cadastrá-lo com o CNPJ da nota.
+- Se o XML não trouxer parcelas, informe vencimento, valor, natureza e centro de resultado na seção Financeiro.
+- O financeiro fica vinculado à nota (número e chave). Lançamentos criados direto, sem nota, não têm esse vínculo.
+
+**Tutorial guiado**
+
+1. **Importar** — Clique em “Importar XML”, confira o resumo e o fornecedor e importe.
+2. **Peças** — As peças vêm abertas. Ajuste grupo, marca, características e grade, e use “Revisei: liberar peça”.
+3. **Rateio e financeiro** — Escolha o regime, lance rubricas extras se houver e confira as parcelas.
+4. **Confirmar** — Com todos os itens do checklist marcados, escolha o local do estoque e confirme.
+
+### Grupos de produto
+
+**O que é.** Organiza o catálogo em até 4 níveis (departamento, família, tipo de peça e subtipo) para relatórios de venda, margem e estoque por grupo. Marca, material e comprimento ficam no produto, como características, e não na árvore. Tudo é gerencial no CRM: nada é enviado ao Bling.
+
+**Caso de uso.** Os produtos que o motor não reconheceu caem em “A classificar”. Você filtra por essa fila, seleciona os que são, por exemplo, “Tricô”, e move todos para o grupo certo de uma vez, marcando também o material.
+
+**Dicas**
+
+- Só grupos analíticos recebem produtos; grupos sintéticos apenas organizam a árvore.
+- O que você altera à mão (grupo, marca ou característica) nunca é sobrescrito quando as regras são reaplicadas.
+- Cadastre uma palavra na aba Regras para o motor classificar sozinho os próximos produtos parecidos, depois use “Reaplicar regras”.
+- Com todos os itens da página marcados, aparece “Selecionar todos do filtro” para alterar milhares de uma vez (até 20.000 por operação).
+- No campo Marca, ao clicar ou digitar aparecem as marcas já cadastradas: escolha da lista para manter o nome padronizado. Uma marca nova é cadastrada ao salvar.
+- “Só com estoque” usa o estoque do CRM (unidades disponíveis ou reservadas das Peças). Produto do Bling que ainda não virou Peça aparece sem estoque.
+
+**Tutorial guiado**
+
+1. **Três áreas** — Produtos (classificação e lote), Árvore de grupos (cadastro) e Regras e características (palavras que o motor usa).
+2. **Fila “A classificar”** — A tela abre filtrada nos produtos pendentes. Filtre por busca, grupo, marca, característica ou estoque para achar os que quer ajustar.
+3. **Alterar em lote** — Marque os produtos, clique em “Alterar em lote…” e escolha grupo, marca e características. Cada campo pode ser mantido, definido ou removido.
+4. **Árvore** — Na aba Árvore de grupos você cria, move e inativa grupos. Um grupo só pode ser excluído quando não tem produtos nem subgrupos.
 
 ### Estoque
 
@@ -198,6 +241,46 @@ Documentação v0.8.0 · atualizada em 23/11/2026. Gerado de src/ajuda/conteudo.
 
 1. **Assistente** — Pergunte em português sobre vendas, estoque, fila e regras. Ele responde com dados e cita as fontes.
 2. **Converse** — Digite a pergunta. Use o histórico e os atalhos para abrir o que foi citado.
+
+## Financeiro
+
+### Natureza financeira
+
+**O que é.** Define o que é cada receita, custo ou despesa, em até 4 níveis (9.99.99.999). Só o 4º nível recebe lançamentos; os demais agrupam e somam. Cada natureza aponta para uma linha do DRE. Tudo é gerencial no CRM: nada é enviado ao Bling.
+
+**Caso de uso.** Uma conta de energia chega do Bling com uma categoria de utilidades. O De-Para leva essa categoria para a natureza correspondente e a regra por fornecedor indica o centro de resultado de administração.
+
+**Dicas**
+
+- O código é gerado sozinho ao criar uma natureza; ele e o pai não mudam depois.
+- Natureza em uso (com lançamentos) não pode ser excluída nem perder o nível analítico: inative.
+- Natureza de receita, dedução ou CMV só aceita centro de resultado de canal.
+- Na aba De-Para, categorias em amarelo ainda não foram mapeadas.
+- Regras não são excluídas: desligue a regra para parar de usá-la. Cada edição aumenta a versão.
+
+**Tutorial guiado**
+
+1. **Três áreas** — Árvore de naturezas, De-Para das categorias do Bling e Regras de apropriação.
+2. **Criar** — Use “+ Filha” na natureza pai (sintética). O sinal, o DRE e o centro padrão são herdados do pai e podem ser ajustados.
+3. **De-Para** — Escolha a natureza analítica de cada categoria do Bling ou marque “ignorar” para os grupos do Bling sem lançamento.
+
+### Centro de resultado
+
+**O que é.** Define quem responde pelo resultado: área, departamento ou canal de venda (por exemplo Instagram Lives, WhatsApp, Loja física). Não é o tipo de gasto; isso é a Natureza. Cada lançamento recebe uma natureza e um centro de resultado.
+
+**Caso de uso.** Para ver quanto o Instagram realmente deixa de resultado, a receita e o CMV entram nos centros de canal e as despesas de marketing e expedição são apropriadas aos centros de apoio.
+
+**Dicas**
+
+- Receita só entra em centro analítico do tipo canal que aceita receita.
+- O grupo 9 (Sem centro de resultado) é usado pelo motor para o que ainda não foi classificado e não pode ser excluído.
+- Centro com lançamentos, regras ou filhos não pode ser excluído: inative.
+- O código (9.99.99.999) é gerado automaticamente e não muda.
+
+**Tutorial guiado**
+
+1. **Criar** — Use “+ Nova área” para o nível 1 ou “+ Filho” em um centro agrupador.
+2. **Canal** — Para um centro de canal que recebe receita, marque “Aceita receita” e escolha o canal do CRM.
 
 ## Configuração
 

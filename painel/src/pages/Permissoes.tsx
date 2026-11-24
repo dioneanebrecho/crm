@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiPermissoes as api, type NivelTela } from '../api'
-import { Vazio, useCarregar } from '../ui'
+import { Vazio, useCarregar, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
 const ROTULO_PAPEL: Record<string, string> = { gestor: 'Gestor', suporte: 'Suporte', apresentadora: 'Apresentadora', expedicao: 'Expedição', financeiro: 'Financeiro', leitura: 'Leitura' }
@@ -45,8 +45,7 @@ export default function Permissoes({ ctx, onSalvo }: { ctx: Contexto; onSalvo: (
 
   return (
     <section>
-      <div className="topo"><div><h1>Permissões por tela</h1>
-        <p className="sub">Defina o que cada papel vê e edita. Administradores sempre têm acesso total. Já estão listadas também as telas previstas; elas passam a valer quando a tela for ativada.</p></div></div>
+      <div className="topo"><div><Titulo ajuda={<>Defina o que cada papel vê e edita. Administradores sempre têm acesso total. Já estão listadas também as telas previstas; elas passam a valer quando a tela for ativada.</>}>Permissões por tela</Titulo></div></div>
       <div className="aviso-caixa">Por enquanto a matriz <strong>restringe</strong> o que o painel mostra e permite. As regras de segurança do banco para peças, estoque e clientes continuam por papel; liberar acima delas exige migrar essas funções.</div>
       {msg && <div className={msg.ok ? 'info' : 'erro'} role="status">{msg.texto}</div>}
       <div className="tabela-rolavel" style={{ marginTop: 12 }}>

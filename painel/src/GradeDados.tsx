@@ -25,6 +25,9 @@ export interface Coluna<T> {
   max?: number
   /** colunas escondidas por padrão ficam acessíveis em "Colunas" */
   oculta?: boolean
+  /** coluna de seleção ou de ações: cabeçalho sem ordenar, fixar, filtrar nem arrastar (usa `cabecalho` no lugar do título) */
+  simples?: boolean
+  cabecalho?: ReactNode
 }
 
 interface Prefs { ordem: string[]; fixarAte: number | null; ocultas: string[]; larguras: Record<string, number> }
@@ -51,9 +54,14 @@ const CSS = `
 .gd .fixa-fim { box-shadow: 2px 0 0 0 var(--borda), 6px 0 8px -6px rgba(0,0,0,.5); }
 .gd tfoot td.tot { position:sticky; bottom:0; z-index:3; background: var(--card2); font-weight:700; border-top:2px solid var(--borda); border-bottom:0; }
 .gd tfoot td.tot.fixa { z-index:5; }
+.gd tr.clicavel { cursor:pointer; }
 .gd tbody tr:hover td { background: var(--card2); }
 .gd .cab { display:flex; align-items:center; gap:4px; cursor:grab; user-select:none; font-size:.7rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color: var(--mudo); }
 .gd .cab:active { cursor:grabbing; }
+.gd .cab.simples { cursor:default; justify-content:center; }
+.gd table { min-width:100%; }
+.gd td button { padding:.12rem .55rem; font-size:.76rem; white-space:nowrap; }
+.gd td input[type=checkbox] { width:16px; height:16px; margin:0; padding:0; cursor:pointer; }
 .gd .cab .tit { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:inherit; background:none; border:0; padding:0; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; cursor:pointer; white-space:nowrap; }
 .gd .cab .pin { background:none; border:0; padding:0 2px; cursor:pointer; color: var(--mudo); font-size:.8rem; opacity:.55; }
 .gd .cab .pin:hover, .gd .cab .pin.on { opacity:1; color: var(--gd-ac); }
@@ -177,7 +185,7 @@ function FiltroColuna<T>({ c, linhas, sel, expr, onSel, onExpr }: {
   )
 }
 
-export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altura, vazio = 'Nenhum registro.' }: {
+export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altura, vazio = 'Nenhum registro.', aoClicar }: {
   id: string
   /** título usado no arquivo exportado e no PDF (padrão: id) */
   titulo?: string
@@ -186,6 +194,8 @@ export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altu
   chave: (l: T) => string
   altura?: string
   vazio?: string
+  /** clique na linha (ex.: abrir o detalhe) */
+  aoClicar?: (l: T) => void
 }) {
   const ids = useMemo(() => colunas.map((c) => c.id), [colunas])
   const [prefs, setPrefs] = useState<Prefs>(() => {
@@ -248,7 +258,7 @@ export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altu
   const auto = useMemo(() => {
     const r: Record<string, number> = {}
     for (const c of colunas) {
-      let m = c.titulo.length * 8 + 62
+      let m = c.titulo.length * 8 + (c.simples ? 24 : 70)
       for (const l of linhas.slice(0, 60)) m = Math.max(m, c.texto(l).length * 7.4 + 22)
       r[c.id] = Math.round(Math.min(c.max ?? 260, Math.max(64, m)))
     }
@@ -331,7 +341,7 @@ export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altu
     <div className="gd" style={{ ['--gd-alt' as string]: altura ?? '58vh' }}>
       <style>{CSS}</style>
       <div className="gd-barra">
-        <span>{filtradas.length === linhas.length ? `${linhas.length} linhas` : `${filtradas.length} de ${linhas.length} linhas (filtrado)`} · ▽ filtra a coluna, arraste o título para mover, 📌 fixa até a coluna</span>
+        <span>{filtradas.length === linhas.length ? `${linhas.length} linhas` : `${filtradas.length} de ${linhas.length} linhas (filtrado)`} · ▽ filtra a coluna, arraste o título para mover, 📌 fixa a coluna e as da esquerda</span>
         <span className="acoes">
           {nFiltros > 0 && <button onClick={() => { setSelecao({}); setExprs({}) }}>Limpar filtros ({nFiltros})</button>}
           {sort && <button onClick={() => setSort(null)}>Tirar ordenação</button>}
@@ -358,6 +368,7 @@ export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altu
                 <th key={c.id} className={`${c.direita ? 'd ' : ''}${classeFixa(i)}${alvo === c.id && arrasto !== c.id ? ' alvo' : ''}`} style={estiloFixa(i)}
                     aria-sort={sort?.id === c.id ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
                     onDragOver={(e) => { if (arrasto) { e.preventDefault(); setAlvo(c.id) } }} onDrop={() => soltar(c.id)}>
+                  {c.simples ? <div className="cab simples">{c.cabecalho ?? c.titulo}</div> : (
                   <div className="cab" draggable onDragStart={(e) => { setArrasto(c.id); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setArrasto(null); setAlvo(null) }}>
                     <button type="button" className="tit" onClick={() => setSort(sort?.id === c.id ? (sort.dir === 1 ? { id: c.id, dir: -1 } : null) : { id: c.id, dir: 1 })} title="Clique para ordenar">
                       {c.titulo}{sort?.id === c.id ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}
@@ -366,7 +377,7 @@ export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altu
                       title={fixarAte === i ? 'Soltar colunas fixas' : 'Fixar esta coluna e as da esquerda'} onClick={() => salvar({ ...prefs, fixarAte: fixarAte === i ? null : i })}>📌</button>
                     <FiltroColuna c={c} linhas={linhas} sel={selecao[c.id]} expr={exprs[c.id]}
                       onSel={(v) => setSelecao((x) => ({ ...x, [c.id]: v }))} onExpr={(v) => setExprs((x) => ({ ...x, [c.id]: v }))} />
-                  </div>
+                  </div>)}
                   <span className={`res${viva?.id === c.id ? ' on' : ''}`} role="separator" aria-orientation="vertical" aria-label={`Redimensionar ${c.titulo}`} title="Arraste para redimensionar; duplo clique restaura"
                     onPointerDown={(e) => redimensionar(e, c)} onDoubleClick={() => reiniciarLargura(c)} />
                 </th>))}
@@ -374,7 +385,7 @@ export default function GradeDados<T>({ id, titulo, colunas, linhas, chave, altu
           </thead>
           <tbody>
             {filtradas.map((l) => (
-              <tr key={chave(l)}>
+              <tr key={chave(l)} className={aoClicar ? 'clicavel' : undefined} onClick={aoClicar ? () => aoClicar(l) : undefined}>
                 {visiveis.map((c, i) => (
                   <td key={c.id} className={`${c.direita ? 'd ' : ''}${classeFixa(i)}`} style={estiloFixa(i)} title={c.texto(l)}>{c.render ? c.render(l) : c.texto(l)}</td>))}
               </tr>))}

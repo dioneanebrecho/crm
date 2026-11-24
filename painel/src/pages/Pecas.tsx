@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, brl, data, numero, type Local, type OpcaoCadastro, type PecaDetalhe } from '../api'
+import { api, brl, data, numero, type PecaLinha, type Local, type OpcaoCadastro, type PecaDetalhe } from '../api'
 import { apiCampanhas, apiFotos, normalizarFotos, type Campanha, type Foto } from '../apiCatalogo'
-import { Abas, Busca, Campo, Formulario, LimparFiltros, Modal, Paginacao, Selo, useCarregar, Vazio } from '../ui'
+import GradeDados, { type Coluna } from '../GradeDados'
+import { fmtMargem, margemBruta } from '../rentabilidade'
+import { Abas, Busca, Campo, Formulario, LimparFiltros, Modal, Paginacao, Selo, useCarregar, Vazio, Titulo } from '../ui'
 import { useEstadoTela } from '../abas'
 import { Barras, Qr, conteudoQr, imprimirEtiquetas, qrApontaParaUrl } from '../etiquetas'
 import { reduzirFoto } from '../fotos'
@@ -9,7 +11,7 @@ import { GRUPOS_TAMANHO, tamLabel } from '../tamanhos'
 import { apiGrades, ehPadrao, sugerirLocal, tamanhoPorBling, TIPOS_PADRAO, useTiposGrade, type Atributos, type GradeAtributo, type ProdutoBlingSugerido, type ResultadoVinculo, type TipoGrade } from '../apiGrades'
 import type { Contexto } from '../App'
 
-const LIMITE = 50
+const LIMITE = 200
 type AbaPeca = 'dados' | 'grade' | 'fotos' | 'etiquetas' | 'campanhas'
 
 const margem = (preco: number | null, custo: number | null) => (preco && custo != null && preco > 0 ? ((preco - custo) / preco) * 100 : null)
@@ -22,18 +24,31 @@ export default function Pecas({ ctx }: { ctx: Contexto }) {
   const [form, setForm] = useState(false)
   const [aberta, setAberta] = useState<{ id: string; aba: AbaPeca } | null>(null)
   const total = dados?.[0]?.total ?? 0
+  const colunas = useMemo<Coluna<PecaLinha>[]>(() => [
+    { id: 'foto', titulo: 'Foto', texto: () => '', largura: 52, simples: true, somar: false, render: (p) => <Miniatura url={p.foto_capa} nome={p.nome} /> },
+    { id: 'codigo', titulo: 'Código', texto: (p) => p.codigo, render: (p) => <code>{p.codigo}</code> },
+    { id: 'nome', titulo: 'Peça', texto: (p) => p.nome, max: 420 },
+    { id: 'categoria', titulo: 'Categoria', texto: (p) => p.categoria ?? '—' },
+    { id: 'marca', titulo: 'Marca', texto: (p) => p.marca ?? '—' },
+    { id: 'condicao', titulo: 'Condição', texto: (p) => (p.condicao === 'nova' ? 'Nova' : 'Usada') },
+    { id: 'preco', titulo: 'Preço de venda', texto: (p) => brl(p.preco_tabela), valor: (p) => p.preco_tabela, direita: true, somar: false },
+    ...(ctx.veRentabilidade ? [{ id: 'custo', titulo: 'Custo', texto: (p: PecaLinha) => brl(p.custo), valor: (p: PecaLinha) => p.custo, direita: true, somar: false },
+      { id: 'margem', titulo: 'Margem bruta', texto: (p: PecaLinha) => fmtMargem(margemBruta(p.preco_tabela, p.custo)), valor: (p: PecaLinha) => margemBruta(p.preco_tabela, p.custo), direita: true, somar: false,
+        render: (p: PecaLinha) => { const m = margemBruta(p.preco_tabela, p.custo); return <span className={m != null && m <= 0 ? 'texto-erro' : ''}>{fmtMargem(m)}</span> } }] : []),
+    { id: 'tamanhos', titulo: 'Tamanhos', texto: (p) => String(p.qtd_variacoes), valor: (p) => p.qtd_variacoes, direita: true, somar: false },
+    { id: 'unidades', titulo: 'Unidades (disp. / total)', texto: (p) => `${p.qtd_disponiveis} / ${p.qtd_unidades}`, valor: (p) => p.qtd_disponiveis, direita: true, somar: false },
+  ], [ctx.veRentabilidade])
 
   return (
     <section>
       <div className="topo">
         <div>
-          <h1>Peças</h1>
-          <p className="sub">Cadastro das peças vendidas: dados, grade de tamanhos, unidades em estoque (cada uma com QR e código de barras próprios), fotos e histórico de campanhas.</p>
+          <Titulo ajuda={<>Cadastro das peças vendidas: dados, grade de tamanhos, unidades em estoque (cada uma com QR e código de barras próprios), fotos e histórico de campanhas.</>}>Peças</Titulo>
         </div>
         {ctx.podeCatalogo && <button onClick={() => setForm(true)}>+ Nova peça</button>}
       </div>
       <div className="filtros">
-        <Busca valor={busca} onMudar={(v) => { setOffset(0); setBusca(v) }} placeholder="Buscar por código, nome, marca ou categoria" />
+        <Busca valor={busca} onMudar={(v) => { if (v !== busca) { setOffset(0); setBusca(v) } }} placeholder="Buscar por código, nome, marca ou categoria" />
         <LimparFiltros ativo={!!busca} onLimpar={() => { setOffset(0); setBusca('') }} />
       </div>
       {erro && <div className="erro">{erro}</div>}
@@ -44,22 +59,8 @@ export default function Pecas({ ctx }: { ctx: Contexto }) {
                acao={!busca && ctx.podeCatalogo ? <button onClick={() => setForm(true)}>Cadastrar a primeira peça</button> : undefined} />
       )}
       {dados && dados.length > 0 && (
-        <div className="tabela-rolavel">
-          <table>
-            <thead><tr><th></th><th>Código</th><th>Peça</th><th>Categoria</th><th>Marca</th><th>Condição</th>
-              <th className="num">Preço de venda</th>{ctx.veCusto && <th className="num">Custo</th>}<th className="num">Tamanhos</th><th className="num">Unidades (disp. / total)</th></tr></thead>
-            <tbody>
-              {dados.map((p) => (
-                <tr key={p.id} className="clicavel" onClick={() => setAberta({ id: p.id, aba: 'dados' })}>
-                  <td className="col-foto"><Miniatura url={p.foto_capa} nome={p.nome} /></td><td><code>{p.codigo}</code></td><td>{p.nome}</td><td>{p.categoria ?? '—'}</td><td>{p.marca ?? '—'}</td>
-                  <td>{p.condicao === 'nova' ? 'Nova' : 'Usada'}</td><td className="num">{brl(p.preco_tabela)}</td>
-                  {ctx.veCusto && <td className="num">{brl(p.custo)}</td>}
-                  <td className="num">{p.qtd_variacoes}</td><td className="num">{p.qtd_disponiveis} / {p.qtd_unidades}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <GradeDados id={`pecas.lista.${ctx.veRentabilidade ? 'c' : 's'}`} titulo="Peças" colunas={colunas} linhas={dados} chave={(p) => p.id} altura="74vh"
+          aoClicar={(p) => setAberta({ id: p.id, aba: 'dados' })} />
       )}
       <Paginacao total={total} offset={offset} limite={LIMITE} onMudar={setOffset} />
       {form && <PecaForm ctx={ctx} peca={null} onFechar={() => setForm(false)} onSalvo={(id, aba) => { setForm(false); recarregar(); setAberta({ id, aba }) }} />}
@@ -450,8 +451,8 @@ function DadosAba({ ctx, dados, tipo, onEditar, onVincular, onDesvincular }: { c
     <div>
       <dl className="ficha">
         <div><dt>Preço de venda</dt><dd>{brl(p.preco_tabela)}</dd></div>
-        {ctx.veCusto && <div><dt>Custo</dt><dd>{brl(p.custo)}</dd></div>}
-        {ctx.veCusto && <div><dt>Margem bruta</dt><dd>{m == null ? '—' : <span className={m <= 0 ? 'texto-erro' : ''}>{pct(m)}</span>}</dd></div>}
+        {ctx.veRentabilidade && <div><dt>Custo</dt><dd>{brl(p.custo)}</dd></div>}
+        {ctx.veRentabilidade && <div><dt>Margem bruta</dt><dd>{m == null ? '—' : <span className={m <= 0 ? 'texto-erro' : ''}>{pct(m)}</span>}</dd></div>}
         <div><dt>Condição</dt><dd>{p.condicao === 'nova' ? 'Nova' : 'Usada'}</dd></div>
         <div><dt>Categoria</dt><dd>{p.categoria ?? '—'}</dd></div>
         <div><dt>Marca</dt><dd>{p.marca ?? '—'}</dd></div>

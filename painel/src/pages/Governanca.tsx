@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { apiGovernanca, data, type EstadoGov, type ItemGov, type TipoGov } from '../api'
-import { Busca, Formulario, Modal, useCarregar, Vazio } from '../ui'
+import { Busca, Formulario, Modal, useCarregar, Vazio, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
 const TIPOS: Record<TipoGov, string> = { duvida: 'Dúvida', ocorrencia: 'Ocorrência', sugestao: 'Sugestão' }
@@ -29,8 +29,7 @@ export default function Governanca({ ctx }: { ctx: Contexto }) {
     <section>
       <div className="topo">
         <div>
-          <h1>Central de governança</h1>
-          <p className="sub">Dúvidas e ocorrências relatadas no uso do painel. A equipe registra pelo menu de Ajuda (botão “?”) em qualquer tela; aqui você tria, resolve e deixa o aprendizado documentado.</p>
+          <Titulo ajuda={<>Dúvidas e ocorrências relatadas no uso do painel. A equipe registra pelo menu de Ajuda (botão “?”) em qualquer tela; aqui você tria, resolve e deixa o aprendizado documentado.</>}>Central de governança</Titulo>
         </div>
       </div>
       {erro && <div className="erro">{erro}</div>}

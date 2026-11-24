@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { paraTrecho, resumir } from '../textoLimpo'
 import { apiConhecimento as api, apiAssistenteDados, apiAssistenteIA, apiConversas, type AchadoConhecimento, type VendasCliente, type ClienteVendas, type VendasPeriodo, type Recebimento, type MargemBruta } from '../api'
 import { entender, deFichaIA, pareceDado, type Intencao, type Opcao, type PeriodoComparado } from '../intencao'
-import { Vazio, useCarregar } from '../ui'
+import { Vazio, useCarregar, Titulo } from '../ui'
 import { NOME_TELA, acharReferencias, quando, type Referencia } from '../referencias'
 import type { Contexto } from '../App'
 import { GraficoVendas } from './GraficoVendas'
@@ -246,8 +246,7 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
 
   return (
     <section>
-      <div className="topo"><div><h1>Assistente</h1>
-        <p className="sub">Pergunte pelas vendas de um cliente (use o @ do Instagram ou o nome) ou sobre as regras e processos da operação. Perguntas de cliente vêm dos dados; as de regra mostram os trechos dos documentos, com a fonte.</p></div>
+      <div className="topo"><div><Titulo ajuda={<>Pergunte pelas vendas de um cliente (use o @ do Instagram ou o nome) ou sobre as regras e processos da operação. Perguntas de cliente vêm dos dados; as de regra mostram os trechos dos documentos, com a fonte.</>}>Assistente</Titulo></div>
         {admin && <button className="sec" onClick={() => abrir('conhecimento')}>Gerenciar documentos</button>}
       </div>
 

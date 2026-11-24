@@ -5,7 +5,9 @@ import '@fontsource-variable/inter'
 import '@fontsource-variable/plus-jakarta-sans'
 import './styles.css'
 import { lerTema, aplicarTema } from './tema'
+import { lerDensidade, aplicarDensidade } from './densidade'
 
 aplicarTema(lerTema())
+aplicarDensidade(lerDensidade())
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiFaixa, type FaixaConfig, type FaixaFonte } from '../api'
-import { Campo, Modal, Formulario, useCarregar, Vazio } from '../ui'
+import { Campo, Modal, Formulario, useCarregar, Vazio, Titulo } from '../ui'
 import type { Contexto } from '../App'
 
 const quando = (iso: string | null) => iso ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso)) : '—'
@@ -30,8 +30,7 @@ export default function FaixaConfigTela({ ctx }: { ctx: Contexto }) {
   return (
     <section>
       <div className="topo"><div>
-        <h1>Faixa informativa</h1>
-        <p className="sub">Faixa no topo do painel com hora de Brasília, dólar do dia e manchetes do setor de moda. Cada pessoa pode ocultá-la no “×” da própria faixa; aqui a empresa decide se ela existe e de onde vêm as notícias.</p>
+        <Titulo ajuda={<>Faixa no topo do painel com hora de Brasília, dólar do dia e manchetes do setor de moda. Cada pessoa pode ocultá-la no “×” da própria faixa; aqui a empresa decide se ela existe e de onde vêm as notícias.</>}>Faixa informativa</Titulo>
       </div></div>
       {erro && <div className="erro">{erro}</div>}
       {falha && <div className="erro" role="alert">{falha}</div>}

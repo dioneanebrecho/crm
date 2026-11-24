@@ -108,3 +108,26 @@ export function Abas<T extends string>({ abas, ativa, onMudar }: { abas: { id: T
     </div>
   )
 }
+
+/** Título compacto da tela. A descrição longa fica no ícone "?" (abre ao clicar; Esc ou clique fora fecha). */
+export function Titulo({ children, ajuda }: { children: ReactNode; ajuda?: ReactNode }) {
+  const [aberto, setAberto] = useState(false)
+  const caixa = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!aberto) return
+    const fora = (e: Event) => { if (!caixa.current?.contains(e.target as Node)) setAberto(false) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAberto(false) }
+    document.addEventListener('pointerdown', fora); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('pointerdown', fora); document.removeEventListener('keydown', esc) }
+  }, [aberto])
+  return (
+    <h1 className="tit-pag">
+      <span>{children}</span>
+      {ajuda && (
+        <span className="ajuda-pag" ref={caixa}>
+          <button type="button" className="ajuda-btn" aria-label="Sobre esta tela" aria-expanded={aberto} title="Sobre esta tela" onClick={() => setAberto((a) => !a)}>?</button>
+          {aberto && <div className="ajuda-pop" role="note">{ajuda}</div>}
+        </span>)}
+    </h1>
+  )
+}

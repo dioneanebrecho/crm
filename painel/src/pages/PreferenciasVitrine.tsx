@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Contexto } from '../App'
 import { apiVendas, type PrefVitrine, type Preferencias } from '../apiVendas'
-import { useCarregar } from '../ui'
+import { useCarregar, Titulo } from '../ui'
 
 // Preferências da vitrine (decisão de 22/11/2026): cada item mostra o recomendado; só admin/gestor alteram.
 type Chave = keyof Omit<PrefVitrine, 'atualizado_em' | 'atualizado_por'>
@@ -28,7 +28,7 @@ export default function PreferenciasVitrine({ ctx }: { ctx: Contexto }) {
   const [msg, setMsg] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   useEffect(() => { if (p.dados) { setDados(p.dados); setCfg(p.dados.valores) } }, [p.dados])
-  if (p.erro) return <section><h1>Preferências da vitrine</h1><div className="erro">{p.erro}</div></section>
+  if (p.erro) return <section><Titulo>Preferências da vitrine</Titulo><div className="erro">{p.erro}</div></section>
   if (!dados || !cfg) return <p className="sub">Carregando…</p>
   const rec = dados.recomendados as Partial<PrefVitrine>
   const salvo = dados.valores
@@ -73,7 +73,7 @@ export default function PreferenciasVitrine({ ctx }: { ctx: Contexto }) {
   return (
     <section>
       <div className="topo">
-        <div><h1>Preferências da vitrine</h1><p className="sub">Aparência e regras da página pública da peça. {pode ? 'Cada item mostra o valor recomendado.' : 'Somente leitura: só gestor e admin alteram.'}</p></div>
+        <Titulo ajuda={<>Aparência e regras da página pública da peça. {pode ? 'Cada item mostra o valor recomendado.' : 'Somente leitura: só gestor e admin alteram.'}</>}>Preferências da vitrine</Titulo>
         {pode && <div className="v-linha">
           <span className={pendentes.length ? 'sujo' : 'mudo'}>{pendentes.length ? `${pendentes.length} alteração(ões) não salva(s)` : 'Tudo salvo'}</span>
           <button className="sec" disabled={!pendentes.length || salvando} onClick={() => { setCfg(salvo); setMsg(null) }}>Descartar</button>
