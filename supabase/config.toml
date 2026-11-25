@@ -26,3 +26,7 @@ verify_jwt = true
 # Agente de impressão: não há JWT de usuário; a autorização é o segredo do agente (api.agente_autenticar).
 [functions.impressao-agente]
 verify_jwt = false
+
+# Webhook da Meta/Instagram: sem JWT de usuário; a proteção é a assinatura X-Hub-Signature-256 e o verify token.
+[functions.meta-webhook]
+verify_jwt = false
