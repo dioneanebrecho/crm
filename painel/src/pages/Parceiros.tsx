@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
-import { apiParceiros, apiReceita, brl, data, type DocumentoParceiro, type ReceitaCnpj, type FiltroParceiro, type ParceiroLinha, type PendenteLinha } from '../api'
+import { useMemo, useRef, useState } from 'react'
+import { apiParceiros, apiReceita, brl, data, type DadosParceiro, type DocumentoParceiro, type HistoricoNota, type ReceitaCnpj, type FiltroParceiro, type ParceiroLinha, type PendenteLinha } from '../api'
 import { Abas, Busca, Modal, Paginacao, useCarregar, Vazio, Titulo } from '../ui'
 import { useEstadoTela } from '../abas'
 import type { Contexto } from '../App'
 import { DetalheNota } from './NotasBling'
 import { classificar } from '../documento'
+import { lerNfe } from '../xmlNfe'
 
 const LIMITE = 50
 const LIMITE_NOTAS = 20
@@ -85,19 +86,37 @@ function Lista({ ctx, inicial }: { ctx: Contexto; inicial?: string }) {
   )
 }
 
-type AbaModal = 'contatos' | 'notas' | 'documento'
+type AbaModal = 'contatos' | 'cadastro' | 'notas' | 'documento'
+const SIT_CEP: Record<string, string> = {
+  padronizado: 'Padronizado pela base dos Correios (pelo CEP)',
+  parcial: 'CEP geral do município: município/UF dos Correios; logradouro e bairro como vieram',
+  divergente: 'O CEP não confere com a cidade/UF informadas: mantido o endereço original',
+  nao_encontrado: 'CEP não encontrado nos Correios: mantido o endereço original',
+  sem_consulta: 'CEP ainda não consultado nos Correios: mantido o endereço original',
+  cep_invalido: 'CEP ausente ou inválido: mantido o endereço original',
+}
+const ORIGEM_END: Record<string, string> = { correios: 'Correios', xml: 'XML', manual: 'Manual' }
+const fmtCep = (c: string | null) => (c && c.length === 8 ? `${c.slice(0, 5)}-${c.slice(5)}` : c)
+const fmtFone = (t: string | null) => {
+  if (!t) return null
+  if (t.length === 11) return t.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+  if (t.length === 10) return t.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+  return t
+}
+const CRT: Record<string, string> = { '1': 'Simples Nacional', '2': 'Simples Nacional (excesso de sublimite)', '3': 'Regime normal', '4': 'MEI' }
 type ModoContato = 'todos' | 'recente' | 'completo'
-const SIT_NOTA_TIPO: Record<number, string> = { 0: 'Entrada', 1: 'Saída' }
 
 function Vinculos({ ctx, parceiro, onFechar }: { ctx: Contexto; parceiro: ParceiroLinha; onFechar: () => void }) {
-  const [aba, setAba] = useState<AbaModal>('contatos')
+  const veCadastro = ctx.veContato || ctx.veFinanceiro || ctx.veRentabilidade
+  // Fornecedor que veio do XML não tem contatos do Bling: abre direto no cadastro.
+  const [aba, setAba] = useState<AbaModal>(veCadastro && parceiro.qtd_contatos_bling === 0 && (parceiro.papeis ?? []).includes('fornecedor') ? 'cadastro' : 'contatos')
   // Notas são dado fiscal/pessoal: mesmos papéis da tela Notas Bling (admin, gestor, financeiro).
-  const abas = [{ id: 'contatos' as const, rotulo: 'Contatos do Bling', contagem: parceiro.qtd_contatos_bling }, ...(ctx.veFinanceiro ? [{ id: 'notas' as const, rotulo: 'Histórico de notas' }] : []), ...(ctx.veContato ? [{ id: 'documento' as const, rotulo: 'Documento e Receita' }] : [])]
+  const abas = [{ id: 'contatos' as const, rotulo: 'Contatos do Bling', contagem: parceiro.qtd_contatos_bling }, ...(veCadastro ? [{ id: 'cadastro' as const, rotulo: 'Cadastro' }] : []), ...(ctx.veFinanceiro ? [{ id: 'notas' as const, rotulo: 'Histórico de notas' }] : []), ...(ctx.veContato ? [{ id: 'documento' as const, rotulo: 'Documento e Receita' }] : [])]
   return (
     <Modal titulo={parceiro.nome} onFechar={onFechar} larga>
       <p className="sub">Identificadores: {(parceiro.identificadores ?? []).join(' · ') || '—'} · Criado em {data(parceiro.criado_em)}</p>
       <Abas abas={abas} ativa={aba} onMudar={setAba} />
-      {aba === 'contatos' ? <Contatos ctx={ctx} parceiro={parceiro} /> : aba === 'notas' ? <NotasParceiro ctx={ctx} parceiro={parceiro} /> : <DocumentoReceita ctx={ctx} parceiro={parceiro} />}
+      {aba === 'contatos' ? <Contatos ctx={ctx} parceiro={parceiro} /> : aba === 'cadastro' ? <CadastroParceiro ctx={ctx} parceiro={parceiro} /> : aba === 'notas' ? <NotasParceiro ctx={ctx} parceiro={parceiro} /> : <DocumentoReceita ctx={ctx} parceiro={parceiro} />}
     </Modal>
   )
 }
@@ -181,6 +200,73 @@ function Contatos({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha })
   )
 }
 
+function CadastroParceiro({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha }) {
+  const { dados, erro, carregando, recarregar } = useCarregar(() => apiParceiros.dados(ctx.empresa, parceiro.id), [ctx.empresa, parceiro.id])
+  const seletor = useRef<HTMLInputElement>(null)
+  const [falha, setFalha] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+  const d: DadosParceiro | null = dados
+  async function porXml(arq: File | undefined) {
+    if (!arq) return
+    setOcupado(true); setFalha(null); setAviso(null)
+    try {
+      const em = (await lerNfe(await arq.text())).emitente
+      const r = await apiParceiros.salvarDados(ctx.empresa, parceiro.id, { documento: em.documento, razao_social: em.razao_social, nome_fantasia: em.nome_fantasia, ie: em.ie, im: em.im, cnae: em.cnae, crt: em.crt, telefone: em.telefone, email: em.email, origem: 'xml', endereco: em.endereco })
+      setAviso(r.endereco_mantido ? 'Dados atualizados. O endereço foi mantido porque foi digitado manualmente.' : `Dados atualizados a partir do XML. ${SIT_CEP[r.situacao] ?? ''}.`)
+      recarregar()
+    } catch (e) { setFalha((e as Error).message) } finally { setOcupado(false) }
+  }
+  async function reconsultar() {
+    setOcupado(true); setFalha(null); setAviso(null)
+    try { const r = await apiParceiros.reaplicarEndereco(ctx.empresa, parceiro.id, d?.cep ?? null); setAviso(`${SIT_CEP[r.situacao] ?? r.situacao}.`); recarregar() }
+    catch (e) { setFalha((e as Error).message) } finally { setOcupado(false) }
+  }
+  const doc = d?.documento ? classificar(d.documento).formatado : null
+  const end = d && (d.logradouro || d.cep) ? [[d.logradouro, d.numero].filter(Boolean).join(', '), d.complemento, d.bairro, d.municipio && `${d.municipio}/${d.uf ?? ''}`, fmtCep(d.cep)].filter(Boolean).join(' · ') : null
+  const Item = ({ r, v }: { r: string; v: string | null | undefined }) => <div><small>{r}</small><strong>{v || '—'}</strong></div>
+  return (
+    <>
+      {erro && <div className="erro">{/migration pendente/i.test(erro) ? 'Cadastro indisponível: a migration 0084 ainda não foi aplicada no banco.' : erro}</div>}
+      {falha && <div className="erro" role="alert">{falha}</div>}
+      {aviso && <p className="sub" role="status">{aviso}</p>}
+      {carregando && !dados && !erro && <p className="sub">Carregando…</p>}
+      {!carregando && !dados && !erro && <Vazio titulo="Sem dados cadastrais" texto="Este parceiro ainda não tem CNPJ completo, inscrição, telefone e endereço gravados. Eles entram ao importar o XML da NF-e do fornecedor, ou use “Atualizar a partir de um XML” abaixo." />}
+      {d && (
+        <>
+          <div className="resumo-notas" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            <Item r="CPF/CNPJ" v={doc} />
+            <Item r="Razão social" v={d.razao_social} />
+            <Item r="Nome fantasia" v={d.nome_fantasia} />
+            <Item r="Inscrição estadual" v={d.ie} />
+            <Item r="Inscrição municipal" v={d.im} />
+            <Item r="CNAE" v={d.cnae} />
+            <Item r="Regime (CRT)" v={d.crt ? CRT[d.crt] ?? d.crt : null} />
+            <Item r="Telefone" v={fmtFone(d.telefone)} />
+            <Item r="E-mail" v={d.email} />
+            <Item r="Endereço" v={end} />
+            <Item r="Cód. município (IBGE)" v={d.codigo_municipio} />
+          </div>
+          <p className="sub" style={{ margin: '8px 0 4px' }}>
+            {d.endereco_origem && <span className={d.endereco_origem === 'correios' ? 'selo selo-disponivel' : 'selo'}>Endereço: {ORIGEM_END[d.endereco_origem]}</span>}{' '}
+            {d.cep_situacao && (SIT_CEP[d.cep_situacao] ?? d.cep_situacao)}. Atualizado em {data(d.atualizado_em)}.
+          </p>
+        </>
+      )}
+      {ctx.veRentabilidade && (
+        <div className="filtros-contato" style={{ marginTop: 10 }}>
+          <input ref={seletor} type="file" accept=".xml,text/xml,application/xml" style={{ display: 'none' }} onChange={(e) => { void porXml(e.target.files?.[0]); e.target.value = '' }} />
+          <button className="sec" disabled={ocupado} onClick={() => seletor.current?.click()}>{ocupado ? 'Processando…' : 'Atualizar a partir de um XML'}</button>
+          {d?.cep && d.endereco_origem !== 'manual' && <button className="sec" disabled={ocupado} onClick={() => void reconsultar()}>Reconsultar CEP nos Correios</button>}
+        </div>
+      )}
+      <p className="sub" style={{ marginTop: 8 }}>
+        O endereço segue a descrição oficial dos Correios (pelo CEP), para evitar abreviações e tipos de logradouro diferentes. Se o CEP não for confiável (não encontrado, ou cidade/UF diferentes), fica o endereço do XML. A mesma regra vale para o endereço do cliente.
+      </p>
+    </>
+  )
+}
+
 function DocumentoReceita({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLinha }) {
   const [docs, setDocs] = useState<DocumentoParceiro[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -260,15 +346,30 @@ function NotasParceiro({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLin
   const [offset, setOffset] = useState(0)
   const [det, setDet] = useState<number | null>(null)
   const resumo = useCarregar(() => apiParceiros.resumoNotas(ctx.empresa, parceiro.id), [ctx.empresa, parceiro.id])
-  const lista = useCarregar(() => apiParceiros.notas(ctx.empresa, parceiro.id, offset, LIMITE_NOTAS), [ctx.empresa, parceiro.id, offset])
+  const compras = useCarregar(() => apiParceiros.resumoCompras(ctx.empresa, parceiro.id), [ctx.empresa, parceiro.id])
+  const lista = useCarregar(() => apiParceiros.historico(ctx.empresa, parceiro.id, offset, LIMITE_NOTAS), [ctx.empresa, parceiro.id, offset])
   const r = resumo.dados
+  const c = compras.dados
   const total = lista.dados?.[0]?.total ?? 0
-  const erro = resumo.erro ?? lista.erro
+  const erro = resumo.erro ?? lista.erro ?? compras.erro
   return (
     <>
       {erro && <div className="erro">{/migration pendente/i.test(erro) ? 'Histórico de notas indisponível: a migration 0024 ainda não foi aplicada no banco.' : erro}</div>}
-      {r && (
+      {c && (c.qtd_compras > 0 || c.qtd_canceladas > 0) && (
         <>
+          <p className="sub" style={{ margin: '4px 0' }}><strong>Compras deste parceiro (NF-e de entrada)</strong></p>
+          <div className="resumo-notas">
+            <div><small>Notas de compra</small><strong>{c.qtd_compras}</strong></div>
+            <div><small>Valor comprado</small><strong>{brl(c.valor_total)}</strong></div>
+            <div><small>Primeira compra</small><strong>{c.primeira ? data(c.primeira) : '—'}</strong></div>
+            <div><small>Última compra</small><strong>{c.ultima ? data(c.ultima) : '—'}</strong></div>
+          </div>
+          {c.qtd_canceladas > 0 && <p className="sub" style={{ margin: '4px 0' }}>{c.qtd_canceladas} nota(s) de compra cancelada(s) não entram nos totais.</p>}
+        </>
+      )}
+      {r && r.qtd_notas > 0 && (
+        <>
+          <p className="sub" style={{ margin: '8px 0 4px' }}><strong>Notas lidas do Bling (contatos vinculados)</strong></p>
           <div className="resumo-notas">
             <div><small>Notas</small><strong>{r.qtd_notas}</strong></div>
             <div><small>Valor total</small><strong>{r.qtd_notas > 0 && r.qtd_sem_detalhe === r.qtd_notas ? '—' : brl(r.valor_total)}</strong></div>
@@ -284,18 +385,19 @@ function NotasParceiro({ ctx, parceiro }: { ctx: Contexto; parceiro: ParceiroLin
         </>
       )}
       {lista.carregando && !lista.dados && <p className="sub">Carregando…</p>}
-      {lista.dados && lista.dados.length === 0 && !erro && <Vazio titulo="Sem notas" texto="Nenhuma nota lida do Bling para os contatos deste parceiro (a carga das notas ainda pode estar em andamento)." />}
+      {lista.dados && lista.dados.length === 0 && !erro && <Vazio titulo="Sem notas" texto="Nenhuma nota de compra (NF-e importada na Entrada de mercadoria) nem nota lida do Bling para este parceiro (a carga das notas do Bling ainda pode estar em andamento)." />}
       {lista.dados && lista.dados.length > 0 && (
         <div style={{ maxHeight: '45vh', overflow: 'auto' }}>
           <table>
-            <thead><tr><th>Emissão</th><th>Nota</th><th>Tipo</th><th>Situação</th><th className="num">Valor</th><th className="num">Frete</th><th className="num">Itens</th><th>Contato Bling</th></tr></thead>
+            <thead><tr><th>Emissão</th><th>Origem</th><th>Nota</th><th>Tipo</th><th>Situação</th><th className="num">Valor</th><th className="num">Frete</th><th className="num">Itens</th><th>Contato Bling</th></tr></thead>
             <tbody>
-              {lista.dados.map((n) => (
-                <tr key={n.bling_id} onClick={() => setDet(n.bling_id)} style={{ cursor: 'pointer' }}>
+              {lista.dados.map((n: HistoricoNota) => (
+                <tr key={`${n.origem}-${n.ref}`} onClick={n.bling_id != null ? () => setDet(n.bling_id) : undefined} style={{ cursor: n.bling_id != null ? 'pointer' : 'default' }} title={n.chave_acesso ? `Chave de acesso ${n.chave_acesso}` : undefined}>
                   <td>{n.data_emissao ? data(n.data_emissao) : '—'}</td>
-                  <td>{n.numero}{n.serie != null ? `/${n.serie}` : ''}</td>
-                  <td>{n.tipo != null ? SIT_NOTA_TIPO[n.tipo] ?? n.tipo : '—'}</td>
-                  <td>{n.situacao} · {n.situacao_rotulo ?? '—'}</td>
+                  <td>{n.origem === 'compra' ? <span className="selo selo-disponivel">Compra</span> : <span className="selo">Bling</span>}</td>
+                  <td>{n.numero}{n.serie ? `/${n.serie}` : ''}</td>
+                  <td>{n.tipo ?? '—'}</td>
+                  <td>{n.situacao ?? '—'}</td>
                   <td className="num">{n.tem_detalhe ? brl(n.valor_nota) : <span className="mudo">sem detalhe</span>}</td>
                   <td className="num">{n.tem_detalhe ? brl(n.valor_frete) : '—'}</td>
                   <td className="num">{n.qtd_itens ?? '—'}</td>

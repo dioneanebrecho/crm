@@ -17,7 +17,14 @@ async function sha256(texto: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-export interface NotaLida { dados: DadosImportacao; fornecedorCnpj: string; destinatarioCnpj: string | null; avisos: string[] }
+/** Dados cadastrais do emitente exatamente como vêm no XML (o CNPJ completo e o endereço não seguem em DadosImportacao). */
+export interface EmitenteXml {
+  documento: string; razao_social: string | null; nome_fantasia: string | null; ie: string | null; im: string | null; cnae: string | null; crt: string | null
+  telefone: string | null; email: string | null
+  endereco: { cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null
+    cod_municipio: string | null; municipio: string | null; uf: string | null; pais: string | null }
+}
+export interface NotaLida { dados: DadosImportacao; fornecedorCnpj: string; destinatarioCnpj: string | null; avisos: string[]; emitente: EmitenteXml }
 
 export async function lerNfe(xml: string): Promise<NotaLida> {
   const doc = new DOMParser().parseFromString(xml, 'application/xml')
@@ -80,5 +87,12 @@ export async function lerNfe(xml: string): Promise<NotaLida> {
     const dias = Math.floor((Date.now() - new Date(emissao + 'T12:00:00').getTime()) / 86400000)
     if (dias > 90) avisos.push(`Nota emitida há ${dias} dias (${emissao.split('-').reverse().join('/')}). Confirme que ainda não deu entrada em outra rotina.`)
   }
-  return { dados, fornecedorCnpj: cnpj, destinatarioCnpj: (txt(dest, 'CNPJ') ?? '').replace(/\D/g, '') || null, avisos }
+  const ender = filho(emit, 'enderEmit')
+  const emitente: EmitenteXml = {
+    documento: cnpj || (txt(emit, 'CPF') ?? '').replace(/\D/g, ''), razao_social: txt(emit, 'xNome'), nome_fantasia: txt(emit, 'xFant'),
+    ie: txt(emit, 'IE'), im: txt(emit, 'IM'), cnae: txt(emit, 'CNAE'), crt, telefone: txt(ender, 'fone'), email: null,
+    endereco: { cep: txt(ender, 'CEP'), logradouro: txt(ender, 'xLgr'), numero: txt(ender, 'nro'), complemento: txt(ender, 'xCpl'), bairro: txt(ender, 'xBairro'),
+      cod_municipio: txt(ender, 'cMun'), municipio: txt(ender, 'xMun'), uf: txt(ender, 'UF'), pais: txt(ender, 'xPais') },
+  }
+  return { dados, fornecedorCnpj: cnpj, destinatarioCnpj: (txt(dest, 'CNPJ') ?? '').replace(/\D/g, '') || null, avisos, emitente }
 }

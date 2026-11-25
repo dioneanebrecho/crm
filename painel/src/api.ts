@@ -243,6 +243,43 @@ export interface ReceitaCnpj {
 export const apiReceita = {
   consultarCnpj: (empresa: string, cnpj: string) => funcao<ReceitaCnpj>('consulta-receita', { empresa, cnpj }),
 }
+export interface DadosParceiro {
+  parceiro_id: string; documento: string | null; razao_social: string | null; nome_fantasia: string | null; ie: string | null; im: string | null; cnae: string | null; crt: string | null
+  telefone: string | null; email: string | null; cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null
+  codigo_municipio: string | null; municipio: string | null; uf: string | null; pais: string | null
+  endereco_origem: 'xml' | 'correios' | 'manual' | null; cep_situacao: string | null; origem: 'xml' | 'manual'; atualizado_em: string
+}
+export interface ResultadoEndereco { situacao: string; origem: string; confiavel: boolean | null; endereco_mantido?: boolean }
+export interface HistoricoNota {
+  origem: 'compra' | 'bling'; ref: string; numero: string | null; serie: string | null; tipo: string | null; situacao: string | null; data_emissao: string | null
+  valor_nota: number | null; valor_frete: number | null; qtd_itens: number | null; tem_detalhe: boolean; bling_id: number | null; entrada_id: string | null
+  chave_acesso: string | null; contato_bling_id: number | null; contato_nome: string | null; total: number
+}
+export interface ResumoCompras { qtd_compras: number; qtd_canceladas: number; valor_total: number; primeira: string | null; ultima: string | null }
+export interface CepCorreios {
+  cep: string; encontrado: boolean; logradouro: string | null; complemento: string | null; bairro: string | null; municipio: string | null; uf: string | null; ibge: string | null
+  fonte: string; consultado_em: string
+}
+/** Endereço de parceiro/cliente. A descrição dos Correios (pelo CEP) é adotada no banco só quando é confiável; senão fica o dado original. */
+export interface EnderecoEntrada {
+  cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null
+  cod_municipio: string | null; municipio: string | null; uf: string | null; pais?: string | null
+}
+// Consulta do CEP na base dos Correios (Edge Function consulta-cep: cache no banco, ViaCEP e BrasilAPI como fonte). Falha de rede nunca bloqueia o cadastro:
+// sem consulta, o banco preserva o endereço original e marca "sem_consulta".
+export const apiCep = {
+  garantir: async (empresa: string, cep: string | null): Promise<void> => {
+    const d = (cep ?? '').replace(/\D/g, '')
+    if (d.length !== 8) return
+    try { await funcao<CepCorreios>('consulta-cep', { empresa, cep: d }) } catch { /* segue com o endereço original */ }
+  },
+}
+export const apiEnderecoCliente = {
+  salvar: async (empresa: string, cliente: string, e: EnderecoEntrada & { principal?: boolean; origem?: string }) => {
+    await apiCep.garantir(empresa, e.cep)
+    return rpc<ResultadoEndereco & { id: string }>('cliente_endereco_salvar', { p_empresa: empresa, p_cliente: cliente, p_dados: e })
+  },
+}
 export interface FiltroParceiro { busca: string; papel: string; ativo: string; tipo: string; minContatos: string; soRevisao: boolean }
 export const apiParceiros = {
   listar: (empresa: string, f: FiltroParceiro, offset: number, limite = 50) =>
@@ -275,6 +312,21 @@ export const apiParceiros = {
     rpc<NotaParceiro[]>('listar_notas_parceiro', { p_empresa: empresa, p_parceiro: parceiro, p_limite: limite, p_offset: offset }),
   resumoNotas: async (empresa: string, parceiro: string) =>
     (await rpc<ResumoNotasParceiro[]>('resumo_notas_parceiro', { p_empresa: empresa, p_parceiro: parceiro }))[0] ?? null,
+  // Dados cadastrais (CNPJ completo, IE, telefone, endereço) vindos do XML da NF-e ou digitados. Proteção por permissão de usuário: etapa seguinte.
+  dados: (empresa: string, parceiro: string) => rpc<DadosParceiro | null>('obter_parceiro_dados', { p_empresa: empresa, p_parceiro: parceiro }),
+  salvarDados: async (empresa: string, parceiro: string, d: Record<string, unknown> & { endereco?: EnderecoEntrada }) => {
+    await apiCep.garantir(empresa, d.endereco?.cep ?? null)
+    return rpc<ResultadoEndereco>('parceiro_salvar_dados', { p_empresa: empresa, p_parceiro: parceiro, p_dados: d })
+  },
+  reaplicarEndereco: async (empresa: string, parceiro: string, cep: string | null) => {
+    await apiCep.garantir(empresa, cep)
+    return rpc<ResultadoEndereco>('parceiro_endereco_reaplicar', { p_empresa: empresa, p_parceiro: parceiro })
+  },
+  // Histórico unificado: notas de compra (NF-e importada na Entrada de mercadoria) + notas lidas do Bling.
+  historico: (empresa: string, parceiro: string, offset: number, limite = 20) =>
+    rpc<HistoricoNota[]>('historico_notas_parceiro', { p_empresa: empresa, p_parceiro: parceiro, p_limite: limite, p_offset: offset }),
+  resumoCompras: async (empresa: string, parceiro: string) =>
+    (await rpc<ResumoCompras[]>('resumo_compras_parceiro', { p_empresa: empresa, p_parceiro: parceiro }))[0] ?? null,
   pendentes: (empresa: string, status: string, busca: string, offset: number, limite = 50) =>
     rpc<PendenteLinha[]>('listar_amarracoes_pendentes', { p_empresa: empresa, p_status: status, p_busca: nulo(busca), p_limite: limite, p_offset: offset }),
 }

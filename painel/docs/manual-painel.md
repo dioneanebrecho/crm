@@ -1,6 +1,6 @@
 # Manual do painel Ane Brechó
 
-Documentação v0.9.4 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
+Documentação v0.9.5 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
 
 ## Início
 
@@ -53,6 +53,7 @@ Documentação v0.9.4 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.
 
 **Dicas**
 
+- Ao importar, o fornecedor (novo ou já cadastrado) recebe os dados do XML: CNPJ completo, inscrição, telefone e endereço. O endereço usa a descrição dos Correios pelo CEP; se o CEP não for confiável, fica o do XML. Veja na aba Cadastro do parceiro.
 - A confirmação só libera com fornecedor vinculado, todas as peças revisadas e liberadas, diferença de R$ 0,00 e financeiro conferido.
 - Qualquer mudança no rateio, nas rubricas ou no regime tira a liberação das peças afetadas: revise de novo.
 - Se o fornecedor não existir, a importação oferece cadastrá-lo com o CNPJ da nota.
@@ -262,12 +263,14 @@ Documentação v0.9.4 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.
 
 ### Parceiros
 
-**O que é.** Fornecedores, consignantes e demais parceiros, com documento (CPF/CNPJ), contatos e histórico de notas. Inclui validação de dígitos e consulta de CNPJ.
+**O que é.** Fornecedores, consignantes e demais parceiros, com documento (CPF/CNPJ), contatos e histórico de notas. Fornecedor criado pela importação do XML da NF-e já traz CNPJ completo, inscrição, telefone e endereço (aba Cadastro). O histórico de notas reúne as notas de compra (NF-e importadas) e as lidas do Bling.
 
-**Caso de uso.** Ao receber peças em consignação, você cadastra o parceiro, valida o documento e acompanha as notas vinculadas a ele.
+**Caso de uso.** Ao importar o XML de um fornecedor novo, o cadastro nasce completo. Depois você confere o endereço, vê todas as notas de compra dele no histórico e valida o documento.
 
 **Dicas**
 
+- A aba Cadastro mostra de onde veio o endereço: Correios (padronizado pelo CEP) ou XML (quando o CEP não é confiável, fica o endereço da nota).
+- Em “Atualizar a partir de um XML” você completa um fornecedor antigo com os dados de qualquer nota dele; o CNPJ do XML precisa ser o do parceiro.
 - A aba Documento valida CPF/CNPJ e consulta a Receita para o CNPJ.
 - Use os filtros de repetidos e contato principal para manter o cadastro limpo.
 

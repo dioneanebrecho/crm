@@ -139,6 +139,13 @@ function ConferirNota({ ctx, nota, onFechar, onImportada }: { ctx: Contexto; not
     try {
       let forn = achado.dados?.parceiro_id ?? null
       if (!forn && cadastrar && nota.fornecedorCnpj) forn = await apiCompra.criarFornecedor(ctx.empresa, nota.fornecedorCnpj, nome)
+      // Dados cadastrais do emitente (CNPJ completo, IE, telefone, endereço): o endereço é padronizado pelo CEP dos Correios quando confiável;
+      // senão fica como veio do XML. Falha aqui não impede a entrada; a aba Cadastro do parceiro permite atualizar por XML depois.
+      if (forn) {
+        const em = nota.emitente
+        try { await apiParceiros.salvarDados(ctx.empresa, forn, { documento: em.documento, razao_social: em.razao_social, nome_fantasia: em.nome_fantasia, ie: em.ie, im: em.im, cnae: em.cnae, crt: em.crt, telefone: em.telefone, email: em.email, origem: 'xml', endereco: em.endereco }) }
+        catch (e) { console.warn('Dados cadastrais do fornecedor não gravados:', (e as Error).message) }
+      }
       const id = await apiCompra.importar(ctx.empresa, { ...d, fornecedor_parceiro_id: forn })
       await apiCompra.sugerirCadastro(ctx.empresa, id)
       await apiCompra.financeiroSugerir(ctx.empresa, id)
@@ -294,12 +301,13 @@ function FornecedorCard({ ctx, d, editavel, onMudou }: { ctx: Contexto; d: Entra
     setErro(null)
     try {
       const pid = cadastrar ? await apiCompra.criarFornecedor(ctx.empresa, cnpj, nome) : achado?.parceiro_id
+      if (pid && cadastrar) { try { await apiParceiros.salvarDados(ctx.empresa, pid, { documento: cnpj, razao_social: nome, origem: 'manual' }) } catch (e) { console.warn('Dados cadastrais do fornecedor não gravados:', (e as Error).message) } }
       if (pid) { await apiCompra.definirFornecedor(ctx.empresa, d.entrada.id, pid); onMudou() }
     } catch (e) { setErro((e as Error).message) }
   }
   return (
     <Painel titulo="Fornecedor" status={<span className="st cad">não vinculado ao cadastro</span>} resumo="Informe o CNPJ para vincular ou cadastrar o fornecedor">
-      <p className="sub">Informe o CNPJ do emitente para achar o fornecedor ou cadastrá-lo. O CNPJ completo não fica guardado na nota.</p>
+      <p className="sub">Informe o CNPJ do emitente para achar o fornecedor ou cadastrá-lo. O CNPJ completo fica no cadastro do parceiro (aba Cadastro), não na nota.</p>
       {editavel && (
         <div className="campos">
           <Campo rotulo="CNPJ do fornecedor"><input value={cnpj} onChange={(e) => { setCnpj(e.target.value); setAchado(null) }} placeholder="00.000.000/0000-00" /></Campo>

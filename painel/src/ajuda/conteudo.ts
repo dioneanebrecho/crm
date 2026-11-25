@@ -19,7 +19,7 @@ export interface Verbete {
   passos: PassoTour[]  // tutorial guiado da tela
 }
 
-export const VERSAO_DOC = '0.9.4'
+export const VERSAO_DOC = '0.9.5'
 export const ATUALIZADO_EM = '2026-11-25'
 
 // escopo da tela aberta (só o painel visível responde aos seletores)
@@ -125,10 +125,12 @@ export const AJUDA: Record<string, Verbete> = {
   parceiros: {
     titulo: 'Parceiros',
     explicacao:
-      'Fornecedores, consignantes e demais parceiros, com documento (CPF/CNPJ), contatos e histórico de notas. Inclui validação de dígitos e consulta de CNPJ.',
+      'Fornecedores, consignantes e demais parceiros, com documento (CPF/CNPJ), contatos e histórico de notas. Fornecedor criado pela importação do XML da NF-e já traz CNPJ completo, inscrição, telefone e endereço (aba Cadastro). O histórico de notas reúne as notas de compra (NF-e importadas) e as lidas do Bling.',
     casoDeUso:
-      'Ao receber peças em consignação, você cadastra o parceiro, valida o documento e acompanha as notas vinculadas a ele.',
+      'Ao importar o XML de um fornecedor novo, o cadastro nasce completo. Depois você confere o endereço, vê todas as notas de compra dele no histórico e valida o documento.',
     dicas: [
+      'A aba Cadastro mostra de onde veio o endereço: Correios (padronizado pelo CEP) ou XML (quando o CEP não é confiável, fica o endereço da nota).',
+      'Em “Atualizar a partir de um XML” você completa um fornecedor antigo com os dados de qualquer nota dele; o CNPJ do XML precisa ser o do parceiro.',
       'A aba Documento valida CPF/CNPJ e consulta a Receita para o CNPJ.',
       'Use os filtros de repetidos e contato principal para manter o cadastro limpo.',
     ],
@@ -247,6 +249,7 @@ export const AJUDA: Record<string, Verbete> = {
       'Nota genérica (exemplo real, nota 19052 da Hush): 14 linhas e 230 peças, todas sem tamanho nem cor, como “BLUSA LESE DET/RENDA COM BOTOES”, 22 un. a R$ 13,00 (R$ 286,00). Em “Itens sem tamanho” você desmembra essa linha em produtos, por exemplo Blusa Renda Preto (P 3, M 5, G 2) e Blusa Renda Off-white (P 4, M 4, G 4). ' +
       'O contador mostra quantas faltam até fechar as 22 e o valor da linha se reparte sozinho, a R$ 13,00 cada. Repita para as outras linhas, use “Sugerir cadastro”, revise, libere, confira o financeiro e confirme.',
     dicas: [
+      'Ao importar, o fornecedor (novo ou já cadastrado) recebe os dados do XML: CNPJ completo, inscrição, telefone e endereço. O endereço usa a descrição dos Correios pelo CEP; se o CEP não for confiável, fica o do XML. Veja na aba Cadastro do parceiro.',
       'A confirmação só libera com fornecedor vinculado, todas as peças revisadas e liberadas, diferença de R$ 0,00 e financeiro conferido.',
       'Qualquer mudança no rateio, nas rubricas ou no regime tira a liberação das peças afetadas: revise de novo.',
       'Se o fornecedor não existir, a importação oferece cadastrá-lo com o CNPJ da nota.',
