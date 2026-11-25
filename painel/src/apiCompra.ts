@@ -59,6 +59,8 @@ export interface DadosImportacao {
   itens: { seq: number; codigo: string | null; descricao: string; ncm: string | null; cfop: string | null; unidade: string | null; gtin: string | null; qtd: number
     v_unit: number; v_prod: number; v_desc: number; v_frete: number; v_seg: number; v_outro: number; v_ipi: number; v_st: number; v_icms: number; peso: number }[]
   parcelas: { seq: number; vencimento: string | null; valor: number }[]
+  pagamentos?: { forma: string | null; descricao: string | null; indicador: number | null; valor: number }[]
+  fornecedor_crt?: string | null
 }
 
 export const apiCompra = {
@@ -71,6 +73,8 @@ export const apiCompra = {
   sugerirCadastro: (empresa: string, id: string) => rpc<{ linhas_atualizadas: number }>('compra_sugerir_cadastro', { p_empresa: empresa, p_entrada: id }),
   desmembrar: (empresa: string, item: string, partes: { qtd: number; nome?: string; tamanho?: string; valor?: number }[]) =>
     rpc<void>('compra_desmembrar_item', { p_empresa: empresa, p_item: item, p_partes: partes }),
+  desmembrarGrade: (empresa: string, item: string, modelos: { nome?: string; cor?: string; tipo_grade_id: string; grade: Record<string, number> }[]) =>
+    rpc<void>('compra_desmembrar_grade', { p_empresa: empresa, p_item: item, p_modelos: modelos }),
   ajustar: (empresa: string, id: string, dados: Record<string, unknown>) => rpc<void>('compra_ajustar', { p_empresa: empresa, p_entrada: id, p_dados: dados }),
   unidades: (empresa: string, id: string) => rpc<UnidadeEntrada[]>('compra_unidades', { p_empresa: empresa, p_entrada: id }),
   simular: (empresa: string, id: string) => rpc<SimulacaoRegime[]>('compra_simular_regimes', { p_empresa: empresa, p_entrada: id }),

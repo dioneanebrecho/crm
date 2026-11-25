@@ -19,8 +19,8 @@ export interface Verbete {
   passos: PassoTour[]  // tutorial guiado da tela
 }
 
-export const VERSAO_DOC = '0.9.3'
-export const ATUALIZADO_EM = '2026-11-24'
+export const VERSAO_DOC = '0.9.4'
+export const ATUALIZADO_EM = '2026-11-25'
 
 // escopo da tela aberta (só o painel visível responde aos seletores)
 const T = '.aba-painel:not([hidden])'
@@ -241,18 +241,27 @@ export const AJUDA: Record<string, Verbete> = {
   entrada_compra: {
     titulo: 'Entrada de mercadoria (NF-e)',
     explicacao:
-      'Importa o XML da NF-e de compra, cadastra as peças novas (grupo, marca, características e grade), rateia frete e despesas no custo, confere o financeiro da nota e dá entrada no estoque do CRM. Nada é enviado ao Bling.',
+      'Importa o XML da NF-e de compra, cadastra as peças novas (grupo, marca, características e grade), rateia frete e despesas no custo, confere o financeiro da nota e dá entrada no estoque do CRM. Linhas que chegam sem tamanho nem cor são desmembradas em produtos por modelo/cor e tamanho. Nada é enviado ao Bling.',
     casoDeUso:
-      'Chegou a nota do fornecedor: você importa o XML, aceita as sugestões de cadastro, revisa cada peça e libera, confere as parcelas e confirma. As peças nascem com o custo fechado com a nota.',
+      'Nota completa: chegou a nota do fornecedor, você importa o XML, aceita as sugestões de cadastro, revisa cada peça e libera, confere as parcelas e confirma. As peças nascem com o custo fechado com a nota. ' +
+      'Nota genérica (exemplo real, nota 19052 da Hush): 14 linhas e 230 peças, todas sem tamanho nem cor, como “BLUSA LESE DET/RENDA COM BOTOES”, 22 un. a R$ 13,00 (R$ 286,00). Em “Itens sem tamanho” você desmembra essa linha em produtos, por exemplo Blusa Renda Preto (P 3, M 5, G 2) e Blusa Renda Off-white (P 4, M 4, G 4). ' +
+      'O contador mostra quantas faltam até fechar as 22 e o valor da linha se reparte sozinho, a R$ 13,00 cada. Repita para as outras linhas, use “Sugerir cadastro”, revise, libere, confira o financeiro e confirme.',
     dicas: [
       'A confirmação só libera com fornecedor vinculado, todas as peças revisadas e liberadas, diferença de R$ 0,00 e financeiro conferido.',
       'Qualquer mudança no rateio, nas rubricas ou no regime tira a liberação das peças afetadas: revise de novo.',
       'Se o fornecedor não existir, a importação oferece cadastrá-lo com o CNPJ da nota.',
       'Se o XML não trouxer parcelas, informe vencimento, valor, natureza e centro de resultado na seção Financeiro.',
       'O financeiro fica vinculado à nota (número e chave). Lançamentos criados direto, sem nota, não têm esse vínculo.',
+      'Recomendação: desmembre os itens sem tamanho antes de revisar o resto. Enquanto a soma das quantidades não fechar com a da linha, o desmembramento não salva.',
+      'Todo produto tem tipo de grade. O tipo vem sugerido pela descrição e pode ser trocado (ao trocar, somem as quantidades de tamanhos que a nova grade não tem). Peça sem tamanho usa “Acessório · tamanho único”, para a decisão ficar explícita e não ser esquecida.',
+      'Use “Repartir o que falta igualmente” para dar um ponto de partida e “Duplicar” quando outro modelo ou cor tem a mesma grade; depois ajuste as quantidades à mão.',
+      'Não confie no NCM para escolher a categoria: alguns fornecedores mandam NCM de tecido em peça pronta. A sugestão de grupo e de cor parte da descrição; confira e corrija se preciso.',
+      'Os avisos da importação só informam, não bloqueiam: frete por conta do destinatário sem valor na nota (lance o frete pago à transportadora como rubrica extra), transportadora “O PROPRIO”, fornecedor do Simples sem crédito de ICMS (os três regimes dão o mesmo custo), nota emitida há mais de 90 dias (confirme que não deu entrada antes) e pagamento sem parcelas (informe os vencimentos).',
+      'Código do fornecedor repetido em outra nota: só é lembrado quando a linha virou uma única peça. Linha desmembrada em várias peças não é memorizada, então cada nota é cadastrada de novo.',
     ],
     passos: [
       { titulo: 'Importar', texto: 'Clique em “Importar XML”, confira o resumo e o fornecedor e importe.' },
+      { titulo: 'Itens sem tamanho', texto: 'Se houver linhas sem tamanho, clique em “Desmembrar”: inclua um produto por modelo ou cor, escolha o tipo de grade e informe a quantidade por tamanho até o contador fechar.' },
       { titulo: 'Peças', texto: 'As peças vêm abertas. Ajuste grupo, marca, características e grade, e use “Revisei: liberar peça”.' },
       { titulo: 'Rateio e financeiro', texto: 'Escolha o regime, lance rubricas extras se houver e confira as parcelas.' },
       { titulo: 'Confirmar', texto: 'Com todos os itens do checklist marcados, escolha o local do estoque e confirme.' },
@@ -285,7 +294,7 @@ export const AJUDA: Record<string, Verbete> = {
       'Configuração das grades (tamanhos, cores e outros atributos) e do vínculo com o Bling. Define as combinações que as peças podem assumir.',
     casoDeUso:
       'Você cria a grade de numeração de calçados ou de tamanhos de roupa para reaproveitar em todas as peças daquele tipo.',
-    dicas: ['Padronize as grades antes de cadastrar muitas peças — evita retrabalho e divergência com o Bling.'],
+    dicas: ['Padronize as grades antes de cadastrar muitas peças — evita retrabalho e divergência com o Bling.', 'Peça sem tamanho usa a grade “Acessório · tamanho único” (tamanho Único): a entrada de mercadoria exige tipo de grade em todo produto.'],
     passos: [
       { titulo: 'Grades', texto: 'Defina aqui os tamanhos, cores e atributos usados no cadastro das peças.' },
     ],

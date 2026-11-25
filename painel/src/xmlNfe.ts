@@ -48,6 +48,8 @@ export async function lerNfe(xml: string): Promise<NotaLida> {
     for (const it of itens) it.peso = Math.round((pesoBruto * it.qtd / totQtd) * 1000) / 1000   // sem peso por item no XML: rateia pela quantidade
   }
   const transp = filho(inf, 'transp')
+  const crt = txt(emit, 'CRT'), finNfe = txt(ide, 'finNFe')
+  const pagamentos = todos(inf, 'detPag').map((d) => ({ forma: txt(d, 'tPag'), descricao: txt(d, 'xPag'), indicador: txt(d, 'indPag') == null ? null : Number(txt(d, 'indPag')), valor: num(txt(d, 'vPag')) }))
   const parcelas = todos(inf, 'dup').map((d, i) => ({ seq: i + 1, vencimento: txt(d, 'dVenc'), valor: num(txt(d, 'vDup')) }))
   const emissao = (txt(ide, 'dhEmi') ?? txt(ide, 'dEmi') ?? '').slice(0, 10) || null
   const cnpj = (txt(emit, 'CNPJ') ?? '').replace(/\D/g, '')
@@ -59,8 +61,24 @@ export async function lerNfe(xml: string): Promise<NotaLida> {
     peso_bruto: pesoBruto || null, xml_hash: await sha256(xml),
     totais: { v_prod: num(txt(tot, 'vProd')), v_frete: num(txt(tot, 'vFrete')), v_seg: num(txt(tot, 'vSeg')), v_desc: num(txt(tot, 'vDesc')), v_outro: num(txt(tot, 'vOutro')),
       v_ipi: num(txt(tot, 'vIPI')), v_st: num(txt(tot, 'vST')), v_icms: num(txt(tot, 'vICMS')), v_nf: num(txt(tot, 'vNF')) },
-    itens, parcelas,
+    itens, parcelas, pagamentos, fornecedor_crt: crt,
   }
-  if (!parcelas.length) avisos.push('O XML não traz parcelas (cobrança). Você confere o financeiro na tela.')
+  if (finNfe && finNfe !== '1') avisos.push('Esta nota não é de finalidade normal (complementar, ajuste ou devolução). Confira antes de dar entrada.')
+  if (!parcelas.length) {
+    const pg = pagamentos[0]
+    avisos.push(pg
+      ? `O XML não traz parcelas. Pagamento informado: ${pg.descricao ?? 'forma ' + pg.forma}${pg.indicador === 1 ? ', a prazo' : pg.indicador === 0 ? ', à vista' : ''}. Informe os vencimentos no financeiro.`
+      : 'O XML não traz parcelas (cobrança). Você confere o financeiro na tela.')
+  }
+  const nomeTransp = txt(filho(transp, 'transporta'), 'xNome')
+  if (dados.mod_frete === 1 && dados.totais.v_frete === 0)
+    avisos.push('Frete por conta do destinatário e sem valor na nota. Informe o frete pago à parte como rubrica extra.')
+  if (nomeTransp && /^O\s+PR[OÓ]PRIO$/i.test(nomeTransp)) avisos.push('A transportadora veio como "O PROPRIO", que não identifica quem transportou. Anote a transportadora real, se houver.')
+  if ((crt === '1' || crt === '2' || crt === '4') && itens.every((i) => i.v_icms === 0))
+    avisos.push('Fornecedor do Simples Nacional, sem ICMS destacado: não há crédito, e os três regimes dão o mesmo custo.')
+  if (emissao) {
+    const dias = Math.floor((Date.now() - new Date(emissao + 'T12:00:00').getTime()) / 86400000)
+    if (dias > 90) avisos.push(`Nota emitida há ${dias} dias (${emissao.split('-').reverse().join('/')}). Confirme que ainda não deu entrada em outra rotina.`)
+  }
   return { dados, fornecedorCnpj: cnpj, destinatarioCnpj: (txt(dest, 'CNPJ') ?? '').replace(/\D/g, '') || null, avisos }
 }

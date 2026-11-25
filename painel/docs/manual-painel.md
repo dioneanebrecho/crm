@@ -1,6 +1,6 @@
 # Manual do painel Ane Brechó
 
-Documentação v0.9.3 · atualizada em 24/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
+Documentação v0.9.4 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
 
 ## Início
 
@@ -47,9 +47,9 @@ Documentação v0.9.3 · atualizada em 24/11/2026. Gerado de src/ajuda/conteudo.
 
 ### Entrada de mercadoria (NF-e)
 
-**O que é.** Importa o XML da NF-e de compra, cadastra as peças novas (grupo, marca, características e grade), rateia frete e despesas no custo, confere o financeiro da nota e dá entrada no estoque do CRM. Nada é enviado ao Bling.
+**O que é.** Importa o XML da NF-e de compra, cadastra as peças novas (grupo, marca, características e grade), rateia frete e despesas no custo, confere o financeiro da nota e dá entrada no estoque do CRM. Linhas que chegam sem tamanho nem cor são desmembradas em produtos por modelo/cor e tamanho. Nada é enviado ao Bling.
 
-**Caso de uso.** Chegou a nota do fornecedor: você importa o XML, aceita as sugestões de cadastro, revisa cada peça e libera, confere as parcelas e confirma. As peças nascem com o custo fechado com a nota.
+**Caso de uso.** Nota completa: chegou a nota do fornecedor, você importa o XML, aceita as sugestões de cadastro, revisa cada peça e libera, confere as parcelas e confirma. As peças nascem com o custo fechado com a nota. Nota genérica (exemplo real, nota 19052 da Hush): 14 linhas e 230 peças, todas sem tamanho nem cor, como “BLUSA LESE DET/RENDA COM BOTOES”, 22 un. a R$ 13,00 (R$ 286,00). Em “Itens sem tamanho” você desmembra essa linha em produtos, por exemplo Blusa Renda Preto (P 3, M 5, G 2) e Blusa Renda Off-white (P 4, M 4, G 4). O contador mostra quantas faltam até fechar as 22 e o valor da linha se reparte sozinho, a R$ 13,00 cada. Repita para as outras linhas, use “Sugerir cadastro”, revise, libere, confira o financeiro e confirme.
 
 **Dicas**
 
@@ -58,13 +58,20 @@ Documentação v0.9.3 · atualizada em 24/11/2026. Gerado de src/ajuda/conteudo.
 - Se o fornecedor não existir, a importação oferece cadastrá-lo com o CNPJ da nota.
 - Se o XML não trouxer parcelas, informe vencimento, valor, natureza e centro de resultado na seção Financeiro.
 - O financeiro fica vinculado à nota (número e chave). Lançamentos criados direto, sem nota, não têm esse vínculo.
+- Recomendação: desmembre os itens sem tamanho antes de revisar o resto. Enquanto a soma das quantidades não fechar com a da linha, o desmembramento não salva.
+- Todo produto tem tipo de grade. O tipo vem sugerido pela descrição e pode ser trocado (ao trocar, somem as quantidades de tamanhos que a nova grade não tem). Peça sem tamanho usa “Acessório · tamanho único”, para a decisão ficar explícita e não ser esquecida.
+- Use “Repartir o que falta igualmente” para dar um ponto de partida e “Duplicar” quando outro modelo ou cor tem a mesma grade; depois ajuste as quantidades à mão.
+- Não confie no NCM para escolher a categoria: alguns fornecedores mandam NCM de tecido em peça pronta. A sugestão de grupo e de cor parte da descrição; confira e corrija se preciso.
+- Os avisos da importação só informam, não bloqueiam: frete por conta do destinatário sem valor na nota (lance o frete pago à transportadora como rubrica extra), transportadora “O PROPRIO”, fornecedor do Simples sem crédito de ICMS (os três regimes dão o mesmo custo), nota emitida há mais de 90 dias (confirme que não deu entrada antes) e pagamento sem parcelas (informe os vencimentos).
+- Código do fornecedor repetido em outra nota: só é lembrado quando a linha virou uma única peça. Linha desmembrada em várias peças não é memorizada, então cada nota é cadastrada de novo.
 
 **Tutorial guiado**
 
 1. **Importar** — Clique em “Importar XML”, confira o resumo e o fornecedor e importe.
-2. **Peças** — As peças vêm abertas. Ajuste grupo, marca, características e grade, e use “Revisei: liberar peça”.
-3. **Rateio e financeiro** — Escolha o regime, lance rubricas extras se houver e confira as parcelas.
-4. **Confirmar** — Com todos os itens do checklist marcados, escolha o local do estoque e confirme.
+2. **Itens sem tamanho** — Se houver linhas sem tamanho, clique em “Desmembrar”: inclua um produto por modelo ou cor, escolha o tipo de grade e informe a quantidade por tamanho até o contador fechar.
+3. **Peças** — As peças vêm abertas. Ajuste grupo, marca, características e grade, e use “Revisei: liberar peça”.
+4. **Rateio e financeiro** — Escolha o regime, lance rubricas extras se houver e confira as parcelas.
+5. **Confirmar** — Com todos os itens do checklist marcados, escolha o local do estoque e confirme.
 
 ### Peças
 
@@ -278,6 +285,7 @@ Documentação v0.9.3 · atualizada em 24/11/2026. Gerado de src/ajuda/conteudo.
 **Dicas**
 
 - Padronize as grades antes de cadastrar muitas peças — evita retrabalho e divergência com o Bling.
+- Peça sem tamanho usa a grade “Acessório · tamanho único” (tamanho Único): a entrada de mercadoria exige tipo de grade em todo produto.
 
 **Tutorial guiado**
 

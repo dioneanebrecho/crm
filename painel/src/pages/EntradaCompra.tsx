@@ -5,7 +5,7 @@ import { apiCompra, type EntradaDetalhe, type EntradaPeca, type EntradaResumo, t
 import { ModalHistorico, ModalImprimir } from './Etiquetas'
 import { apiFinanceiro, type CentroResultado, type Natureza } from '../apiFinanceiro'
 import { apiGrupos, type Caracteristica, type GrupoProduto } from '../apiGrupos'
-import { useTiposGrade, type TipoGrade } from '../apiGrades'
+import { sugerirLocal, useTiposGrade, type TipoGrade } from '../apiGrades'
 import { useMarcas } from '../CampoMarca'
 import { ComboBusca, type OpcaoCombo } from '../ComboBusca'
 import GradeDados, { type Coluna } from '../GradeDados'
@@ -266,7 +266,7 @@ function Entrada({ ctx, id, pode, onVoltar }: { ctx: Contexto; id: string; pode:
 
       {!d.fornecedor_ok && <FornecedorCard ctx={ctx} d={d} editavel={editavel} onMudou={det.recarregar} />}
 
-      {genericos.length > 0 && <Genericos ctx={ctx} itens={genericos} editavel={editavel} onMudou={det.recarregar} />}
+      {genericos.length > 0 && <Genericos ctx={ctx} itens={genericos} tipos={tipos ?? []} editavel={editavel} onMudou={det.recarregar} />}
 
       <Pecas ctx={ctx} d={d} editavel={editavel} grupos={grupos.dados ?? []} caract={caract.dados ?? []} tipos={tipos ?? []} marcas={marcas.dados ?? []} acao={acao} />
 
@@ -317,31 +317,98 @@ function FornecedorCard({ ctx, d, editavel, onMudou }: { ctx: Contexto; d: Entra
 
 /* ───────────── Itens genéricos (desmembrar) ───────────── */
 
-function Genericos({ ctx, itens, editavel, onMudou }: { ctx: Contexto; itens: EntradaDetalhe['itens']; editavel: boolean; onMudou: () => void }) {
+function Genericos({ ctx, itens, tipos, editavel, onMudou }: { ctx: Contexto; itens: EntradaDetalhe['itens']; tipos: TipoGrade[]; editavel: boolean; onMudou: () => void }) {
   const [item, setItem] = useState<EntradaDetalhe['itens'][number] | null>(null)
   return (
     <Painel titulo="Itens sem tamanho" status={<span className="st pend">{itens.length} para desmembrar</span>} resumo={`${itens.length} linha(s) · ${itens.reduce((t, i) => t + i.qtd, 0)} un. · ${brl(itens.reduce((t, i) => t + i.v_prod, 0))}`}>
-      <p className="sub">Estas linhas vieram sem tamanho identificável. Desmembre em peças: a soma dos valores tem de fechar com o valor da linha.</p>
+      <p className="sub">Estas linhas vieram sem tamanho nem cor. Desmembre cada uma em produtos por modelo/cor e tamanho: a soma das quantidades tem de fechar com a da linha, e todo produto tem tipo de grade.</p>
       {itens.map((i) => (
         <div key={i.id} className="lin"><span>{i.descricao} · {i.qtd} un. · {brl(i.v_prod)}</span>{editavel && <button className="sec" onClick={() => setItem(i)}>Desmembrar</button>}</div>))}
-      {item && <Desmembrar ctx={ctx} item={item} onFechar={() => setItem(null)} onFeito={() => { setItem(null); onMudou() }} />}
+      {item && <Desmembrar ctx={ctx} item={item} tipos={tipos} onFechar={() => setItem(null)} onFeito={() => { setItem(null); onMudou() }} />}
     </Painel>
   )
 }
 
-function Desmembrar({ ctx, item, onFechar, onFeito }: { ctx: Contexto; item: EntradaDetalhe['itens'][number]; onFechar: () => void; onFeito: () => void }) {
-  const [partes, setPartes] = useState(() => Array.from({ length: item.qtd }, () => ({ nome: '', tamanho: '' })))
+type ModeloMatriz = { nome: string; cor: string; tipoId: string; grade: Record<string, string> }
+
+// Desmembra uma linha genérica da nota em modelos (nome/cor) x tamanhos. Todo modelo tem tipo de grade (sem grade: "Acessório · tamanho único").
+// O tipo é sugerido pela descrição e pode ser trocado; trocar remove as quantidades de tamanhos que não existem na grade nova.
+function Desmembrar({ ctx, item, tipos, onFechar, onFeito }: { ctx: Contexto; item: EntradaDetalhe['itens'][number]; tipos: TipoGrade[]; onFechar: () => void; onFeito: () => void }) {
+  const padrao = useMemo(() => sugerirLocal(tipos, item.descricao)?.id ?? tipos.find((t) => t.codigo === 'roupa_letras')?.id ?? tipos[0]?.id ?? '', [tipos, item.descricao])
+  const [modelos, setModelos] = useState<ModeloMatriz[]>(() => [{ nome: '', cor: '', tipoId: padrao, grade: {} }])
+  const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+  const inteiro = (v: string) => v === '' || /^\d+$/.test(v)
+  const qtdModelo = (m: ModeloMatriz) => Object.values(m.grade).reduce((t, v) => t + (/^\d+$/.test(v) ? Number(v) : 0), 0)
+  const total = modelos.reduce((t, m) => t + qtdModelo(m), 0)
+  const falta = item.qtd - total
+  const unit = item.qtd > 0 ? item.v_prod / item.qtd : 0
+  const tipoDe = (m: ModeloMatriz) => tipos.find((t) => t.id === m.tipoId)
+  const atualiza = (i: number, patch: Partial<ModeloMatriz>) => setModelos((ms) => ms.map((m, j) => (j === i ? { ...m, ...patch } : m)))
+  const trocarTipo = (i: number, id: string) => {
+    const ok = new Set(tipos.find((t) => t.id === id)?.valores.map((v) => v.valor))
+    atualiza(i, { tipoId: id, grade: Object.fromEntries(Object.entries(modelos[i].grade).filter(([k]) => ok.has(k))) })
+  }
+  const igualmente = (i: number) => {   // reparte o que falta (mais o que este modelo já tem) em partes iguais pelos tamanhos da grade
+    const vals = tipoDe(modelos[i])?.valores.map((v) => v.valor) ?? []
+    const resto = falta + qtdModelo(modelos[i])
+    if (!vals.length || resto <= 0) return
+    const base = Math.floor(resto / vals.length), extra = resto % vals.length
+    atualiza(i, { grade: Object.fromEntries(vals.map((v, k) => [v, String(base + (k < extra ? 1 : 0))]).filter(([, q]) => q !== '0')) })
+  }
+  const valido = falta === 0 && modelos.every((m) => m.tipoId && qtdModelo(m) > 0 && Object.values(m.grade).every(inteiro))
+  async function salvar() {
+    setErro(null); setSalvando(true)
+    try {
+      await apiCompra.desmembrarGrade(ctx.empresa, item.id, modelos.map((m) => ({
+        nome: m.nome.trim() || undefined, cor: m.cor.trim() || undefined, tipo_grade_id: m.tipoId,
+        grade: Object.fromEntries(Object.entries(m.grade).filter(([, q]) => /^\d+$/.test(q) && Number(q) > 0).map(([k, q]) => [k, Number(q)])),
+      })))
+      onFeito()
+    } catch (e) { setErro((e as Error).message) } finally { setSalvando(false) }
+  }
   return (
     <Modal titulo={`Desmembrar: ${item.descricao}`} onFechar={onFechar} larga>
       <div className="form">
-        <p className="sub">{item.qtd} unidade(s), {brl(item.v_prod)}. O valor é dividido por igual entre as peças.</p>
-        {partes.map((p, i) => (
-          <div key={i} className="campos">
-            <Campo rotulo={`Peça ${i + 1}: nome`}><input value={p.nome} onChange={(e) => setPartes(partes.map((x, j) => j === i ? { ...x, nome: e.target.value } : x))} /></Campo>
-            <Campo rotulo="Tamanho"><input value={p.tamanho} onChange={(e) => setPartes(partes.map((x, j) => j === i ? { ...x, tamanho: e.target.value } : x))} /></Campo>
-          </div>))}
-        <div className="acoes"><button type="button" className="sec" onClick={onFechar}>Cancelar</button>
-          <button type="button" onClick={() => void apiCompra.desmembrar(ctx.empresa, item.id, partes.map((p) => ({ qtd: 1, nome: p.nome || undefined, tamanho: p.tamanho || undefined }))).then(onFeito).catch((e: Error) => alert(e.message))}>Desmembrar</button></div>
+        <p className="sub">{item.qtd} unidade(s) · {brl(item.v_prod)} ({brl(unit)} por peça). Inclua um produto para cada modelo ou cor e informe a quantidade por tamanho. A soma tem de fechar com {item.qtd}.</p>
+        <div style={{ position: 'sticky', top: 0, zIndex: 1, padding: '.35rem 0', fontWeight: 700, color: falta === 0 ? 'var(--ok)' : falta < 0 ? 'var(--erro)' : 'var(--aviso)' }} aria-live="polite">
+          {falta === 0 ? `Tudo distribuído: ${total} de ${item.qtd}` : falta > 0 ? `Distribuído ${total} de ${item.qtd}: faltam ${falta}` : `Distribuído ${total} de ${item.qtd}: sobram ${-falta}`}
+        </div>
+        {modelos.map((m, i) => {
+          const tipo = tipoDe(m)
+          return (
+            <div key={i} className="cx" style={{ marginBottom: '.6rem' }}>
+              <div className="campos">
+                <Campo rotulo={`Produto ${i + 1}: nome`}><input value={m.nome} placeholder={item.descricao} onChange={(e) => atualiza(i, { nome: e.target.value })} /></Campo>
+                <Campo rotulo="Cor"><input value={m.cor} placeholder="ex.: Preto" onChange={(e) => atualiza(i, { cor: e.target.value })} /></Campo>
+                <Campo rotulo="Tipo de grade">
+                  <select value={m.tipoId} onChange={(e) => trocarTipo(i, e.target.value)}>
+                    {tipos.filter((t) => t.ativo).map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  </select>
+                </Campo>
+              </div>
+              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', margin: '.5rem 0' }}>
+                {(tipo?.valores ?? []).map((v) => (
+                  <label key={v.valor} style={{ display: 'grid', gap: '.15rem', fontSize: '.8rem', textAlign: 'center' }}>
+                    {v.rotulo || v.valor}
+                    <input inputMode="numeric" style={{ width: '4.2rem', textAlign: 'center' }} value={m.grade[v.valor] ?? ''} aria-label={`${v.rotulo || v.valor}, quantidade`}
+                      onChange={(e) => inteiro(e.target.value) && atualiza(i, { grade: { ...m.grade, [v.valor]: e.target.value } })} />
+                  </label>))}
+              </div>
+              <div className="barra" style={{ margin: 0 }}>
+                <span className="mini">{qtdModelo(m)} un. · {brl(qtdModelo(m) * unit)}</span>
+                <button type="button" className="sec" onClick={() => igualmente(i)}>Repartir o que falta igualmente</button>
+                <button type="button" className="sec" onClick={() => setModelos((ms) => [...ms, { nome: '', cor: '', tipoId: m.tipoId, grade: { ...m.grade } }])}>Duplicar</button>
+                {modelos.length > 1 && <button type="button" className="sec" onClick={() => setModelos((ms) => ms.filter((_, j) => j !== i))}>Remover</button>}
+              </div>
+            </div>)
+        })}
+        {erro && <div className="erro" role="alert">{erro}</div>}
+        <div className="acoes">
+          <button type="button" className="sec" onClick={() => setModelos((ms) => [...ms, { nome: '', cor: '', tipoId: ms[ms.length - 1]?.tipoId ?? padrao, grade: {} }])}>Incluir produto</button>
+          <button type="button" className="sec" onClick={onFechar}>Cancelar</button>
+          <button type="button" disabled={!valido || salvando} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Desmembrar'}</button>
+        </div>
       </div>
     </Modal>
   )
