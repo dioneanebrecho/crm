@@ -1,5 +1,5 @@
 -- Testes da 0095a–c (pedido 050, fluxo do processo). Bloco que termina em exceção (nada fica gravado). Esperado: TESTES_OK.
--- Rodados em 26/11/2026 após a aplicação de 0095a–d: TESTES_OK (11 grupos).
+-- Rodados em 26/11/2026 após 0095a–d e de novo após a 0097 (revisão 1.1): TESTES_OK (11 grupos).
 do $t$
 declare e uuid; adm uuid; usr uuid; r jsonb; v text; v2 text; ok boolean; n int; c uuid; rev1 uuid; et jsonb;
 begin
@@ -12,17 +12,18 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', adm, 'role','authenticated')::text, true);
   perform set_config('request.jwt.claim.sub', adm::text, true);
 
-  -- 1 leitura: 33 etapas, 10 papéis, revisão 1.0, nível editar
+  -- 1 leitura: 33 etapas, 10 papéis, alguma revisão, nível editar
   r := api.fluxo_obter(e);
-  if jsonb_array_length(r->'etapas') <> 33 or jsonb_array_length(r->'funcoes') <> 10 or r->>'versao' <> '1.0' or r->>'nivel' <> 'editar' then
+  if jsonb_array_length(r->'etapas') <> 33 or jsonb_array_length(r->'funcoes') <> 10 or r->>'versao' is null or r->>'nivel' <> 'editar' then
     raise exception 'T1 %', jsonb_build_object('etapas', jsonb_array_length(r->'etapas'), 'versao', r->>'versao', 'nivel', r->>'nivel'); end if;
   select id into rev1 from crm.log_fluxo_revisao where empresa_id = e and versao = '1.0';
 
-  -- 2 editar título da E03 gera revisão 1.1 com a etapa e a cópia
+  -- 2 editar título da E03 gera a próxima revisão com a etapa e a cópia
+  v2 := crm._fluxo_proxima_versao(e);
   et := (select x from jsonb_array_elements(r->'etapas') x where x->>'codigo' = 'E03');
   r := api.fluxo_etapa_salvar(e, et || '{"titulo":"Importar o XML da NF-e de compra"}', 'Título mais claro');
-  if r->>'versao' <> '1.1' then raise exception 'T2 %', r; end if;
-  select copia into r from crm.log_fluxo_revisao where empresa_id = e and versao = '1.1';
+  if r->>'versao' <> v2 then raise exception 'T2 %', r; end if;
+  select copia into r from crm.log_fluxo_revisao where empresa_id = e and versao = v2;
   if (select x->>'titulo' from jsonb_array_elements(r) x where x->>'codigo'='E03') <> 'Importar o XML da NF-e de compra' then raise exception 'T2 cópia'; end if;
 
   -- 3 salvar sem mudança é recusado; sem descrição também
