@@ -11,6 +11,7 @@ import Locais from './pages/Locais'
 import Grades from './pages/Grades'
 import Integracoes from './pages/Integracoes'
 import Agenda from './pages/Agenda'
+import LembretesAgenda from './LembretesAgenda'
 import Permissoes from './pages/Permissoes'
 import Usuarios from './pages/Usuarios'
 import ProdutosBling from './pages/ProdutosBling'
@@ -202,7 +203,7 @@ function Login() {
 function Painel() {
   const me = useCarregar<Me>(() => api.me(), [])
   const [empresaId, setEmpresaId] = useState<string | null>(() => localStorage.getItem('ane.empresa'))
-  const [aba, setAba] = useState<Aba>(() => ITENS.find((a) => a.id === location.hash.slice(1))?.id ?? 'pecas')
+  const [aba, setAba] = useState<Aba>(() => ITENS.find((a) => a.id === location.hash.slice(1).split(/[?&]/)[0])?.id ?? 'pecas')
   const [menu, setMenu] = useState(false)
   // abas de trabalho: uma por tela, todas mantidas montadas (só a ativa aparece), para não perder filtros nem contexto
   const [abertas, setAbertas] = useState<Aba[]>(() => [aba])
@@ -324,7 +325,7 @@ function Painel() {
       case 'integracoes': return <Integracoes ctx={ctx} />
       case 'vendas': return <Vendas ctx={ctx} />
       case 'preferencias_vitrine': return <PreferenciasVitrine ctx={ctx} />
-      case 'agenda': return <Agenda />
+      case 'agenda': return <Agenda ctx={ctx} inicial={atalho?.aba === 'agenda' ? atalho : undefined} />
       case 'dashboards': return <Gestao ctx={ctx} />
       case 'assistente': return <Assistente ctx={ctx} abrir={abrir} />
       case 'conhecimento': return <Conhecimento ctx={ctx} abrir={abrir} />
@@ -407,6 +408,8 @@ function Painel() {
           ))}
           {visiveis.length === 0 && <div className="vazio"><strong>Sem telas liberadas</strong><p>Peça a um administrador para liberar seu acesso.</p></div>}
         </main>
+        {/* lembretes da Agenda: pop-up em qualquer tela para quem tem acesso à Agenda (pedido 045) */}
+        {visiveis.some((i) => i.id === 'agenda') && <LembretesAgenda empresa={atual.id} abrir={abrir} />}
       </div>
     </div>
   )

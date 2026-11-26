@@ -158,13 +158,23 @@ export const AJUDA: Record<string, Verbete> = {
   agenda: {
     titulo: 'Agenda',
     explicacao:
-      'Calendário das lives e compromissos da operação. Serve para planejar as transmissões e organizar a rotina da equipe.',
+      'Compromissos da operação em um só lugar: lives, follow-up de cliente, pós-venda, lembretes e tarefas internas. Qualquer pessoa da equipe cria e atribui a outra. Follow-up e pós-venda ficam abertos até serem resolvidos com a resposta da cliente registrada, ou encerrados com motivo. Com o convite ligado, cada compromisso chega ao e-mail do responsável para entrar no calendário (Gmail, Outlook, Apple).',
     casoDeUso:
-      'Você marca a live de sábado e a equipe de suporte já sabe quando se preparar para atender a fila.',
-    dicas: ['Use a agenda para antecipar as peças da próxima live e evitar correria de última hora.'],
+      'A reserva de uma cliente venceu sem pagamento. A suporte cria um follow-up para amanhã às 10h vinculado à cliente, registra a tentativa pelo WhatsApp e, quando a cliente responde, anota o que foi combinado e resolve.',
+    dicas: [
+      'Comece o dia pela aba Minha fila: atrasados, hoje, aguardando cliente e próximos 7 dias.',
+      'Registre cada tentativa de contato. Encerrar por falta de resposta exige o mínimo de tentativas definido na Configuração (padrão 3).',
+      'Não escreva telefone, CPF ou endereço no título: ele vai para o calendário do e-mail.',
+      'No calendário, os filtros de tipo e "Só os meus" ajudam a ver a semana de cada pessoa.',
+      'Visões Dia, Semana e Mês (padrão) no canto do calendário; a escolha fica guardada. Clique num espaço vazio (dia, coluna da semana ou faixa de hora) para incluir um compromisso já com a data e a hora.',
+      'Clique no compromisso para editar; arraste para outro dia para remarcar (a hora se mantém) ou, na visão Dia, para outra hora. Dá para desfazer logo depois.',
+      'Cores: vermelho piscando é atraso, dourado piscando começa em até 30 min, âmbar aguarda resposta da cliente. A legenda fica abaixo do calendário.',
+      'Os lembretes aparecem em qualquer tela do painel, no canto inferior direito: Abrir, Adiar 10 min ou Dispensar. Uma vez por dia aparece o resumo dos atrasados.',
+    ],
     passos: [
-      { titulo: 'Agenda', texto: 'O calendário das lives e compromissos.' },
-      { alvo: `${T}`, titulo: 'Planejar', texto: 'Navegue pelos meses e marque as próximas lives.' },
+      { titulo: 'Agenda', texto: 'Compromissos da equipe: lives, follow-up, pós-venda, lembretes e tarefas.' },
+      { alvo: `${T} .abas-pagina`, titulo: 'Minha fila e Calendário', texto: 'Minha fila mostra o que é seu para fazer; o Calendário mostra o mês com todos os compromissos, por tipo e por pessoa.' },
+      { alvo: `${T} .topo button`, titulo: 'Novo compromisso', texto: 'Escolha o tipo, a data e o responsável; vincule a cliente quando for follow-up ou pós-venda.' },
     ],
   },
   dashboards: {

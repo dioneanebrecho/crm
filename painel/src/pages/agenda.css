@@ -1,0 +1,213 @@
+/* Agenda de compromissos (pedido 045). Cores por tipo; o dourado segue a marca do tema. */
+.ag-cor-dourado { --ag-cor: var(--marca); }
+.ag-cor-azul { --ag-cor: #4f8fd8; }
+.ag-cor-verde { --ag-cor: var(--ok); }
+.ag-cor-cinza { --ag-cor: var(--mudo); }
+.ag-cor-roxo { --ag-cor: #a68ee8; }
+:root[data-tema='ane'] .ag-cor-roxo { --ag-cor: #5b4a9b; }
+
+/* calendário: títulos dentro do dia */
+.cal-dia { overflow: hidden; }
+.cal-eventos { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
+.cal-ev { display: block; font-size: .66rem; font-weight: 600; line-height: 1.25; padding: 0 4px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 3px solid var(--ag-cor); background: color-mix(in srgb, var(--ag-cor) 14%, transparent); }
+.cal-ev.atrasado { color: var(--erro); }
+.cal-mais { font-size: .65rem; color: var(--mudo); padding-left: 4px; }
+.cal-dia.sel .cal-ev { background: rgba(255, 255, 255, .22); color: inherit; }
+.cal-dia.sel .cal-mais { color: inherit; }
+@media (max-width: 860px) { .cal-eventos { display: none; } }
+
+.ag-filtros { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; align-items: center; margin: .2rem 0 .9rem; }
+.ag-filtros .chip { display: inline-flex; align-items: center; gap: .35rem; }
+.ag-ponto { width: 9px; height: 9px; border-radius: 50%; background: var(--ag-cor); display: inline-block; }
+.chip .ag-ponto { margin-right: .1rem; }
+.ag-check { display: inline-flex; align-items: flex-start; gap: .45rem; font-size: .9rem; cursor: pointer; }
+.ag-check input { margin-top: .2rem; }
+.ag-check-campo { align-self: end; padding-bottom: .6rem; }
+
+.ag-dia-topo { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .6rem; }
+.ag-dia-topo h2 { margin: 0; }
+
+/* listas (dia, minha fila) */
+.ag-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+.ag-item { width: 100%; display: grid; grid-template-columns: 4px auto 1fr auto; gap: .65rem; align-items: center; text-align: left;
+  background: var(--card2); color: var(--txt); border: 1px solid var(--borda); border-radius: 10px; padding: .55rem .7rem; font-weight: 400; }
+.ag-item:hover { background: var(--marca-suave); }
+.ag-item.concluido { opacity: .6; }
+.ag-item.atrasado { border-color: color-mix(in srgb, var(--erro) 55%, var(--borda)); }
+.ag-marca { align-self: stretch; border-radius: 3px; background: var(--ag-cor); }
+.ag-quando { font-variant-numeric: tabular-nums; font-weight: 700; font-size: .85rem; display: flex; flex-direction: column; min-width: 3.4rem; }
+.ag-quando small { font-weight: 600; color: var(--mudo); font-size: .7rem; text-transform: capitalize; }
+.ag-corpo { display: flex; flex-direction: column; min-width: 0; }
+.ag-corpo strong { font-size: .92rem; overflow-wrap: anywhere; }
+.ag-corpo small { color: var(--mudo); font-size: .78rem; }
+.ag-alta { font-style: normal; font-size: .68rem; font-weight: 800; text-transform: uppercase; color: var(--erro); margin-right: .4rem; }
+
+.ag-estado { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: .1rem .55rem; white-space: nowrap; background: var(--card); border: 1px solid var(--borda); }
+.ag-est-aguardando_cliente { color: var(--aviso); border-color: color-mix(in srgb, var(--aviso) 50%, transparent); }
+.ag-est-resolvido { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+.ag-est-encerrado, .ag-est-cancelado { color: var(--mudo); }
+.ag-item.atrasado .ag-estado { color: var(--erro); border-color: color-mix(in srgb, var(--erro) 50%, transparent); }
+
+.ag-fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; align-items: start; }
+.ag-bloco { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: .8rem .9rem; box-shadow: var(--sombra); }
+.ag-bloco h3 { margin: 0 0 .6rem; font-size: .95rem; display: flex; align-items: center; gap: .45rem; }
+.ag-bloco h3 span { font-size: .72rem; background: var(--card2); border-radius: 9px; padding: 0 .45rem; }
+.ag-bloco.urgente h3 { color: var(--erro); }
+.ag-bloco.espera h3 { color: var(--aviso); }
+
+/* formulário */
+.ag-linha { display: flex; flex-wrap: wrap; gap: .8rem; }
+.ag-linha > .campo { flex: 1 1 150px; }
+.ag-nota { background: rgba(232, 179, 75, .12); color: var(--txt); border-left: 3px solid var(--aviso); padding: .5rem .7rem; border-radius: 6px; font-size: .86rem; margin: .2rem 0 .6rem; }
+.ag-cliente { display: flex; gap: .7rem; align-items: center; }
+.ag-busca-cliente ul { list-style: none; margin: .35rem 0 0; padding: 0; border: 1px solid var(--borda); border-radius: 8px; max-height: 220px; overflow: auto; }
+.ag-busca-cliente li button { display: block; width: 100%; text-align: left; padding: .4rem .6rem; }
+.ag-busca-cliente li + li { border-top: 1px solid var(--borda); }
+
+/* detalhe */
+.ag-det-cab { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-bottom: .7rem; }
+.ag-tipo { font-size: .75rem; font-weight: 700; border-radius: 999px; padding: .1rem .6rem; color: var(--ag-cor); background: color-mix(in srgb, var(--ag-cor) 15%, transparent); }
+.ag-dados { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; margin: 0 0 .8rem; font-size: .9rem; }
+.ag-dados dt { color: var(--mudo); font-weight: 600; }
+.ag-dados dd { margin: 0; }
+.ag-pre { white-space: pre-wrap; }
+.ag-acoes { display: flex; flex-wrap: wrap; gap: .45rem; margin: .6rem 0; }
+.ag-acoes .espaco { flex: 1; }
+.ag-form-acao { background: var(--card2); border-radius: 10px; padding: .7rem .8rem; margin: .6rem 0; }
+.ag-sub { font-size: .9rem; margin: 1rem 0 .5rem; }
+.ag-historico { list-style: none; margin: 0; padding: 0 0 0 .9rem; border-left: 2px solid var(--borda); display: flex; flex-direction: column; gap: .6rem; font-size: .88rem; }
+.ag-historico li { position: relative; }
+.ag-historico li::before { content: ''; position: absolute; left: -1.27rem; top: .35rem; width: 9px; height: 9px; border-radius: 50%; background: var(--mudo); }
+.ag-historico li.ag-h-tentativa::before { background: var(--aviso); }
+.ag-historico li.ag-h-resposta_cliente::before { background: var(--ok); }
+.ag-historico small { color: var(--mudo); }
+.ag-historico p { margin: .2rem 0 0; white-space: pre-wrap; }
+
+.ag-config { max-width: 720px; }
+.ag-config .ag-check { margin: .3rem 0 .8rem; }
+
+/* ---------------------------------------------------------------- situação: cores e piscar suave */
+.st-atrasado { --st: var(--erro); }
+.st-em_breve { --st: var(--marca); }
+.st-aguardando { --st: var(--aviso); }
+.st-normal { --st: var(--mudo); }
+.st-concluido { --st: var(--mudo); }
+@keyframes ag-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--st) 0%, transparent); }
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--st) 45%, transparent); }
+}
+@keyframes ag-brilho { 0%, 100% { opacity: 1; } 50% { opacity: .62; } }
+
+/* no calendário */
+.cal-dia { cursor: pointer; }
+.cal-dia:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
+.cal-ev.clicavel { cursor: pointer; }
+.cal-ev.clicavel:hover { filter: brightness(1.15); text-decoration: underline; }
+.cal-ev.arrastavel { cursor: grab; }
+.cal-ev.arrastavel:active { cursor: grabbing; }
+.cal-ev.st-atrasado { background: color-mix(in srgb, var(--erro) 22%, transparent); color: var(--erro); animation: ag-brilho 2.4s ease-in-out infinite; }
+.cal-ev.st-em_breve { background: color-mix(in srgb, var(--marca) 26%, transparent); animation: ag-brilho 2.4s ease-in-out infinite; }
+.cal-ev.st-aguardando { background: color-mix(in srgb, var(--aviso) 20%, transparent); }
+.cal-ev.st-concluido { opacity: .55; text-decoration: line-through; }
+.cal-dia.cal-atrasado { border-color: color-mix(in srgb, var(--erro) 70%, transparent); --st: var(--erro); animation: ag-pulso 2.4s ease-in-out infinite; }
+.cal-dia.cal-em_breve { border-color: color-mix(in srgb, var(--marca) 80%, transparent); --st: var(--marca); animation: ag-pulso 2.4s ease-in-out infinite; }
+.cal-dia.cal-alvo { outline: 2px dashed var(--marca); outline-offset: -2px; background: var(--marca-suave); }
+.cal-dia.sel .cal-ev.st-atrasado, .cal-dia.sel .cal-ev.st-em_breve { color: inherit; }
+
+/* nas listas */
+.ag-item.st-atrasado { border-color: color-mix(in srgb, var(--erro) 60%, var(--borda)); animation: ag-pulso 2.4s ease-in-out infinite; }
+.ag-item.st-em_breve { border-color: color-mix(in srgb, var(--marca) 70%, var(--borda)); animation: ag-pulso 2.4s ease-in-out infinite; }
+.ag-item.st-aguardando { border-color: color-mix(in srgb, var(--aviso) 50%, var(--borda)); }
+.ag-estado.st-atrasado { color: var(--erro); border-color: color-mix(in srgb, var(--erro) 50%, transparent); }
+.ag-estado.st-em_breve { color: var(--marca); border-color: color-mix(in srgb, var(--marca) 55%, transparent); }
+.ag-estado.st-aguardando { color: var(--aviso); border-color: color-mix(in srgb, var(--aviso) 50%, transparent); }
+
+/* legenda */
+.ag-legenda { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; align-items: center; font-size: .8rem; color: var(--mudo); margin: .8rem 0; }
+.ag-leg-item { display: inline-flex; align-items: center; gap: .4rem; }
+.ag-leg-amostra { width: 22px; height: 12px; border-radius: 4px; border: 1px solid var(--st); background: color-mix(in srgb, var(--st) 22%, transparent); }
+.ag-leg-amostra.st-atrasado, .ag-leg-amostra.st-em_breve { animation: ag-brilho 2.4s ease-in-out infinite; }
+.ag-leg-amostra.st-concluido { opacity: .5; }
+.ag-leg-dica { flex-basis: 100%; font-style: italic; }
+.ag-form-topo { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin: -.2rem 0 .6rem; }
+
+/* aviso de remarcação (desfazer) */
+.ag-toast { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 60; display: flex; gap: .8rem; align-items: center;
+  background: var(--card); color: var(--txt); border: 1px solid var(--borda); border-radius: 10px; padding: .6rem .9rem; box-shadow: var(--sombra); font-size: .9rem; max-width: min(92vw, 560px); }
+
+/* ---------------------------------------------------------------- lembretes em qualquer tela */
+.lembretes { position: fixed; right: 1rem; bottom: 1rem; z-index: 70; display: flex; flex-direction: column-reverse; gap: .6rem; width: min(360px, calc(100vw - 2rem)); }
+.lembrete { background: var(--card); color: var(--txt); border: 1px solid color-mix(in srgb, var(--st) 70%, var(--borda)); border-left: 4px solid var(--st);
+  border-radius: 12px; padding: .75rem .85rem; box-shadow: var(--sombra), 0 10px 30px -12px rgba(0, 0, 0, .45);
+  animation: ag-entrar .25s ease-out, ag-pulso 2.4s ease-in-out .3s infinite; }
+.lembrete.st-normal, .lembrete.st-aguardando { animation: ag-entrar .25s ease-out; --st: var(--marca); }
+@keyframes ag-entrar { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.lembrete-topo { display: flex; align-items: center; gap: .4rem; }
+.lembrete-topo small { color: var(--mudo); font-weight: 600; flex: 1; }
+.lembrete-topo strong { flex: 1; color: var(--st); }
+.lembrete-titulo { display: block; margin: .25rem 0 .15rem; font-size: 1rem; overflow-wrap: anywhere; }
+.lembrete p { margin: 0 0 .6rem; font-size: .86rem; color: var(--mudo); }
+.lembrete-acoes { display: flex; gap: .4rem; flex-wrap: wrap; }
+.lembrete-acoes button { padding: .35rem .7rem; font-size: .85rem; }
+.lembrete-notif { margin-top: .5rem; font-size: .78rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-ev, .cal-dia, .ag-item, .ag-leg-amostra, .lembrete { animation: none !important; }
+}
+
+/* ---------------------------------------------------------------- visões Dia / Semana / Mês */
+.cal-topo { flex-wrap: wrap; gap: .5rem; }
+.cal-visoes { display: inline-flex; gap: .25rem; margin-right: .4rem; }
+.cal-visoes .chip { min-width: 0; padding: .25rem .75rem; font-size: .82rem; }
+.pode-incluir { cursor: copy; }
+.cal-dia.pode-incluir:hover:not(.sel) { outline: 1px dashed color-mix(in srgb, var(--marca) 60%, transparent); outline-offset: -1px; }
+.cal-mais { cursor: pointer; text-decoration: underline; }
+
+/* semana */
+.cal-semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-col { display: flex; flex-direction: column; background: var(--card2); border: 1px solid transparent; border-radius: 8px; min-height: 420px; }
+.cal-col.hoje { border-color: var(--marca); }
+.cal-col.sel .cal-col-topo { background: var(--marca); color: var(--on-marca); }
+.cal-col-topo { display: flex; align-items: baseline; justify-content: center; gap: .35rem; background: transparent; color: var(--txt); border: 0; border-bottom: 1px solid var(--borda);
+  border-radius: 8px 8px 0 0; padding: .45rem .3rem; font-weight: 600; }
+.cal-col-topo small { color: inherit; opacity: .7; text-transform: uppercase; font-size: .7rem; }
+.cal-col-topo strong { font-size: 1.05rem; }
+.cal-col-corpo { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 5px; border-radius: 0 0 8px 8px; }
+.cal-col-corpo:hover { background: var(--marca-suave); }
+.cal-col.cal-alvo .cal-col-corpo { outline: 2px dashed var(--marca); outline-offset: -3px; background: var(--marca-suave); }
+.cal-vazio { color: var(--mudo); font-size: .75rem; opacity: 0; text-align: center; padding-top: .4rem; }
+.cal-col-corpo:hover .cal-vazio { opacity: 1; }
+
+/* cartão (semana e dia) */
+.cal-cartao { display: flex; flex-direction: column; gap: 1px; text-align: left; font-size: .78rem; line-height: 1.25; padding: .3rem .4rem; border-radius: 6px;
+  border-left: 3px solid var(--ag-cor); background: color-mix(in srgb, var(--ag-cor) 14%, var(--card)); color: var(--txt); overflow-wrap: anywhere; }
+.cal-cartao b { font-size: .72rem; font-variant-numeric: tabular-nums; }
+.cal-cartao small { color: var(--mudo); font-size: .7rem; }
+.cal-cartao.clicavel { cursor: pointer; } .cal-cartao.clicavel:hover { filter: brightness(1.12); }
+.cal-cartao.arrastavel { cursor: grab; } .cal-cartao.arrastavel:active { cursor: grabbing; }
+.cal-cartao.st-atrasado { background: color-mix(in srgb, var(--erro) 20%, var(--card)); --st: var(--erro); animation: ag-pulso 2.4s ease-in-out infinite; }
+.cal-cartao.st-atrasado b { color: var(--erro); }
+.cal-cartao.st-em_breve { background: color-mix(in srgb, var(--marca) 24%, var(--card)); --st: var(--marca); animation: ag-pulso 2.4s ease-in-out infinite; }
+.cal-cartao.st-aguardando { background: color-mix(in srgb, var(--aviso) 18%, var(--card)); }
+.cal-cartao.st-concluido { opacity: .55; } .cal-cartao.st-concluido span { text-decoration: line-through; }
+
+/* dia */
+.cal-dia-horas { position: relative; max-height: 560px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 8px; }
+.cal-hora { display: grid; grid-template-columns: 64px 1fr; min-height: 46px; border-top: 1px solid var(--borda); }
+.cal-hora:first-child { border-top: 0; }
+.cal-hora.pode-incluir:hover { background: var(--marca-suave); }
+.cal-hora.agora { background: color-mix(in srgb, var(--marca) 8%, transparent); }
+.cal-hora.agora .cal-hora-rot { color: var(--marca); font-weight: 800; }
+.cal-hora.cal-alvo { outline: 2px dashed var(--marca); outline-offset: -2px; background: var(--marca-suave); }
+.cal-hora-todo { background: var(--card2); position: sticky; top: 0; z-index: 1; }
+.cal-hora-rot { padding: .45rem .5rem; color: var(--mudo); font-size: .75rem; font-variant-numeric: tabular-nums; border-right: 1px solid var(--borda); }
+.cal-hora-itens { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 6px; align-content: flex-start; }
+.cal-hora-itens .cal-cartao { flex: 1 1 220px; max-width: 420px; }
+
+@media (max-width: 860px) {
+  .cal-semana { grid-template-columns: 1fr; }
+  .cal-col { min-height: 0; }
+  .cal-col-corpo { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .cal-cartao { animation: none !important; } }
