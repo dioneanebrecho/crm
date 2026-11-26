@@ -1,6 +1,6 @@
 # Manual do painel Ane Brechó
 
-Documentação v0.12.1 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
+Documentação v0.13.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
 
 ## Início
 
@@ -261,6 +261,100 @@ Documentação v0.12.1 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo
 2. **A montar** — Clientes com pedidos pagos agrupados por endereço. Clique em Montar envio.
 
 ## Financeiro
+
+### Contas a receber
+
+**O que é.** Títulos a receber de clientes: vendas, recibos, adiantamentos e renegociações. Cada título tem natureza, centro de resultado, tipo de título (PIX, cartão, boleto) e situação: em aberto, vencido, baixa parcial, baixado, conciliado com o banco, renegociado, provisão ou cancelado. Nada é enviado ao Bling.
+
+**Caso de uso.** Uma cliente fechou 3 peças em 2 parcelas no cartão. Lance o título com 2 parcelas e tipo Cartão de crédito. Quando a operadora pagar, selecione as duas parcelas e faça uma baixa só, com a taxa descontada; o valor líquido cai na conta escolhida.
+
+**Dicas**
+
+- Clique nos chips de situação para combinar filtros; os números mostram quantos títulos há em cada uma.
+- Valor menor que o saldo faz baixa parcial: o restante continua em aberto no mesmo título.
+- Selecione vários títulos para receber em lote (um movimento só na conta) ou renegociar (mesmo cliente).
+- Parcelas de um parcelamento não se cancelam uma a uma: cancele o grupo inteiro ou a partir de uma parcela.
+- O título renegociado continua visível; a aba Vínculos mostra os títulos novos e permite desfazer enquanto não houver baixa.
+- Provisão é um valor estimado: efetive quando o documento real chegar ou substitua pelo título real.
+
+**Tutorial guiado**
+
+1. **Situações** — Filtre por situação. Em aberto, vencido e baixa parcial vêm marcados por padrão.
+2. **Títulos** — Marque a caixa para selecionar e clique na linha para abrir a composição, o rateio, as baixas e os vínculos.
+3. **Receber** — Com títulos selecionados, use “Receber”. Informe data, conta, juros, multa, desconto e taxa; o painel mostra quanto entra na conta.
+4. **Novo título** — Use “+ Novo título” para recibos, parcelamentos, recorrências ou saldos de implantação, com rateio por natureza, centro de resultado e projeto.
+
+### Contas a pagar
+
+**O que é.** Títulos a pagar a fornecedores: parcelas das NF-e de compra (geradas na Entrada de mercadoria), NFS-e de serviços com retenções, boletos, guias de impostos, fretes, comissões e tarifas. Mesma lógica de situações, baixas, renegociação e vínculos de Contas a receber.
+
+**Caso de uso.** O contador emitiu uma NFS-e de R$ 1.000 com ISS retido de R$ 50. Lance como “NFS-e recebida”, informe o ISS e marque que a Ane recolhe: o fornecedor recebe R$ 950 e o CRM gera a guia de R$ 50 para a prefeitura, ligada ao título.
+
+**Dicas**
+
+- Títulos de NF-e de compra têm valor, fornecedor e vencimento travados: alterações são feitas na Entrada de mercadoria.
+- Retenções da NFS-e entram na 1ª parcela e reduzem o valor líquido; as guias aparecem na aba Vínculos.
+- Adiantamento a fornecedor registra a saída do dinheiro e cria um crédito a receber; use a compensação para abater na conta a pagar.
+- Baixa já conciliada com o extrato não se estorna: desfaça a conciliação antes.
+
+**Tutorial guiado**
+
+1. **Resumo** — Total em aberto, vencido e provisões do filtro atual.
+2. **Títulos** — Selecione para pagar ou renegociar; clique para abrir o detalhe.
+3. **NFS-e** — Em “+ Novo título”, escolha “NFS-e recebida” para informar ISS, IRRF, INSS e PIS/COFINS/CSLL retidos.
+
+### Contas e saldos
+
+**O que é.** Saldo de cada conta bancária, caixa e carteira de gateway em uma data escolhida, em três visões: no sistema (todas as baixas até a data), conciliado (só o conferido com o extrato, pela data em que caiu no banco) e no extrato importado. Mostra os movimentos com saldo linha a linha e permite transferir entre contas.
+
+**Caso de uso.** No fim do mês, escolha o último dia em “Saldo em” e confira cada conta: se o conciliado é igual ao extrato, a conta está fechada. A diferença entre sistema e conciliado é o que ainda não apareceu no banco.
+
+**Dicas**
+
+- Clique no cartão da conta para ver os movimentos do período.
+- Transferência entre contas não afeta o DRE; só se estorna enquanto não estiver conciliada.
+- O saldo inicial de cada conta é cadastrado em Cadastros financeiros, na data de implantação.
+
+**Tutorial guiado**
+
+1. **Contas** — Cada cartão mostra o saldo no sistema, o conciliado, o que falta conciliar e a comparação com o extrato.
+2. **Saldo em** — Mude a data para ver o saldo de qualquer dia passado.
+
+### Conciliação bancária
+
+**O que é.** Importa o extrato OFX do banco (lido no navegador) e liga cada linha a um movimento do sistema. Compara dia a dia o saldo do extrato com o saldo conciliado e confere o saldo final informado pelo banco com o calculado pelas linhas.
+
+**Caso de uso.** Baixe o OFX do Itaú da semana e importe. As linhas com o mesmo valor de uma baixa próxima já vêm com sugestão: clique em Conciliar. A tarifa do banco, que não existe no sistema, vira título com “Criar título”, já baixado e conciliado.
+
+**Dicas**
+
+- Ao conciliar, o movimento passa a contar no saldo conciliado pela data do banco, mesmo que a baixa tenha outra data.
+- Importar o mesmo arquivo de novo não duplica linhas: o identificador de cada lançamento do banco é único.
+- Na aba Saldo dia a dia, dias com diferença mostram onde falta conciliar.
+- Use “Ignorar” só para linhas que não têm efeito no sistema (ex.: estorno do próprio banco no mesmo dia).
+
+**Tutorial guiado**
+
+1. **Importar** — Escolha a conta e clique em “Importar OFX”. Confira o período e o saldo final antes de confirmar.
+2. **Saldos** — Extrato, conciliado e a diferença na data escolhida. “Confere” quando estão iguais.
+3. **Linhas** — Concilie pela sugestão, escolha outro movimento, crie um título ou ignore a linha.
+
+### Cadastros financeiros
+
+**O que é.** Contas bancárias com saldo inicial, tipos de título (meio de pagamento, taxa, dias para compensar e conta padrão), projetos usados no rateio e os parâmetros que definem em qual natureza entram juros, multas, descontos, taxas, adiantamentos, retenções e transferências.
+
+**Caso de uso.** Na implantação, cadastre o Itaú, o caixa da loja e a carteira do Mercado Pago com o saldo do dia de corte. No tipo Cartão de crédito, informe a taxa da operadora para que a baixa calcule o valor líquido.
+
+**Dicas**
+
+- Contas e tipos não se excluem: inative.
+- O código do tipo de título não muda depois de criado.
+- Só administrador e gestor alteram os parâmetros; “Período fechado até” bloqueia lançamentos e baixas em datas já fechadas.
+
+**Tutorial guiado**
+
+1. **Quatro áreas** — Contas bancárias, Tipos de título, Projetos e Parâmetros.
+2. **Contas** — Clique em uma conta para editar ou use “+ Nova conta”.
 
 ### Natureza financeira
 

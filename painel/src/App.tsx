@@ -30,6 +30,10 @@ import GruposProduto from './pages/GruposProduto'
 import EntradaCompra from './pages/EntradaCompra'
 import Natureza from './pages/Natureza'
 import CentroResultado from './pages/CentroResultado'
+import Titulos from './pages/Titulos'
+import ContasBancarias from './pages/ContasBancarias'
+import Conciliacao from './pages/Conciliacao'
+import CadastrosFinanceiro from './pages/CadastrosFinanceiro'
 import Faixa from './Faixa'
 import FaixaConfig from './pages/FaixaConfig'
 import BuscaRapida, { ATALHO_BUSCA } from './busca'
@@ -74,6 +78,11 @@ const ITENS = [
   { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live e vendas', icone: <IMarca /> },
   { id: 'atendimento', rotulo: 'Caixa de entrada', grupo: 'Live e vendas', icone: <IConversa /> },
   { id: 'envios', rotulo: 'Expedição', grupo: 'Clientes e pós-venda', icone: <IEstoque /> },
+  { id: 'contas_receber', rotulo: 'Contas a receber', grupo: 'Financeiro', icone: <IGestao /> },
+  { id: 'contas_pagar', rotulo: 'Contas a pagar', grupo: 'Financeiro', icone: <INota /> },
+  { id: 'contas_bancarias', rotulo: 'Contas e saldos', grupo: 'Financeiro', icone: <ILocais /> },
+  { id: 'conciliacao', rotulo: 'Conciliação bancária', grupo: 'Financeiro', icone: <IEscudo /> },
+  { id: 'cadastros_financeiro', rotulo: 'Cadastros financeiros', grupo: 'Financeiro', icone: <IAjustes /> },
   { id: 'naturezas', rotulo: 'Natureza financeira', grupo: 'Financeiro', icone: <IGestao /> },
   { id: 'centros_resultado', rotulo: 'Centro de resultado', grupo: 'Financeiro', icone: <ILocais /> },
   { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Cadastros', icone: <IParceiros /> },
@@ -317,6 +326,11 @@ function Painel() {
       case 'pecas': return <Pecas ctx={ctx} />
       case 'entrada_compra': return <EntradaCompra ctx={ctx} />
       case 'grupos_produto': return <GruposProduto ctx={ctx} />
+      case 'contas_receber': return <Titulos key="R" ctx={ctx} tipo="R" />
+      case 'contas_pagar': return <Titulos key="D" ctx={ctx} tipo="D" />
+      case 'contas_bancarias': return <ContasBancarias ctx={ctx} />
+      case 'conciliacao': return <Conciliacao ctx={ctx} />
+      case 'cadastros_financeiro': return <CadastrosFinanceiro ctx={ctx} />
       case 'naturezas': return <Natureza ctx={ctx} />
       case 'centros_resultado': return <CentroResultado ctx={ctx} />
       case 'estoque': return <Unidades ctx={ctx} />

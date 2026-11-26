@@ -19,7 +19,7 @@ export interface Verbete {
   passos: PassoTour[]  // tutorial guiado da tela
 }
 
-export const VERSAO_DOC = '0.12.1'
+export const VERSAO_DOC = '0.13.0'
 export const ATUALIZADO_EM = '2026-11-26'
 
 // escopo da tela aberta (só o painel visível responde aos seletores)
@@ -266,6 +266,95 @@ export const AJUDA: Record<string, Verbete> = {
     passos: [
       { titulo: 'Assistente', texto: 'Pergunte em português sobre vendas, estoque, fila e regras. Ele responde com dados e cita as fontes.' },
       { alvo: `${T}`, titulo: 'Converse', texto: 'Digite a pergunta. Use o histórico e os atalhos para abrir o que foi citado.' },
+    ],
+  },
+  contas_receber: {
+    titulo: 'Contas a receber',
+    explicacao:
+      'Títulos a receber de clientes: vendas, recibos, adiantamentos e renegociações. Cada título tem natureza, centro de resultado, tipo de título (PIX, cartão, boleto) e situação: em aberto, vencido, baixa parcial, baixado, conciliado com o banco, renegociado, provisão ou cancelado. Nada é enviado ao Bling.',
+    casoDeUso:
+      'Uma cliente fechou 3 peças em 2 parcelas no cartão. Lance o título com 2 parcelas e tipo Cartão de crédito. Quando a operadora pagar, selecione as duas parcelas e faça uma baixa só, com a taxa descontada; o valor líquido cai na conta escolhida.',
+    dicas: [
+      'Clique nos chips de situação para combinar filtros; os números mostram quantos títulos há em cada uma.',
+      'Valor menor que o saldo faz baixa parcial: o restante continua em aberto no mesmo título.',
+      'Selecione vários títulos para receber em lote (um movimento só na conta) ou renegociar (mesmo cliente).',
+      'Parcelas de um parcelamento não se cancelam uma a uma: cancele o grupo inteiro ou a partir de uma parcela.',
+      'O título renegociado continua visível; a aba Vínculos mostra os títulos novos e permite desfazer enquanto não houver baixa.',
+      'Provisão é um valor estimado: efetive quando o documento real chegar ou substitua pelo título real.',
+    ],
+    passos: [
+      { alvo: `${T} .fin-chips`, titulo: 'Situações', texto: 'Filtre por situação. Em aberto, vencido e baixa parcial vêm marcados por padrão.' },
+      { alvo: `${T} .gd`, titulo: 'Títulos', texto: 'Marque a caixa para selecionar e clique na linha para abrir a composição, o rateio, as baixas e os vínculos.' },
+      { titulo: 'Receber', texto: 'Com títulos selecionados, use “Receber”. Informe data, conta, juros, multa, desconto e taxa; o painel mostra quanto entra na conta.' },
+      { titulo: 'Novo título', texto: 'Use “+ Novo título” para recibos, parcelamentos, recorrências ou saldos de implantação, com rateio por natureza, centro de resultado e projeto.' },
+    ],
+  },
+  contas_pagar: {
+    titulo: 'Contas a pagar',
+    explicacao:
+      'Títulos a pagar a fornecedores: parcelas das NF-e de compra (geradas na Entrada de mercadoria), NFS-e de serviços com retenções, boletos, guias de impostos, fretes, comissões e tarifas. Mesma lógica de situações, baixas, renegociação e vínculos de Contas a receber.',
+    casoDeUso:
+      'O contador emitiu uma NFS-e de R$ 1.000 com ISS retido de R$ 50. Lance como “NFS-e recebida”, informe o ISS e marque que a Ane recolhe: o fornecedor recebe R$ 950 e o CRM gera a guia de R$ 50 para a prefeitura, ligada ao título.',
+    dicas: [
+      'Títulos de NF-e de compra têm valor, fornecedor e vencimento travados: alterações são feitas na Entrada de mercadoria.',
+      'Retenções da NFS-e entram na 1ª parcela e reduzem o valor líquido; as guias aparecem na aba Vínculos.',
+      'Adiantamento a fornecedor registra a saída do dinheiro e cria um crédito a receber; use a compensação para abater na conta a pagar.',
+      'Baixa já conciliada com o extrato não se estorna: desfaça a conciliação antes.',
+    ],
+    passos: [
+      { alvo: `${T} .resumo-faixa`, titulo: 'Resumo', texto: 'Total em aberto, vencido e provisões do filtro atual.' },
+      { alvo: `${T} .gd`, titulo: 'Títulos', texto: 'Selecione para pagar ou renegociar; clique para abrir o detalhe.' },
+      { titulo: 'NFS-e', texto: 'Em “+ Novo título”, escolha “NFS-e recebida” para informar ISS, IRRF, INSS e PIS/COFINS/CSLL retidos.' },
+    ],
+  },
+  contas_bancarias: {
+    titulo: 'Contas e saldos',
+    explicacao:
+      'Saldo de cada conta bancária, caixa e carteira de gateway em uma data escolhida, em três visões: no sistema (todas as baixas até a data), conciliado (só o conferido com o extrato, pela data em que caiu no banco) e no extrato importado. Mostra os movimentos com saldo linha a linha e permite transferir entre contas.',
+    casoDeUso:
+      'No fim do mês, escolha o último dia em “Saldo em” e confira cada conta: se o conciliado é igual ao extrato, a conta está fechada. A diferença entre sistema e conciliado é o que ainda não apareceu no banco.',
+    dicas: [
+      'Clique no cartão da conta para ver os movimentos do período.',
+      'Transferência entre contas não afeta o DRE; só se estorna enquanto não estiver conciliada.',
+      'O saldo inicial de cada conta é cadastrado em Cadastros financeiros, na data de implantação.',
+    ],
+    passos: [
+      { alvo: `${T} .fin-contas`, titulo: 'Contas', texto: 'Cada cartão mostra o saldo no sistema, o conciliado, o que falta conciliar e a comparação com o extrato.' },
+      { titulo: 'Saldo em', texto: 'Mude a data para ver o saldo de qualquer dia passado.' },
+    ],
+  },
+  conciliacao: {
+    titulo: 'Conciliação bancária',
+    explicacao:
+      'Importa o extrato OFX do banco (lido no navegador) e liga cada linha a um movimento do sistema. Compara dia a dia o saldo do extrato com o saldo conciliado e confere o saldo final informado pelo banco com o calculado pelas linhas.',
+    casoDeUso:
+      'Baixe o OFX do Itaú da semana e importe. As linhas com o mesmo valor de uma baixa próxima já vêm com sugestão: clique em Conciliar. A tarifa do banco, que não existe no sistema, vira título com “Criar título”, já baixado e conciliado.',
+    dicas: [
+      'Ao conciliar, o movimento passa a contar no saldo conciliado pela data do banco, mesmo que a baixa tenha outra data.',
+      'Importar o mesmo arquivo de novo não duplica linhas: o identificador de cada lançamento do banco é único.',
+      'Na aba Saldo dia a dia, dias com diferença mostram onde falta conciliar.',
+      'Use “Ignorar” só para linhas que não têm efeito no sistema (ex.: estorno do próprio banco no mesmo dia).',
+    ],
+    passos: [
+      { titulo: 'Importar', texto: 'Escolha a conta e clique em “Importar OFX”. Confira o período e o saldo final antes de confirmar.' },
+      { alvo: `${T} .resumo-faixa`, titulo: 'Saldos', texto: 'Extrato, conciliado e a diferença na data escolhida. “Confere” quando estão iguais.' },
+      { alvo: `${T} .gd`, titulo: 'Linhas', texto: 'Concilie pela sugestão, escolha outro movimento, crie um título ou ignore a linha.' },
+    ],
+  },
+  cadastros_financeiro: {
+    titulo: 'Cadastros financeiros',
+    explicacao:
+      'Contas bancárias com saldo inicial, tipos de título (meio de pagamento, taxa, dias para compensar e conta padrão), projetos usados no rateio e os parâmetros que definem em qual natureza entram juros, multas, descontos, taxas, adiantamentos, retenções e transferências.',
+    casoDeUso:
+      'Na implantação, cadastre o Itaú, o caixa da loja e a carteira do Mercado Pago com o saldo do dia de corte. No tipo Cartão de crédito, informe a taxa da operadora para que a baixa calcule o valor líquido.',
+    dicas: [
+      'Contas e tipos não se excluem: inative.',
+      'O código do tipo de título não muda depois de criado.',
+      'Só administrador e gestor alteram os parâmetros; “Período fechado até” bloqueia lançamentos e baixas em datas já fechadas.',
+    ],
+    passos: [
+      { alvo: `${T} .abas-pagina`, titulo: 'Quatro áreas', texto: 'Contas bancárias, Tipos de título, Projetos e Parâmetros.' },
+      { titulo: 'Contas', texto: 'Clique em uma conta para editar ou use “+ Nova conta”.' },
     ],
   },
   naturezas: {
