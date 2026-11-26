@@ -5,14 +5,14 @@ import { ComboBusca } from '../ComboBusca'
 import GradeDados, { type Coluna } from '../GradeDados'
 import { Abas, Campo, Modal, Titulo, useCarregar } from '../ui'
 import { useEstadoTela } from '../abas'
-import { ParceiroBusca, SeloSit, Valor, opcoesCr, opcoesNat, podeEditar } from './finComum'
+import { ParceiroBusca, SeloSit, Valor, opcoesCr, opcoesNat, useAcoes } from './finComum'
 
 // Conciliação bancária: importa o OFX (lido no navegador), compara o saldo do extrato com o conciliado dia a dia e liga cada linha a um movimento. Pedido 050.
 
 type Aba = 'linhas' | 'diario' | 'sistema'
 
 export default function Conciliacao({ ctx }: { ctx: Contexto }) {
-  const pode = podeEditar(ctx, 'conciliacao')
+  const pode = useAcoes(ctx).has('conciliar')
   const cad = useCarregar(() => apiTitulos.cadastros(ctx.empresa), [ctx.empresa])
   const [conta, setConta] = useEstadoTela('conciliacao.conta', '')
   const [data, setData] = useState(hojeIso())

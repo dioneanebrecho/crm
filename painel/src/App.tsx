@@ -31,7 +31,7 @@ import GruposProduto from './pages/GruposProduto'
 import EntradaCompra from './pages/EntradaCompra'
 import Natureza from './pages/Natureza'
 import CentroResultado from './pages/CentroResultado'
-import Titulos from './pages/Titulos'
+import MovimentacaoFinanceira from './pages/MovimentacaoFinanceira'
 import ContasBancarias from './pages/ContasBancarias'
 import Conciliacao from './pages/Conciliacao'
 import CadastrosFinanceiro from './pages/CadastrosFinanceiro'
@@ -80,8 +80,7 @@ const ITENS = [
   { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live e vendas', icone: <IMarca /> },
   { id: 'atendimento', rotulo: 'Caixa de entrada', grupo: 'Live e vendas', icone: <IConversa /> },
   { id: 'envios', rotulo: 'Expedição', grupo: 'Clientes e pós-venda', icone: <IEstoque /> },
-  { id: 'contas_receber', rotulo: 'Contas a receber', grupo: 'Financeiro', icone: <IGestao /> },
-  { id: 'contas_pagar', rotulo: 'Contas a pagar', grupo: 'Financeiro', icone: <INota /> },
+  { id: 'movimentacao_financeira', rotulo: 'Movimentação financeira', grupo: 'Financeiro', icone: <IGestao /> },
   { id: 'contas_bancarias', rotulo: 'Contas e saldos', grupo: 'Financeiro', icone: <ILocais /> },
   { id: 'conciliacao', rotulo: 'Conciliação bancária', grupo: 'Financeiro', icone: <IEscudo /> },
   { id: 'cadastros_financeiro', rotulo: 'Cadastros financeiros', grupo: 'Financeiro', icone: <IAjustes /> },
@@ -248,7 +247,7 @@ function Painel() {
   }, [])
   useEffect(() => { if (atalho && atalho.aba !== aba) setAtalho(null) }, [aba, atalho])
   // a antiga tela Clientes virou Parceiros (pedido 046): atalhos antigos para "clientes" abrem Parceiros
-  const abrir = (id: string, q?: string) => { const alvo = id === 'clientes' ? 'parceiros' : id; setAtalho(q ? { aba: alvo, q, n: Date.now() } : null); ativar(alvo as Aba) }
+  const abrir = (id: string, q?: string) => { const alvo = id === 'clientes' ? 'parceiros' : id === 'contas_receber' || id === 'contas_pagar' ? 'movimentacao_financeira' : id; setAtalho(q ? { aba: alvo, q, n: Date.now() } : null); ativar(alvo as Aba) }
   const [permMapa, setPermMapa] = useState<{ empresa: string; perm: Record<string, NivelTela> | null } | null>(null)
   const [versaoPerm, setVersaoPerm] = useState(0)
   const empresaAtualId = me.dados ? (me.dados.empresas.find((e) => e.id === empresaId) ?? me.dados.empresas[0])?.id : undefined
@@ -328,8 +327,7 @@ function Painel() {
       case 'pecas': return <Pecas ctx={ctx} />
       case 'entrada_compra': return <EntradaCompra ctx={ctx} />
       case 'grupos_produto': return <GruposProduto ctx={ctx} />
-      case 'contas_receber': return <Titulos key="R" ctx={ctx} tipo="R" />
-      case 'contas_pagar': return <Titulos key="D" ctx={ctx} tipo="D" />
+      case 'movimentacao_financeira': return <MovimentacaoFinanceira ctx={ctx} />
       case 'contas_bancarias': return <ContasBancarias ctx={ctx} />
       case 'conciliacao': return <Conciliacao ctx={ctx} />
       case 'cadastros_financeiro': return <CadastrosFinanceiro ctx={ctx} />

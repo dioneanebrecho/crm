@@ -4,12 +4,13 @@ import { apiTitulos, TIPOS_CONTA, dia, dataHora, hojeIso, inicioMes, moeda, r2, 
 import GradeDados, { type Coluna } from '../GradeDados'
 import { Campo, Modal, Titulo, useCarregar } from '../ui'
 import { useEstadoTela } from '../abas'
-import { CampoValor, Valor, podeEditar } from './finComum'
+import { CampoValor, Valor, useAcoes } from './finComum'
 
 // Contas e saldos: saldo de cada conta em uma data (sistema, conciliado e extrato), movimentos e transferências. Pedido 050.
 
 export default function ContasBancarias({ ctx }: { ctx: Contexto }) {
-  const pode = podeEditar(ctx, 'contas_bancarias')
+  const acoes = useAcoes(ctx)
+  const podeTransferir = acoes.has('baixar'), podeEstornar = acoes.has('estornar')
   const [data, setData] = useEstadoTela('contas_bancarias.data', '')
   const [contaSel, setContaSel] = useEstadoTela<string>('contas_bancarias.conta', '')
   const [de, setDe] = useState(inicioMes(hojeIso()))
@@ -35,7 +36,7 @@ export default function ContasBancarias({ ctx }: { ctx: Contexto }) {
       render: (m) => m.estornado ? <span className="fin-sit cancelado">Estornado</span>
         : m.conciliado ? <span className="fin-sit conciliado" title={`Conciliado em ${dataHora(m.conciliado_em)}`}>Banco {dia(m.data_banco)}</span>
         : <span className="fin-sit pendente">Aguardando extrato</span> },
-    ...(pode ? [{ id: 'acoes', titulo: 'Ações', simples: true, somar: false, texto: () => '',
+    ...(podeEstornar ? [{ id: 'acoes', titulo: 'Ações', simples: true, somar: false, texto: () => '',
       render: (m: Movimento) => m.tipo === 'transferencia' && !m.estornado && !m.conciliado
         ? <button type="button" className="link" onClick={(e) => { e.stopPropagation(); setModal({ estornar: m }) }}>Estornar</button> : null }] : []),
   ]
@@ -52,7 +53,7 @@ export default function ContasBancarias({ ctx }: { ctx: Contexto }) {
         <div className="fin-acoes" style={{ alignItems: 'flex-end' }}>
           <label className="campo"><span>Saldo em</span><input type="date" value={data || saldos.dados?.data || ''} onChange={(e) => setData(e.target.value)} /></label>
           {data && <button type="button" className="link" onClick={() => setData('')}>Hoje</button>}
-          {pode && ativas.length > 1 && <button className="sec" onClick={() => setModal('transferir')}>Transferir entre contas</button>}
+          {podeTransferir && ativas.length > 1 && <button className="sec" onClick={() => setModal('transferir')}>Transferir entre contas</button>}
         </div>
       </div>
 

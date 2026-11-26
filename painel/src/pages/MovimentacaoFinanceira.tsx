@@ -2,26 +2,30 @@ import { useMemo, useState } from 'react'
 import type { Contexto } from '../App'
 import {
   apiTitulos, ORIGENS, SITUACOES, dia, dataHora, dividir, hojeIso, moeda, r2, somarDias,
-  type CadastrosFin, type ItemBaixa, type TipoTitulo, type TituloDetalhe, type TituloResumo,
+  type AcaoFin, type CadastrosFin, type ItemBaixa, type TipoTitulo, type TituloDetalhe, type TituloResumo,
 } from '../apiTitulos'
 import GradeDados, { type Coluna } from '../GradeDados'
 import { Abas, Busca, Campo, LimparFiltros, Modal, Titulo, useCarregar } from '../ui'
 import { useEstadoTela } from '../abas'
-import { CampoValor, EditorRateio, ParceiroBusca, SeloSit, Valor, podeEditar, rateioParaApi, rateioValido, type LinhaRateioForm } from './finComum'
+import { CampoValor, EditorRateio, ParceiroBusca, SeloSit, Valor, rateioParaApi, rateioValido, useAcoes, type Acoes, type LinhaRateioForm } from './finComum'
 
-// Contas a receber (tipo R) e Contas a pagar (tipo D): a mesma tela, filtrada pelo tipo. Pedido 050.
+// Movimentação financeira: receitas (tipo R) e despesas (tipo D) na mesma tela. Pedido 052.
+// O que cada usuário vê e faz vem das ações concedidas a ele (Cadastros financeiros › Permissões por usuário).
 
 const TXT = {
-  R: { tela: 'contas_receber', titulo: 'Contas a receber', parceiro: 'Cliente', baixa: 'Receber', adiant: 'Adiantamento de cliente', papel: 'cliente' },
-  D: { tela: 'contas_pagar', titulo: 'Contas a pagar', parceiro: 'Fornecedor', baixa: 'Pagar', adiant: 'Adiantamento a fornecedor', papel: 'fornecedor' },
+  R: { rotulo: 'Receita', parceiro: 'Cliente', baixa: 'Receber', adiant: 'Adiantamento de cliente' },
+  D: { rotulo: 'Despesa', parceiro: 'Fornecedor', baixa: 'Pagar', adiant: 'Adiantamento a fornecedor' },
 } as const
 
 const ABERTAS = ['aberto', 'vencido', 'parcial', 'provisao']
+type FiltroTipo = '' | TipoTitulo
 
-export default function Titulos({ ctx, tipo }: { ctx: Contexto; tipo: TipoTitulo }) {
-  const tx = TXT[tipo]
-  const pode = podeEditar(ctx, tx.tela)
-  const k = (n: string) => `${tx.tela}.${n}`
+export default function MovimentacaoFinanceira({ ctx }: { ctx: Contexto }) {
+  const acoes = useAcoes(ctx)
+  const pode = (a: AcaoFin) => acoes.has(a)
+  const veR = pode('ver_receita'), veD = pode('ver_despesa')
+  const k = (n: string) => `movfin.${n}`
+  const [tipoF, setTipoF, limparTipo] = useEstadoTela<FiltroTipo>(k('tipo'), '')
   const [sits, setSits, limparSits] = useEstadoTela<string[]>(k('sits'), ['aberto', 'vencido', 'parcial'])
   const [de, setDe, limparDe] = useEstadoTela(k('de'), '')
   const [ate, setAte, limparAte] = useEstadoTela(k('ate'), '')
@@ -30,26 +34,25 @@ export default function Titulos({ ctx, tipo }: { ctx: Contexto; tipo: TipoTitulo
   const [origem, setOrigem, limparOrigem] = useEstadoTela(k('origem'), '')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [aberto, setAberto] = useState<string | null>(null)
-  const [modal, setModal] = useState<null | 'novo' | 'baixa' | 'reneg' | 'adiant'>(null)
+  const [modal, setModal] = useState<null | { novo: TipoTitulo } | 'baixa' | 'reneg' | 'adiant'>(null)
+  const tipo: FiltroTipo = tipoF === 'R' && !veR ? '' : tipoF === 'D' && !veD ? '' : tipoF
 
   const cad = useCarregar(() => apiTitulos.cadastros(ctx.empresa), [ctx.empresa])
   const lista = useCarregar(() => apiTitulos.listar(ctx.empresa, {
-    tipo, situacoes: sits, de: de || undefined, ate: ate || undefined, busca: busca || undefined, conta_id: conta || undefined, origem_tipo: origem || undefined, limite: 1000,
+    tipo: tipo || undefined, situacoes: sits, de: de || undefined, ate: ate || undefined, busca: busca || undefined, conta_id: conta || undefined, origem_tipo: origem || undefined, limite: 1000,
   }), [ctx.empresa, tipo, sits.join(','), de, ate, busca, conta, origem])
   const itens = lista.dados?.itens ?? []
   const selecionados = itens.filter((t) => sel.has(t.id))
-  const filtrado = sits.join(',') !== 'aberto,vencido,parcial' || !!de || !!ate || !!busca || !!conta || !!origem
-  const limpar = () => { limparSits(); limparDe(); limparAte(); limparBusca(); limparConta(); limparOrigem() }
+  const filtrado = !!tipo || sits.join(',') !== 'aberto,vencido,parcial' || !!de || !!ate || !!busca || !!conta || !!origem
+  const limpar = () => { limparTipo(); limparSits(); limparDe(); limparAte(); limparBusca(); limparConta(); limparOrigem() }
   const recarregar = () => { setSel(new Set()); lista.recarregar() }
-
   const alternarSit = (s: string) => setSits(sits.includes(s) ? sits.filter((x) => x !== s) : [...sits, s])
   const r = lista.dados?.resumo
-  const aberto$ = r ? (tipo === 'R' ? r.receber_aberto : r.pagar_aberto) : null
-  const vencido$ = r ? (tipo === 'R' ? r.vencido_receber : r.vencido_pagar) : null
   const selecionaveis = (t: TituloResumo) => ABERTAS.includes(t.situacao_exibicao)
+  const marcaSel = pode('baixar') || pode('renegociar')
 
   const colunas = useMemo<Coluna<TituloResumo>[]>(() => [
-    ...(pode ? [{
+    ...(marcaSel ? [{
       id: 'sel', titulo: 'Selecionar', simples: true, somar: false, largura: 38, texto: (t: TituloResumo) => (sel.has(t.id) ? 'Sim' : 'Não'),
       cabecalho: <input type="checkbox" aria-label="Selecionar todos os títulos em aberto" checked={itens.some(selecionaveis) && itens.filter(selecionaveis).every((t) => sel.has(t.id))}
         onChange={(e) => setSel(e.target.checked ? new Set(itens.filter(selecionaveis).map((t) => t.id)) : new Set())} />,
@@ -57,19 +60,23 @@ export default function Titulos({ ctx, tipo }: { ctx: Contexto; tipo: TipoTitulo
         onChange={() => setSel((s) => { const n = new Set(s); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n })} /> : null,
     }] : []),
     { id: 'numero', titulo: 'Nº', texto: (t) => String(t.numero), valor: (t) => t.numero, direita: true, somar: false, largura: 70 },
+    { id: 'tipo', titulo: 'Tipo', texto: (t) => TXT[t.tipo].rotulo, largura: 90, render: (t) => <span className={`fin-tipo ${t.tipo}`}>{t.tipo === 'R' ? '↑ Receita' : '↓ Despesa'}</span> },
     { id: 'situacao', titulo: 'Situação', texto: (t) => SITUACOES.find((s) => s.id === t.situacao_exibicao)?.rotulo ?? t.situacao_exibicao, render: (t) => <SeloSit s={t.situacao_exibicao} />, largura: 120 },
-    { id: 'parceiro', titulo: tx.parceiro, texto: (t) => t.parceiro_nome, largura: 220 },
+    { id: 'parceiro', titulo: 'Parceiro', texto: (t) => t.parceiro_nome, largura: 220 },
     { id: 'documento', titulo: 'Documento', texto: (t) => t.documento ?? '', largura: 170 },
     { id: 'parcela', titulo: 'Parcela', texto: (t) => t.parcela ?? '', largura: 70 },
     { id: 'vencimento', titulo: 'Vencimento', texto: (t) => dia(t.vencimento), valor: (t) => t.vencimento, largura: 100 },
     { id: 'emissao', titulo: 'Emissão', texto: (t) => dia(t.emissao), valor: (t) => t.emissao, oculta: true },
     { id: 'competencia', titulo: 'Competência', texto: (t) => dia(t.competencia), valor: (t) => t.competencia, oculta: true },
-    { id: 'original', titulo: 'Valor original', texto: (t) => moeda(t.valor_original), valor: (t) => t.valor_original, direita: true, formatar: moeda },
-    { id: 'retencoes', titulo: 'Retenções', texto: (t) => moeda(t.retencoes), valor: (t) => t.retencoes, direita: true, formatar: moeda, oculta: true },
-    { id: 'liquido', titulo: 'Líquido', texto: (t) => moeda(t.valor_liquido), valor: (t) => t.valor_liquido, direita: true, formatar: moeda, oculta: true },
-    { id: 'baixado', titulo: tipo === 'R' ? 'Recebido' : 'Pago', texto: (t) => moeda(t.baixado), valor: (t) => t.baixado, direita: true, formatar: moeda },
-    { id: 'saldo', titulo: 'Saldo', texto: (t) => moeda(t.saldo), valor: (t) => t.saldo, direita: true, formatar: moeda,
+    { id: 'original', titulo: 'Valor original', texto: (t) => moeda(t.valor_original), valor: (t) => t.valor_original, direita: true, somar: false, formatar: moeda },
+    { id: 'retencoes', titulo: 'Retenções', texto: (t) => moeda(t.retencoes), valor: (t) => t.retencoes, direita: true, somar: false, formatar: moeda, oculta: true },
+    { id: 'liquido', titulo: 'Líquido', texto: (t) => moeda(t.valor_liquido), valor: (t) => t.valor_liquido, direita: true, somar: false, formatar: moeda, oculta: true },
+    { id: 'baixado', titulo: 'Baixado', texto: (t) => moeda(t.baixado), valor: (t) => t.baixado, direita: true, somar: false, formatar: moeda },
+    { id: 'saldo', titulo: 'Saldo', texto: (t) => moeda(t.saldo), valor: (t) => t.saldo, direita: true, somar: false, formatar: moeda,
       render: (t) => <strong className="fin-valor">{moeda(t.saldo)}</strong> },
+    // efeito no caixa com sinal: receita soma e despesa subtrai (o total da coluna é o saldo previsto do filtro)
+    { id: 'efeito', titulo: 'Efeito no caixa', texto: (t) => moeda(t.tipo === 'R' ? t.saldo : -t.saldo), valor: (t) => (t.tipo === 'R' ? t.saldo : -t.saldo), direita: true, formatar: moeda,
+      render: (t) => <Valor v={t.tipo === 'R' ? t.saldo : -t.saldo} sinal /> },
     { id: 'pct', titulo: '% baixado', texto: (t) => `${t.pct_baixado}%`, valor: (t) => t.pct_baixado, somar: false, largura: 90,
       render: (t) => <span className="fin-barra-pct" title={`${t.pct_baixado}%`}><i style={{ width: `${t.pct_baixado}%` }} /></span> },
     { id: 'natureza', titulo: 'Natureza', texto: (t) => (t.natureza ?? '') + (t.linhas_rateio > 1 ? ` (+${t.linhas_rateio - 1})` : ''), largura: 200 },
@@ -79,37 +86,54 @@ export default function Titulos({ ctx, tipo }: { ctx: Contexto; tipo: TipoTitulo
     { id: 'origem', titulo: 'Origem', texto: (t) => ORIGENS[t.origem_tipo] ?? t.origem_tipo, oculta: true },
     { id: 'historico', titulo: 'Histórico', texto: (t) => t.historico ?? '', oculta: true, largura: 240 },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [pode, sel, itens, tipo])
+  ], [marcaSel, sel, itens])
 
+  const tiposSel = new Set(selecionados.map((t) => t.tipo))
   const mesmoParceiro = selecionados.length > 0 && selecionados.every((t) => t.parceiro_id === selecionados[0].parceiro_id)
+  const misto = tiposSel.size > 1
+  const podeBaixarSel = pode('baixar') && selecionados.length > 0 && (!misto || mesmoParceiro)
+  const podeRenegSel = pode('renegociar') && mesmoParceiro && !misto
+  const previsto = r ? r2((veR ? r.receber_aberto : 0) - (veD ? r.pagar_aberto : 0)) : null
+
+  if (acoes.carregando) return <section><p className="sub">Carregando…</p></section>
+  if (!veR && !veD) return <section><Titulo>Movimentação financeira</Titulo>
+    <div className="vazio"><strong>Sem acesso às receitas nem às despesas</strong><p>Peça a um administrador para liberar seu usuário em Cadastros financeiros › Permissões por usuário.</p></div></section>
 
   return (
     <section>
       <div className="topo">
         <div>
-          <Titulo ajuda={<>Cada título é um valor a {tipo === 'R' ? 'receber de um cliente' : 'pagar a um fornecedor'}, com natureza, centro de resultado e tipo de título.
-            Selecione um ou vários títulos em aberto para {tipo === 'R' ? 'receber' : 'pagar'} (baixa total, parcial ou agrupada) ou renegociar.
-            Clique na linha para ver a composição do valor, o rateio, as baixas e todos os vínculos (nota, parcelas, renegociação, adiantamento).</>}>
-            {tx.titulo}
+          <Titulo ajuda={<>Receitas (a receber) e despesas (a pagar) na mesma tela, cada uma com natureza, centro de resultado e tipo de título.
+            Selecione títulos em aberto para baixar (total, parcial ou em lote), compensar receita com despesa do mesmo parceiro ou renegociar.
+            Clique na linha para ver a composição do valor, o rateio, as baixas e os vínculos. O que aparece e os botões dependem das permissões do seu usuário.</>}>
+            Movimentação financeira
           </Titulo>
-          {lista.dados && <p className="sub">{lista.dados.total} título{lista.dados.total === 1 ? '' : 's'} no filtro</p>}
+          {lista.dados && <p className="sub">{lista.dados.total} título{lista.dados.total === 1 ? '' : 's'} no filtro{!veR ? ' · só despesas liberadas' : !veD ? ' · só receitas liberadas' : ''}</p>}
         </div>
-        {pode && cad.dados && (
+        {pode('lancar') && cad.dados && (
           <div className="fin-acoes">
-            <button className="sec" onClick={() => setModal('adiant')}>+ {tx.adiant}</button>
-            <button onClick={() => setModal('novo')}>+ Novo título</button>
+            <button className="sec" onClick={() => setModal('adiant')}>+ Adiantamento</button>
+            {veR && <button onClick={() => setModal({ novo: 'R' })}>+ Receita</button>}
+            {veD && <button onClick={() => setModal({ novo: 'D' })}>+ Despesa</button>}
           </div>)}
       </div>
 
       {r && (
         <div className="resumo-faixa fin-kpi">
-          <div><span>Em aberto</span><strong>{moeda(aberto$)}</strong></div>
-          <div className={vencido$ ? 'alerta' : ''}><span>Vencido</span><strong className={vencido$ ? 'neg' : ''}>{moeda(vencido$)}</strong></div>
+          {veR && <div><span>A receber</span><strong className="pos">{moeda(r.receber_aberto)}</strong></div>}
+          {veD && <div><span>A pagar</span><strong className="neg">{moeda(r.pagar_aberto)}</strong></div>}
+          {veR && veD && <div><span>Saldo previsto (receber − pagar)</span><strong className={previsto != null && previsto < 0 ? 'neg' : 'pos'}>{moeda(previsto)}</strong></div>}
+          {veR && <div className={r.vencido_receber ? 'alerta' : ''}><span>Vencido a receber</span><strong className={r.vencido_receber ? 'neg' : ''}>{moeda(r.vencido_receber)}</strong></div>}
+          {veD && <div className={r.vencido_pagar ? 'alerta' : ''}><span>Vencido a pagar</span><strong className={r.vencido_pagar ? 'neg' : ''}>{moeda(r.vencido_pagar)}</strong></div>}
           <div><span>Provisões</span><strong>{moeda(r.provisoes)}</strong></div>
-          <div><span>Títulos vencidos</span><strong>{lista.dados?.contagem.vencido ?? 0}</strong></div>
         </div>)}
 
-      <div className="fin-chips" role="group" aria-label="Situação">
+      <div className="fin-chips" role="group" aria-label="Tipo e situação">
+        {veR && veD && (
+          <div className="segmentado" role="radiogroup" aria-label="Tipo">
+            {([['', 'Receitas e despesas'], ['R', 'Receitas'], ['D', 'Despesas']] as const).map(([v, rot]) => (
+              <button key={v} type="button" role="radio" aria-checked={tipo === v} className={tipo === v ? 'sel' : ''} onClick={() => { setTipoF(v); setSel(new Set()) }}>{rot}</button>))}
+          </div>)}
         {SITUACOES.map((s) => (
           <button key={s.id} type="button" className={sits.includes(s.id) ? 'chip sel' : 'chip'} aria-pressed={sits.includes(s.id)} onClick={() => alternarSit(s.id)}>
             {s.rotulo}<span>{lista.dados?.contagem[s.id] ?? 0}</span>
@@ -118,7 +142,7 @@ export default function Titulos({ ctx, tipo }: { ctx: Contexto; tipo: TipoTitulo
       </div>
 
       <div className="filtros">
-        <Busca valor={busca} onMudar={setBusca} placeholder={`Buscar por ${tx.parceiro.toLowerCase()}, documento, histórico ou número`} />
+        <Busca valor={busca} onMudar={setBusca} placeholder="Buscar por parceiro, documento, histórico ou número" />
         <label className="campo" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><span style={{ fontSize: '.8rem' }}>Vencimento de</span>
           <input type="date" value={de} onChange={(e) => setDe(e.target.value)} aria-label="Vencimento de" /></label>
         <label className="campo" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><span style={{ fontSize: '.8rem' }}>até</span>
@@ -132,24 +156,25 @@ export default function Titulos({ ctx, tipo }: { ctx: Contexto; tipo: TipoTitulo
         <LimparFiltros ativo={filtrado} onLimpar={limpar} />
       </div>
 
-      {pode && selecionados.length > 0 && (
+      {marcaSel && selecionados.length > 0 && (
         <div className="barra-selecao" role="status">
-          <strong>{selecionados.length} selecionado{selecionados.length > 1 ? 's' : ''} · saldo {moeda(r2(selecionados.reduce((s, t) => s + t.saldo, 0)))}</strong>
-          <button onClick={() => setModal('baixa')}>{tx.baixa} {selecionados.length > 1 ? 'em lote' : ''}</button>
-          <button className="sec" disabled={!mesmoParceiro} title={mesmoParceiro ? '' : 'Renegociação agrupa títulos do mesmo parceiro'} onClick={() => setModal('reneg')}>Renegociar</button>
+          <strong>{selecionados.length} selecionado{selecionados.length > 1 ? 's' : ''} · efeito no caixa <Valor v={r2(selecionados.reduce((s, t) => s + (t.tipo === 'R' ? t.saldo : -t.saldo), 0))} sinal /></strong>
+          {pode('baixar') && <button disabled={!podeBaixarSel} title={misto && !mesmoParceiro ? 'Compensação (receita com despesa) só entre títulos do mesmo parceiro' : ''} onClick={() => setModal('baixa')}>
+            {misto ? 'Compensar' : selecionados[0].tipo === 'R' ? 'Receber' : 'Pagar'}{selecionados.length > 1 && !misto ? ' em lote' : ''}</button>}
+          {pode('renegociar') && <button className="sec" disabled={!podeRenegSel} title={podeRenegSel ? '' : 'Renegociação agrupa títulos do mesmo parceiro e do mesmo tipo'} onClick={() => setModal('reneg')}>Renegociar</button>}
           <button className="sec" onClick={() => setSel(new Set())}>Limpar seleção</button>
         </div>)}
 
       {(lista.erro || cad.erro) && <div className="erro">{lista.erro ?? cad.erro}</div>}
       {!lista.dados && !lista.erro && <p className="sub">Carregando…</p>}
-      {lista.dados && <GradeDados id={`fin.${tx.tela}`} titulo={tx.titulo} colunas={colunas} linhas={itens} chave={(t) => t.id} altura="60vh"
+      {lista.dados && <GradeDados id="fin.movimentacao" titulo="Movimentação financeira" colunas={colunas} linhas={itens} chave={(t) => t.id} altura="60vh"
         vazio="Nenhum título neste filtro." aoClicar={(t) => setAberto(t.id)} />}
 
-      {aberto && cad.dados && <DetalheTitulo ctx={ctx} id={aberto} cad={cad.dados} pode={pode} onFechar={() => setAberto(null)} onAbrir={setAberto} onMudou={lista.recarregar} />}
-      {modal === 'novo' && cad.dados && <NovoTitulo ctx={ctx} tipo={tipo} cad={cad.dados} onFechar={() => setModal(null)} onSalvo={() => { setModal(null); recarregar() }} />}
+      {aberto && cad.dados && <DetalheTitulo ctx={ctx} id={aberto} cad={cad.dados} acoes={acoes} onFechar={() => setAberto(null)} onAbrir={setAberto} onMudou={lista.recarregar} />}
+      {modal && typeof modal === 'object' && cad.dados && <NovoTitulo ctx={ctx} tipo={modal.novo} cad={cad.dados} onFechar={() => setModal(null)} onSalvo={() => { setModal(null); recarregar() }} />}
       {modal === 'baixa' && cad.dados && <BaixaTitulos ctx={ctx} titulos={selecionados} cad={cad.dados} onFechar={() => setModal(null)} onSalvo={() => { setModal(null); recarregar() }} />}
       {modal === 'reneg' && cad.dados && <Renegociar ctx={ctx} titulos={selecionados} cad={cad.dados} onFechar={() => setModal(null)} onSalvo={() => { setModal(null); recarregar() }} />}
-      {modal === 'adiant' && cad.dados && <Adiantamento ctx={ctx} tipo={tipo} cad={cad.dados} onFechar={() => setModal(null)} onSalvo={() => { setModal(null); recarregar() }} />}
+      {modal === 'adiant' && cad.dados && <Adiantamento ctx={ctx} tipos={[...(veR ? ['R' as const] : []), ...(veD ? ['D' as const] : [])]} cad={cad.dados} onFechar={() => setModal(null)} onSalvo={() => { setModal(null); recarregar() }} />}
     </section>
   )
 }
@@ -157,8 +182,8 @@ export default function Titulos({ ctx, tipo }: { ctx: Contexto; tipo: TipoTitulo
 // ======================================================================= Detalhe
 type AbaDet = 'composicao' | 'rateio' | 'baixas' | 'vinculos'
 
-function DetalheTitulo({ ctx, id, cad, pode, onFechar, onAbrir, onMudou }: {
-  ctx: Contexto; id: string; cad: CadastrosFin; pode: boolean; onFechar: () => void; onAbrir: (id: string) => void; onMudou: () => void
+function DetalheTitulo({ ctx, id, cad, acoes, onFechar, onAbrir, onMudou }: {
+  ctx: Contexto; id: string; cad: CadastrosFin; acoes: Acoes; onFechar: () => void; onAbrir: (id: string) => void; onMudou: () => void
 }) {
   const det = useCarregar(() => apiTitulos.obter(ctx.empresa, id), [ctx.empresa, id])
   const [aba, setAba] = useState<AbaDet>('composicao')
@@ -168,6 +193,7 @@ function DetalheTitulo({ ctx, id, cad, pode, onFechar, onAbrir, onMudou }: {
   const mudou = () => { setAcao(null); det.recarregar(); onMudou() }
   const ativo = t && !['cancelado', 'renegociado'].includes(t.situacao)
   const temBaixa = !!t?.baixas.some((b) => !b.estornada)
+  const pode = (a: AcaoFin) => acoes.has(a)
 
   return (
     <Modal titulo={t ? `Título #${t.numero} · ${t.tipo === 'R' ? 'a receber' : 'a pagar'}` : 'Título'} onFechar={onFechar} larga>
@@ -182,13 +208,13 @@ function DetalheTitulo({ ctx, id, cad, pode, onFechar, onAbrir, onMudou }: {
             {t.historico && <p className="sub">{t.historico}</p>}
             {t.motivo_cancelamento && <p className="sub">Cancelado em {dataHora(t.cancelado_em)}: {t.motivo_cancelamento}</p>}
           </div>
-          {pode && ativo && (
+          {ativo && (
             <div className="fin-acoes">
-              {t.saldo > 0 && <button onClick={() => setAcao('baixar')}>{t.tipo === 'R' ? 'Receber' : 'Pagar'}</button>}
-              <button className="sec" onClick={() => setAcao('editar')}>Editar</button>
-              <button className="sec" onClick={() => setAcao('duplicar')}>Duplicar</button>
-              {t.provisao && t.situacao === 'aberto' && <button className="sec" onClick={() => setAcao('efetivar')}>Efetivar provisão</button>}
-              {!temBaixa && !['nfe_entrada', 'renegociacao', 'adiantamento'].includes(t.origem_tipo) && <button className="sec" onClick={() => setAcao('cancelar')}>Cancelar</button>}
+              {pode('baixar') && t.saldo > 0 && <button onClick={() => setAcao('baixar')}>{t.tipo === 'R' ? 'Receber' : 'Pagar'}</button>}
+              {pode('editar') && <button className="sec" onClick={() => setAcao('editar')}>Editar</button>}
+              {pode('lancar') && <button className="sec" onClick={() => setAcao('duplicar')}>Duplicar</button>}
+              {pode('editar') && t.provisao && t.situacao === 'aberto' && <button className="sec" onClick={() => setAcao('efetivar')}>Efetivar provisão</button>}
+              {pode('cancelar') && !temBaixa && !['nfe_entrada', 'renegociacao', 'adiantamento'].includes(t.origem_tipo) && <button className="sec" onClick={() => setAcao('cancelar')}>Cancelar</button>}
             </div>)}
         </div>
 
@@ -262,13 +288,13 @@ function DetalheTitulo({ ctx, id, cad, pode, onFechar, onAbrir, onMudou }: {
                   <td className="d">{moeda(b.principal)}</td><td className="d">{moeda(b.juros + b.multa)}</td><td className="d">{moeda(b.desconto)}</td>
                   <td className="d">{moeda(b.taxa)}</td><td className="d">{moeda(b.movimentado)}</td>
                   <td>{b.estornada ? 'Estornada' : b.conciliado ? <span title={`Conciliado em ${dataHora(b.conciliado_em)}`}>Conciliado · {dia(b.data_banco)}</span> : b.conta ? 'Aguardando extrato' : '—'}</td>
-                  <td>{pode && !b.estornada && b.tipo !== 'renegociacao' && !b.conciliado && <button type="button" className="link" onClick={() => setAcao({ estornar: b.id })}>Estornar</button>}</td>
+                  <td>{pode('estornar') && !b.estornada && b.tipo !== 'renegociacao' && !b.conciliado && <button type="button" className="link" onClick={() => setAcao({ estornar: b.id })}>Estornar</button>}</td>
                 </tr>))}</tbody>
             </table>
             {t.baixas.some((b) => b.conciliado && !b.estornada) && <small className="sub">Baixa conciliada não se estorna: desfaça a conciliação na tela Conciliação antes.</small>}
           </div>))}
 
-        {aba === 'vinculos' && <Vinculos t={t} pode={pode} onAbrir={onAbrir} onDesfazer={(rid) => setAcao({ desfazer: rid })} onCancelarAdiant={(aid) => setAcao({ adiant: aid })} />}
+        {aba === 'vinculos' && <Vinculos t={t} podeReneg={pode('renegociar')} podeCancelar={pode('cancelar')} onAbrir={onAbrir} onDesfazer={(rid) => setAcao({ desfazer: rid })} onCancelarAdiant={(aid) => setAcao({ adiant: aid })} />}
 
         {acao === 'baixar' && <BaixaTitulos ctx={ctx} titulos={[t]} cad={cad} onFechar={() => setAcao(null)} onSalvo={mudou} />}
         {acao === 'editar' && <EditarTitulo ctx={ctx} t={t} cad={cad} onFechar={() => setAcao(null)} onSalvo={mudou} />}
@@ -316,8 +342,8 @@ function LinhaTit({ t, onAbrir, extra }: { t: TituloResumo; onAbrir: (id: string
   )
 }
 
-function Vinculos({ t, pode, onAbrir, onDesfazer, onCancelarAdiant }: {
-  t: TituloDetalhe; pode: boolean; onAbrir: (id: string) => void; onDesfazer: (id: string) => void; onCancelarAdiant: (id: string) => void
+function Vinculos({ t, podeReneg, podeCancelar, onAbrir, onDesfazer, onCancelarAdiant }: {
+  t: TituloDetalhe; podeReneg: boolean; podeCancelar: boolean; onAbrir: (id: string) => void; onDesfazer: (id: string) => void; onCancelarAdiant: (id: string) => void
 }) {
   const v = t.vinculos
   const nada = !v.entrada && !v.pedido && !v.grupo && v.renegociado_em.length === 0 && !v.originado_de && !v.adiantamento && v.guias.length === 0
@@ -334,14 +360,14 @@ function Vinculos({ t, pode, onAbrir, onDesfazer, onCancelarAdiant }: {
       {v.originado_de && <section><h4>Originado da renegociação R-{v.originado_de.numero} ({v.originado_de.situacao === 'ativa' ? 'em vigor' : 'desfeita'})</h4>
         <p className="sub" style={{ margin: '0 0 .3rem' }}>Saldo renegociado {moeda(v.originado_de.total_original)} + juros {moeda(v.originado_de.juros)} − desconto {moeda(v.originado_de.desconto)}</p>
         <ul>{v.originado_de.originais.map((x) => <LinhaTit key={x.id} t={x} onAbrir={onAbrir} extra={`levou ${moeda(x.saldo_renegociado)}`} />)}</ul>
-        {pode && v.originado_de.situacao === 'ativa' && <button type="button" className="link" onClick={() => onDesfazer(v.originado_de!.id)}>Desfazer renegociação</button>}</section>}
+        {podeReneg && v.originado_de.situacao === 'ativa' && <button type="button" className="link" onClick={() => onDesfazer(v.originado_de!.id)}>Desfazer renegociação</button>}</section>}
       {v.renegociado_em.map((rn) => (
         <section key={rn.id}><h4>Renegociado em R-{rn.numero} ({rn.situacao === 'ativa' ? 'em vigor' : 'desfeita'}) · novo total {moeda(rn.novo_total)}</h4>
           <ul>{(rn.novos ?? []).map((x) => <LinhaTit key={x.id} t={x} onAbrir={onAbrir} />)}</ul>
-          {pode && rn.situacao === 'ativa' && <button type="button" className="link" onClick={() => onDesfazer(rn.id)}>Desfazer renegociação</button>}</section>))}
+          {podeReneg && rn.situacao === 'ativa' && <button type="button" className="link" onClick={() => onDesfazer(rn.id)}>Desfazer renegociação</button>}</section>))}
       {v.adiantamento && <section><h4>Adiantamento A-{v.adiantamento.numero} de {v.adiantamento.tipo} · {moeda(v.adiantamento.valor)} ({v.adiantamento.situacao})</h4>
         <ul>{v.adiantamento.titulos.map((x) => <LinhaTit key={x.id} t={x} onAbrir={onAbrir} extra={x.papel === 'entrada' ? 'dinheiro recebido/pago' : 'crédito a compensar'} />)}</ul>
-        {pode && v.adiantamento.situacao === 'aberto' && <button type="button" className="link" onClick={() => onCancelarAdiant(v.adiantamento!.id)}>Cancelar adiantamento</button>}</section>}
+        {podeCancelar && v.adiantamento.situacao === 'aberto' && <button type="button" className="link" onClick={() => onCancelarAdiant(v.adiantamento!.id)}>Cancelar adiantamento</button>}</section>}
       {v.guias.length > 0 && <section><h4>Guias de retenção geradas</h4><ul>{v.guias.map((x) => <LinhaTit key={x.id} t={x} onAbrir={onAbrir} extra={x.documento ?? ''} />)}</ul></section>}
       {v.retencao_de && <section><h4>Guia da retenção do título</h4><ul><LinhaTit t={v.retencao_de} onAbrir={onAbrir} /></ul></section>}
       {v.duplicado_de && <section><h4>Duplicado de</h4><ul><LinhaTit t={v.duplicado_de} onAbrir={onAbrir} /></ul></section>}
@@ -490,7 +516,7 @@ function NovoTitulo({ ctx, tipo, cad, onFechar, onSalvo }: { ctx: Contexto; tipo
   }
 
   return (
-    <Modal titulo={`Novo título ${tipo === 'R' ? 'a receber' : 'a pagar'}`} onFechar={onFechar} larga>
+    <Modal titulo={`Nova ${tipo === 'R' ? 'receita (a receber)' : 'despesa (a pagar)'}`} onFechar={onFechar} larga>
       <form className="form" onSubmit={salvar}>
         <div className="grade-2">
           <Campo rotulo="Lançamento">
@@ -696,7 +722,8 @@ function Renegociar({ ctx, titulos, cad, onFechar, onSalvo }: { ctx: Contexto; t
 }
 
 // ======================================================================= Adiantamento
-function Adiantamento({ ctx, tipo, cad, onFechar, onSalvo }: { ctx: Contexto; tipo: TipoTitulo; cad: CadastrosFin; onFechar: () => void; onSalvo: () => void }) {
+function Adiantamento({ ctx, tipos, cad, onFechar, onSalvo }: { ctx: Contexto; tipos: TipoTitulo[]; cad: CadastrosFin; onFechar: () => void; onSalvo: () => void }) {
+  const [tipo, setTipo] = useState<TipoTitulo>(tipos[0] ?? 'R')
   const [parc, setParc] = useState<{ id: string | null; nome: string }>({ id: null, nome: '' })
   const [valor, setValor] = useState<number | null>(null)
   const [data, setData] = useState(hojeIso())
@@ -714,6 +741,8 @@ function Adiantamento({ ctx, tipo, cad, onFechar, onSalvo }: { ctx: Contexto; ti
   return (
     <Modal titulo={TXT[tipo].adiant} onFechar={onFechar}>
       <form className="form" onSubmit={salvar}>
+        {tipos.length > 1 && <Campo rotulo="Adiantamento"><select value={tipo} onChange={(e) => setTipo(e.target.value as TipoTitulo)}>
+          <option value="R">De cliente (recebemos antes)</option><option value="D">A fornecedor (pagamos antes)</option></select></Campo>}
         <p className="sub">{tipo === 'R'
           ? 'O cliente pagou antes da compra. O CRM registra a entrada do dinheiro e cria um crédito a pagar para o cliente; os dois ficam ligados e o crédito é usado na compensação com a venda.'
           : 'A Ane pagou antes de receber. O CRM registra a saída do dinheiro e cria um crédito a receber do fornecedor; os dois ficam ligados e o crédito é usado na compensação com a conta a pagar.'}</p>

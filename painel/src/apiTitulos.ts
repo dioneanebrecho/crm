@@ -11,6 +11,21 @@ export const SITUACOES: { id: SituacaoExibicao; rotulo: string }[] = [
   { id: 'baixado', rotulo: 'Baixado' }, { id: 'conciliado', rotulo: 'Conciliado' }, { id: 'provisao', rotulo: 'Provisão' },
   { id: 'renegociado', rotulo: 'Renegociado' }, { id: 'cancelado', rotulo: 'Cancelado' },
 ]
+// Permissões por usuário (pedido 052). Admin tem todas.
+export type AcaoFin = 'ver_receita' | 'ver_despesa' | 'lancar' | 'editar' | 'baixar' | 'estornar' | 'renegociar' | 'cancelar' | 'conciliar'
+export const ACOES_FIN: { id: AcaoFin; rotulo: string; dica: string }[] = [
+  { id: 'ver_receita', rotulo: 'Ver receitas', dica: 'Títulos a receber, resumo e detalhe' },
+  { id: 'ver_despesa', rotulo: 'Ver despesas', dica: 'Títulos a pagar, resumo e detalhe' },
+  { id: 'lancar', rotulo: 'Lançar', dica: 'Novo título, parcelamento, NFS-e, adiantamento e duplicar' },
+  { id: 'editar', rotulo: 'Editar', dica: 'Vencimento, rateio, tipo, conta e efetivar provisão' },
+  { id: 'baixar', rotulo: 'Baixar', dica: 'Receber, pagar, baixa em lote, compensação e transferência entre contas' },
+  { id: 'estornar', rotulo: 'Estornar', dica: 'Estorno de baixa e de transferência' },
+  { id: 'renegociar', rotulo: 'Renegociar', dica: 'Renegociar e desfazer renegociação' },
+  { id: 'cancelar', rotulo: 'Cancelar', dica: 'Cancelar título, parcelas e adiantamento' },
+  { id: 'conciliar', rotulo: 'Conciliar', dica: 'Importar OFX, conciliar, ignorar e criar título do extrato' },
+]
+export interface PermissaoUsuarioFin { usuario_id: string; nome: string | null; email: string; papeis: string[]; admin: boolean; acoes: AcaoFin[] }
+
 export const ROTULO_SITUACAO: Record<string, string> = Object.fromEntries(SITUACOES.map((s) => [s.id, s.rotulo]))
 
 export const ORIGENS: Record<string, string> = {
@@ -127,6 +142,9 @@ export interface ItemBaixa { titulo_id: string; valor?: number; juros?: number; 
 const E = (empresa: string) => ({ p_empresa: empresa })
 
 export const apiTitulos = {
+  minhasAcoes: (empresa: string) => rpc<AcaoFin[]>('fin_minhas_acoes', E(empresa)),
+  permissoes: (empresa: string) => rpc<PermissaoUsuarioFin[]>('fin_permissoes_listar', E(empresa)),
+  salvarPermissoes: (empresa: string, usuario: string, acoes: AcaoFin[]) => rpc<void>('fin_permissoes_salvar', { ...E(empresa), p_usuario: usuario, p_acoes: acoes }),
   cadastros: (empresa: string) => rpc<CadastrosFin>('fin_cadastros', E(empresa)),
   salvarConta: (empresa: string, dados: Record<string, unknown>) => rpc<string>('fin_conta_salvar', { ...E(empresa), p_dados: dados }),
   salvarTipo: (empresa: string, dados: Record<string, unknown>) => rpc<string>('fin_tipo_titulo_salvar', { ...E(empresa), p_dados: dados }),

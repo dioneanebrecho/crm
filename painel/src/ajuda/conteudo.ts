@@ -19,7 +19,7 @@ export interface Verbete {
   passos: PassoTour[]  // tutorial guiado da tela
 }
 
-export const VERSAO_DOC = '0.13.0'
+export const VERSAO_DOC = '0.14.0'
 export const ATUALIZADO_EM = '2026-11-26'
 
 // escopo da tela aberta (só o painel visível responde aos seletores)
@@ -287,43 +287,26 @@ export const AJUDA: Record<string, Verbete> = {
       { alvo: `${T}`, titulo: 'Converse', texto: 'Digite a pergunta. Use o histórico e os atalhos para abrir o que foi citado.' },
     ],
   },
-  contas_receber: {
-    titulo: 'Contas a receber',
+  movimentacao_financeira: {
+    titulo: 'Movimentação financeira',
     explicacao:
-      'Títulos a receber de clientes: vendas, recibos, adiantamentos e renegociações. Cada título tem natureza, centro de resultado, tipo de título (PIX, cartão, boleto) e situação: em aberto, vencido, baixa parcial, baixado, conciliado com o banco, renegociado, provisão ou cancelado. Nada é enviado ao Bling.',
+      'Receitas (a receber) e despesas (a pagar) na mesma tela: vendas, recibos, parcelas das NF-e de compra, NFS-e com retenções, boletos, guias, adiantamentos e renegociações. Cada título tem natureza, centro de resultado, tipo de título e situação (em aberto, vencido, baixa parcial, baixado, conciliado, renegociado, provisão ou cancelado). O resumo mostra a receber, a pagar e o saldo previsto. O que cada usuário vê e faz é liberado por usuário. Nada é enviado ao Bling.',
     casoDeUso:
-      'Uma cliente fechou 3 peças em 2 parcelas no cartão. Lance o título com 2 parcelas e tipo Cartão de crédito. Quando a operadora pagar, selecione as duas parcelas e faça uma baixa só, com a taxa descontada; o valor líquido cai na conta escolhida.',
+      'A cliente que também vende peças para a Ane tem R$ 300 a receber e R$ 120 a pagar. Selecione os dois títulos e clique em Compensar: as duas baixas saem juntas e só R$ 180 entram na conta.',
     dicas: [
-      'Clique nos chips de situação para combinar filtros; os números mostram quantos títulos há em cada uma.',
+      'Use Receitas e despesas / Receitas / Despesas para separar; a coluna Efeito no caixa soma receita e subtrai despesa (o total é o saldo previsto do filtro).',
       'Valor menor que o saldo faz baixa parcial: o restante continua em aberto no mesmo título.',
-      'Selecione vários títulos para receber em lote (um movimento só na conta) ou renegociar (mesmo cliente).',
+      'Receita e despesa juntas só se compensam quando são do mesmo parceiro; renegociação agrupa títulos do mesmo parceiro e do mesmo tipo.',
       'Parcelas de um parcelamento não se cancelam uma a uma: cancele o grupo inteiro ou a partir de uma parcela.',
-      'O título renegociado continua visível; a aba Vínculos mostra os títulos novos e permite desfazer enquanto não houver baixa.',
-      'Provisão é um valor estimado: efetive quando o documento real chegar ou substitua pelo título real.',
-    ],
-    passos: [
-      { alvo: `${T} .fin-chips`, titulo: 'Situações', texto: 'Filtre por situação. Em aberto, vencido e baixa parcial vêm marcados por padrão.' },
-      { alvo: `${T} .gd`, titulo: 'Títulos', texto: 'Marque a caixa para selecionar e clique na linha para abrir a composição, o rateio, as baixas e os vínculos.' },
-      { titulo: 'Receber', texto: 'Com títulos selecionados, use “Receber”. Informe data, conta, juros, multa, desconto e taxa; o painel mostra quanto entra na conta.' },
-      { titulo: 'Novo título', texto: 'Use “+ Novo título” para recibos, parcelamentos, recorrências ou saldos de implantação, com rateio por natureza, centro de resultado e projeto.' },
-    ],
-  },
-  contas_pagar: {
-    titulo: 'Contas a pagar',
-    explicacao:
-      'Títulos a pagar a fornecedores: parcelas das NF-e de compra (geradas na Entrada de mercadoria), NFS-e de serviços com retenções, boletos, guias de impostos, fretes, comissões e tarifas. Mesma lógica de situações, baixas, renegociação e vínculos de Contas a receber.',
-    casoDeUso:
-      'O contador emitiu uma NFS-e de R$ 1.000 com ISS retido de R$ 50. Lance como “NFS-e recebida”, informe o ISS e marque que a Ane recolhe: o fornecedor recebe R$ 950 e o CRM gera a guia de R$ 50 para a prefeitura, ligada ao título.',
-    dicas: [
       'Títulos de NF-e de compra têm valor, fornecedor e vencimento travados: alterações são feitas na Entrada de mercadoria.',
-      'Retenções da NFS-e entram na 1ª parcela e reduzem o valor líquido; as guias aparecem na aba Vínculos.',
-      'Adiantamento a fornecedor registra a saída do dinheiro e cria um crédito a receber; use a compensação para abater na conta a pagar.',
-      'Baixa já conciliada com o extrato não se estorna: desfaça a conciliação antes.',
+      'Botões que não aparecem dependem de permissão: o administrador libera em Cadastros financeiros › Permissões por usuário.',
     ],
     passos: [
-      { alvo: `${T} .resumo-faixa`, titulo: 'Resumo', texto: 'Total em aberto, vencido e provisões do filtro atual.' },
-      { alvo: `${T} .gd`, titulo: 'Títulos', texto: 'Selecione para pagar ou renegociar; clique para abrir o detalhe.' },
-      { titulo: 'NFS-e', texto: 'Em “+ Novo título”, escolha “NFS-e recebida” para informar ISS, IRRF, INSS e PIS/COFINS/CSLL retidos.' },
+      { alvo: `${T} .resumo-faixa`, titulo: 'Resumo', texto: 'A receber, a pagar, saldo previsto, vencidos e provisões do filtro atual.' },
+      { alvo: `${T} .fin-chips`, titulo: 'Tipo e situação', texto: 'Escolha receitas, despesas ou ambas e combine as situações; os números mostram quantos títulos há em cada uma.' },
+      { alvo: `${T} .gd`, titulo: 'Títulos', texto: 'Marque a caixa para selecionar e clique na linha para abrir composição, rateio, baixas e vínculos.' },
+      { titulo: 'Baixar ou compensar', texto: 'Com títulos selecionados, use Receber, Pagar ou Compensar. Informe data, conta, juros, multa, desconto e taxa; o painel mostra o efeito na conta.' },
+      { titulo: 'Lançar', texto: 'Use “+ Receita” ou “+ Despesa” para recibos, parcelamentos, recorrências, NFS-e com retenções ou saldos de implantação.' },
     ],
   },
   contas_bancarias: {
@@ -368,11 +351,12 @@ export const AJUDA: Record<string, Verbete> = {
       'Na implantação, cadastre o Itaú, o caixa da loja e a carteira do Mercado Pago com o saldo do dia de corte. No tipo Cartão de crédito, informe a taxa da operadora para que a baixa calcule o valor líquido.',
     dicas: [
       'Contas e tipos não se excluem: inative.',
+      'Na aba Permissões por usuário (só administrador) libere para cada pessoa: ver receitas, ver despesas, lançar, editar, baixar, estornar, renegociar, cancelar e conciliar.',
       'O código do tipo de título não muda depois de criado.',
       'Só administrador e gestor alteram os parâmetros; “Período fechado até” bloqueia lançamentos e baixas em datas já fechadas.',
     ],
     passos: [
-      { alvo: `${T} .abas-pagina`, titulo: 'Quatro áreas', texto: 'Contas bancárias, Tipos de título, Projetos e Parâmetros.' },
+      { alvo: `${T} .abas-pagina`, titulo: 'Áreas', texto: 'Contas bancárias, Tipos de título, Projetos, Parâmetros e, para o administrador, Permissões por usuário.' },
       { titulo: 'Contas', texto: 'Clique em uma conta para editar ou use “+ Nova conta”.' },
     ],
   },

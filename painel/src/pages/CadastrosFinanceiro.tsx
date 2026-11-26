@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Contexto } from '../App'
-import { apiTitulos, MEIOS, TIPOS_CONTA, dia, hojeIso, moeda, type CadastrosFin, type ContaBancaria, type Projeto, type TipoTituloCad } from '../apiTitulos'
+import { apiTitulos, ACOES_FIN, MEIOS, type AcaoFin, type PermissaoUsuarioFin, TIPOS_CONTA, dia, hojeIso, moeda, type CadastrosFin, type ContaBancaria, type Projeto, type TipoTituloCad } from '../apiTitulos'
 import { ComboBusca } from '../ComboBusca'
 import GradeDados, { type Coluna } from '../GradeDados'
 import { Abas, Campo, Formulario, Modal, Titulo, useCarregar } from '../ui'
@@ -8,11 +8,12 @@ import { CampoValor, ParceiroBusca, opcoesCr, podeEditar } from './finComum'
 
 // Cadastros do financeiro de títulos: contas bancárias, tipos de título, projetos e parâmetros. Pedido 050.
 
-type Aba = 'contas' | 'tipos' | 'projetos' | 'parametros'
+type Aba = 'contas' | 'tipos' | 'projetos' | 'parametros' | 'permissoes'
 
 export default function CadastrosFinanceiro({ ctx }: { ctx: Contexto }) {
   const pode = podeEditar(ctx, 'cadastros_financeiro')
   const adminGestor = (['admin', 'gestor', 'superadmin'] as const).some((p) => ctx.papeis.includes(p)) && pode
+  const admin = (['admin', 'superadmin'] as const).some((p) => ctx.papeis.includes(p))
   const [aba, setAba] = useState<Aba>('contas')
   const cad = useCarregar(() => apiTitulos.cadastros(ctx.empresa), [ctx.empresa])
   const d = cad.dados
@@ -26,13 +27,14 @@ export default function CadastrosFinanceiro({ ctx }: { ctx: Contexto }) {
         </div>
       </div>
       <Abas<Aba> abas={[{ id: 'contas', rotulo: 'Contas bancárias', contagem: d?.contas.length }, { id: 'tipos', rotulo: 'Tipos de título', contagem: d?.tipos.length },
-        { id: 'projetos', rotulo: 'Projetos', contagem: d?.projetos.length }, { id: 'parametros', rotulo: 'Parâmetros' }]} ativa={aba} onMudar={setAba} />
+        { id: 'projetos', rotulo: 'Projetos', contagem: d?.projetos.length }, { id: 'parametros', rotulo: 'Parâmetros' }, ...(admin ? [{ id: 'permissoes' as Aba, rotulo: 'Permissões por usuário' }] : [])]} ativa={aba} onMudar={setAba} />
       {cad.erro && <div className="erro">{cad.erro}</div>}
       {!d && !cad.erro && <p className="sub">Carregando…</p>}
       {d && aba === 'contas' && <Contas ctx={ctx} pode={pode} cad={d} aoMudar={cad.recarregar} />}
       {d && aba === 'tipos' && <Tipos ctx={ctx} pode={pode} cad={d} aoMudar={cad.recarregar} />}
       {d && aba === 'projetos' && <Projetos ctx={ctx} pode={pode} cad={d} aoMudar={cad.recarregar} />}
       {d && aba === 'parametros' && <Parametros ctx={ctx} pode={adminGestor} cad={d} aoMudar={cad.recarregar} />}
+      {admin && aba === 'permissoes' && <PermissoesUsuario ctx={ctx} />}
     </section>
   )
 }
@@ -234,6 +236,64 @@ function Parametros({ ctx, pode, cad, aoMudar }: { ctx: Contexto; pode: boolean;
       {erro && <div className="erro" role="alert">{erro}</div>}
       {msg && <div className="info" role="status">{msg}</div>}
       {pode && <div className="acoes"><button onClick={salvar}>Salvar parâmetros</button></div>}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- permissões por usuário (pedido 052)
+function PermissoesUsuario({ ctx }: { ctx: Contexto }) {
+  const lista = useCarregar(() => apiTitulos.permissoes(ctx.empresa), [ctx.empresa])
+  const [edit, setEdit] = useState<Record<string, AcaoFin[]>>({})
+  const [salvando, setSalvando] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+  const acoesDe = (u: PermissaoUsuarioFin) => edit[u.usuario_id] ?? u.acoes
+  const alternar = (u: PermissaoUsuarioFin, a: AcaoFin) => {
+    setMsg(null)
+    const atual = acoesDe(u)
+    let n = atual.includes(a) ? atual.filter((x) => x !== a) : [...atual, a]
+    // sem ver receita nem despesa as outras ações não têm efeito na Movimentação financeira
+    if (!n.includes('ver_receita') && !n.includes('ver_despesa')) n = n.filter((x) => x === 'conciliar')
+    setEdit((e) => ({ ...e, [u.usuario_id]: n }))
+  }
+  const sujo = (u: PermissaoUsuarioFin) => edit[u.usuario_id] !== undefined && [...edit[u.usuario_id]].sort().join() !== [...u.acoes].sort().join()
+  async function salvar(u: PermissaoUsuarioFin) {
+    setSalvando(u.usuario_id); setErro(null); setMsg(null)
+    try {
+      await apiTitulos.salvarPermissoes(ctx.empresa, u.usuario_id, acoesDe(u))
+      setEdit((e) => { const n = { ...e }; delete n[u.usuario_id]; return n })
+      setMsg(`Permissões de ${u.nome ?? u.email} salvas. Valem no próximo carregamento da tela dele.`); lista.recarregar()
+    } catch (x) { setErro((x as Error).message) } finally { setSalvando(null) }
+  }
+  return (
+    <div className="painel">
+      <p className="sub" style={{ marginBottom: '.6rem' }}>Defina, por usuário, o que cada pessoa vê e faz na Movimentação financeira, em Contas e saldos e na Conciliação.
+        Quem não tem “Ver receitas” nem “Ver despesas” não vê a tela de movimentação. Administradores têm tudo liberado.</p>
+      {lista.erro && <div className="erro">{lista.erro}</div>}
+      {erro && <div className="erro" role="alert">{erro}</div>}
+      {msg && <div className="info" role="status">{msg}</div>}
+      {!lista.dados && !lista.erro && <p className="sub">Carregando…</p>}
+      {lista.dados && (
+        <div className="tabela-rolavel">
+          <table className="fin-tabela fin-perm">
+            <thead><tr><th>Usuário</th>{ACOES_FIN.map((a) => <th key={a.id} className="c" title={a.dica}>{a.rotulo}</th>)}<th /></tr></thead>
+            <tbody>{lista.dados.map((u) => (
+              <tr key={u.usuario_id}>
+                <td><strong>{u.nome ?? u.email}</strong><br /><small className="sub">{u.email} · {u.papeis.join(', ')}</small></td>
+                {ACOES_FIN.map((a) => (
+                  <td key={a.id} className="c">
+                    {u.admin ? <span title="Administrador tem todas as ações">✓</span>
+                      : <input type="checkbox" aria-label={`${a.rotulo} para ${u.nome ?? u.email}`} checked={acoesDe(u).includes(a.id)}
+                          disabled={!['ver_receita', 'ver_despesa', 'conciliar'].includes(a.id) && !acoesDe(u).includes('ver_receita') && !acoesDe(u).includes('ver_despesa')}
+                          onChange={() => alternar(u, a.id)} />}
+                  </td>))}
+                <td>{!u.admin && <button type="button" disabled={!sujo(u) || salvando === u.usuario_id} onClick={() => salvar(u)}>{salvando === u.usuario_id ? 'Salvando…' : 'Salvar'}</button>}</td>
+              </tr>))}</tbody>
+          </table>
+        </div>)}
+      <ul className="sub" style={{ fontSize: '.82rem', marginTop: '.7rem' }}>
+        {ACOES_FIN.map((a) => <li key={a.id}><strong>{a.rotulo}:</strong> {a.dica}</li>)}
+      </ul>
     </div>
   )
 }

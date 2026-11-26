@@ -1,6 +1,6 @@
 # Manual do painel Ane Brechó
 
-Documentação v0.13.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
+Documentação v0.14.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
 
 ## Início
 
@@ -282,46 +282,28 @@ Documentação v0.13.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo
 
 ## Financeiro
 
-### Contas a receber
+### Movimentação financeira
 
-**O que é.** Títulos a receber de clientes: vendas, recibos, adiantamentos e renegociações. Cada título tem natureza, centro de resultado, tipo de título (PIX, cartão, boleto) e situação: em aberto, vencido, baixa parcial, baixado, conciliado com o banco, renegociado, provisão ou cancelado. Nada é enviado ao Bling.
+**O que é.** Receitas (a receber) e despesas (a pagar) na mesma tela: vendas, recibos, parcelas das NF-e de compra, NFS-e com retenções, boletos, guias, adiantamentos e renegociações. Cada título tem natureza, centro de resultado, tipo de título e situação (em aberto, vencido, baixa parcial, baixado, conciliado, renegociado, provisão ou cancelado). O resumo mostra a receber, a pagar e o saldo previsto. O que cada usuário vê e faz é liberado por usuário. Nada é enviado ao Bling.
 
-**Caso de uso.** Uma cliente fechou 3 peças em 2 parcelas no cartão. Lance o título com 2 parcelas e tipo Cartão de crédito. Quando a operadora pagar, selecione as duas parcelas e faça uma baixa só, com a taxa descontada; o valor líquido cai na conta escolhida.
+**Caso de uso.** A cliente que também vende peças para a Ane tem R$ 300 a receber e R$ 120 a pagar. Selecione os dois títulos e clique em Compensar: as duas baixas saem juntas e só R$ 180 entram na conta.
 
 **Dicas**
 
-- Clique nos chips de situação para combinar filtros; os números mostram quantos títulos há em cada uma.
+- Use Receitas e despesas / Receitas / Despesas para separar; a coluna Efeito no caixa soma receita e subtrai despesa (o total é o saldo previsto do filtro).
 - Valor menor que o saldo faz baixa parcial: o restante continua em aberto no mesmo título.
-- Selecione vários títulos para receber em lote (um movimento só na conta) ou renegociar (mesmo cliente).
+- Receita e despesa juntas só se compensam quando são do mesmo parceiro; renegociação agrupa títulos do mesmo parceiro e do mesmo tipo.
 - Parcelas de um parcelamento não se cancelam uma a uma: cancele o grupo inteiro ou a partir de uma parcela.
-- O título renegociado continua visível; a aba Vínculos mostra os títulos novos e permite desfazer enquanto não houver baixa.
-- Provisão é um valor estimado: efetive quando o documento real chegar ou substitua pelo título real.
-
-**Tutorial guiado**
-
-1. **Situações** — Filtre por situação. Em aberto, vencido e baixa parcial vêm marcados por padrão.
-2. **Títulos** — Marque a caixa para selecionar e clique na linha para abrir a composição, o rateio, as baixas e os vínculos.
-3. **Receber** — Com títulos selecionados, use “Receber”. Informe data, conta, juros, multa, desconto e taxa; o painel mostra quanto entra na conta.
-4. **Novo título** — Use “+ Novo título” para recibos, parcelamentos, recorrências ou saldos de implantação, com rateio por natureza, centro de resultado e projeto.
-
-### Contas a pagar
-
-**O que é.** Títulos a pagar a fornecedores: parcelas das NF-e de compra (geradas na Entrada de mercadoria), NFS-e de serviços com retenções, boletos, guias de impostos, fretes, comissões e tarifas. Mesma lógica de situações, baixas, renegociação e vínculos de Contas a receber.
-
-**Caso de uso.** O contador emitiu uma NFS-e de R$ 1.000 com ISS retido de R$ 50. Lance como “NFS-e recebida”, informe o ISS e marque que a Ane recolhe: o fornecedor recebe R$ 950 e o CRM gera a guia de R$ 50 para a prefeitura, ligada ao título.
-
-**Dicas**
-
 - Títulos de NF-e de compra têm valor, fornecedor e vencimento travados: alterações são feitas na Entrada de mercadoria.
-- Retenções da NFS-e entram na 1ª parcela e reduzem o valor líquido; as guias aparecem na aba Vínculos.
-- Adiantamento a fornecedor registra a saída do dinheiro e cria um crédito a receber; use a compensação para abater na conta a pagar.
-- Baixa já conciliada com o extrato não se estorna: desfaça a conciliação antes.
+- Botões que não aparecem dependem de permissão: o administrador libera em Cadastros financeiros › Permissões por usuário.
 
 **Tutorial guiado**
 
-1. **Resumo** — Total em aberto, vencido e provisões do filtro atual.
-2. **Títulos** — Selecione para pagar ou renegociar; clique para abrir o detalhe.
-3. **NFS-e** — Em “+ Novo título”, escolha “NFS-e recebida” para informar ISS, IRRF, INSS e PIS/COFINS/CSLL retidos.
+1. **Resumo** — A receber, a pagar, saldo previsto, vencidos e provisões do filtro atual.
+2. **Tipo e situação** — Escolha receitas, despesas ou ambas e combine as situações; os números mostram quantos títulos há em cada uma.
+3. **Títulos** — Marque a caixa para selecionar e clique na linha para abrir composição, rateio, baixas e vínculos.
+4. **Baixar ou compensar** — Com títulos selecionados, use Receber, Pagar ou Compensar. Informe data, conta, juros, multa, desconto e taxa; o painel mostra o efeito na conta.
+5. **Lançar** — Use “+ Receita” ou “+ Despesa” para recibos, parcelamentos, recorrências, NFS-e com retenções ou saldos de implantação.
 
 ### Contas e saldos
 
@@ -368,12 +350,13 @@ Documentação v0.13.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo
 **Dicas**
 
 - Contas e tipos não se excluem: inative.
+- Na aba Permissões por usuário (só administrador) libere para cada pessoa: ver receitas, ver despesas, lançar, editar, baixar, estornar, renegociar, cancelar e conciliar.
 - O código do tipo de título não muda depois de criado.
 - Só administrador e gestor alteram os parâmetros; “Período fechado até” bloqueia lançamentos e baixas em datas já fechadas.
 
 **Tutorial guiado**
 
-1. **Quatro áreas** — Contas bancárias, Tipos de título, Projetos e Parâmetros.
+1. **Áreas** — Contas bancárias, Tipos de título, Projetos, Parâmetros e, para o administrador, Permissões por usuário.
 2. **Contas** — Clique em uma conta para editar ou use “+ Nova conta”.
 
 ### Natureza financeira

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiParceiros } from '../api'
-import { ROTULO_SITUACAO, moeda, num, r2, type CadastrosFin, type OpcaoNat, type TipoTitulo } from '../apiTitulos'
+import { apiTitulos, ROTULO_SITUACAO, moeda, num, r2, type AcaoFin, type CadastrosFin, type OpcaoNat, type TipoTitulo } from '../apiTitulos'
+import { useCarregar } from '../ui'
 import { ComboBusca } from '../ComboBusca'
 import './financeiro.css'
 
@@ -11,10 +12,17 @@ export const SeloSit = ({ s }: { s: string }) => <span className={`fin-sit ${s}`
 export const Valor = ({ v, sinal = false }: { v: number | null | undefined; sinal?: boolean }) =>
   <span className={`fin-valor${sinal && v != null ? (v < 0 ? ' neg' : v > 0 ? ' pos' : '') : ''}`}>{moeda(v)}</span>
 
-/** pode editar: papel financeiro/gestor/admin e a matriz liberando "editar" na tela */
+/** pode editar (cadastros): papel financeiro/gestor/admin e a matriz liberando "editar" na tela */
 export function podeEditar(ctx: { papeis: string[]; perm: Record<string, string> | null }, tela: string) {
   const papel = ['admin', 'gestor', 'financeiro', 'superadmin'].some((p) => ctx.papeis.includes(p))
   return papel && (ctx.perm === null || ctx.perm[tela] === 'editar')
+}
+
+/** Ações do financeiro liberadas para o usuário logado (pedido 052) */
+export interface Acoes { has: (a: AcaoFin) => boolean; carregando: boolean }
+export function useAcoes(ctx: { empresa: string }): Acoes {
+  const r = useCarregar(() => apiTitulos.minhasAcoes(ctx.empresa).catch(() => [] as AcaoFin[]), [ctx.empresa])
+  return useMemo(() => { const s = new Set(r.dados ?? []); return { has: (a: AcaoFin) => s.has(a), carregando: r.dados === null } }, [r.dados])
 }
 
 /** Campo numérico em reais: guarda o texto digitado e devolve o número */
