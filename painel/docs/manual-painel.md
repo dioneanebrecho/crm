@@ -1,6 +1,6 @@
 # Manual do painel Ane Brechó
 
-Documentação v0.9.5 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
+Documentação v0.12.1 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
 
 ## Início
 
@@ -203,29 +203,62 @@ Documentação v0.9.5 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.
 - O prazo padrão de pagamento é 15 minutos, configurável em Preferências da vitrine.
 - A fila é única por peça, não importa o canal (Instagram, WhatsApp, live).
 - O histórico mostra vendas perdidas por falta de estoque — insumo para campanhas de itens semelhantes.
+- “Marcar pago” confirma um pagamento conferido fora do link (Pix no extrato, loja): a peça vira vendida, o pedido sai no nome de quem pagou e a fila é avisada.
 
 **Tutorial guiado**
 
 1. **Central de vendas** — Aqui você acompanha ao vivo a fila de cada peça, as reservas e os links de pagamento.
 2. **Jornada da peça** — Cada peça mostra quem está na fila, quem reservou, o prazo e o estado do pagamento até a entrega.
 
-## Clientes e pós-venda
+### Caixa de entrada
 
-### Clientes
+**O que é.** Todas as conversas com as clientes numa tela só: Direct do Instagram hoje e WhatsApp quando o canal for ligado. A resposta sai pelo mesmo canal de onde a cliente escreveu, sem abrir o app. Ao lado da conversa aparecem a etapa da venda (fila, reserva, Pix, pago, enviado), o último pedido e o rastreio.
 
-**O que é.** Cadastro e contato dos clientes, base do relacionamento e das campanhas. Reúne dados de identificação, endereço e canais (Instagram, WhatsApp).
-
-**Caso de uso.** Uma cliente recorrente volta numa live: você confirma os dados já cadastrados e segue direto para o link de pagamento, sem repetir tudo.
+**Caso de uso.** A cliente pergunta no Direct se o Pix já foi gerado. A atendente abre a conversa, digita /pix e a mensagem entra pronta com o valor e o link dela; confere a prévia e envia. Depois marca a conversa como resolvida.
 
 **Dicas**
 
-- Documento e contato aparecem conforme a sua permissão — dados sensíveis ficam protegidos.
-- Mantenha o cadastro saneado: é o que alimenta o histórico de compras e as ações de venda.
+- No “Ver exemplo” aparece o Roteiro de treino: abrir, assumir, responder, nota, etiqueta, resolver, bloquear um perfil que só atrapalha e ver as tentativas bloqueadas. Nada é gravado nem enviado.
+- Admin e gestor têm o botão Bloquear na conversa (com motivo). Desbloquear devolve a pessoa às filas, à live e à vitrine.
+- A visão “Bloqueados” mostra as conversas de quem está na lista de bloqueio: ficam fora das filas, só para consulta. O número “Tentativas bloqueadas” conta as tentativas na live, vitrine e mensagens (passe o mouse para ver por origem).
+- Digite / no campo de mensagem para buscar uma resposta pronta pelo atalho (ex.: /link, /pix, /rastreio). Setas escolhem, Enter usa.
+- Se a cliente não tiver o dado de uma variável (ex.: sem reserva ativa), a prévia avisa e o envio fica travado até você ajustar o texto.
+- O Instagram só deixa responder até 24 h depois da última mensagem da cliente; entre 24 h e 7 dias a resposta vai com a etiqueta de atendimento humano.
+- No WhatsApp também vale a janela de 24 h; fora dela só modelo aprovado pela Meta. Cada número tem 1.000 respostas grátis por mês; depois, cada resposta é cobrada pela Meta — prefira uma mensagem completa a várias curtas.
+- "Nota interna" grava um recado para a equipe na conversa, sem enviar nada à cliente.
+- Cada conversa mostra como a cliente chegou: comentário na live, clique na vitrine (story, feed, grupo), link "Quero A123" ou mensagem direta. Filtre por origem e por canal para ver de onde vem o movimento.
+- O botão "Ver exemplo" enche a tela com conversas fictícias para treinar a equipe e entender a visão. Nada é gravado nem enviado.
+- A faixa do WhatsApp mostra quantas das 1.000 respostas grátis do mês já foram usadas; perto do limite, prefira responder pelo app Business.
+- Se aparecer o aviso de que outra pessoa está com a conversa aberta, combinem antes de responder para não duplicar.
+- Enquanto o canal estiver desligado ou em teste em Integrações, a mensagem fica registrada como "Não enviada" ou "Simulada", com o motivo.
 
 **Tutorial guiado**
 
-1. **Clientes** — A base de clientes da Ane Brechó, com contato, endereço e canais de atendimento.
-2. **Buscar cliente** — Encontre por nome, documento ou contato.
+1. **Caixa de entrada** — Aqui chegam as mensagens das clientes. As que esperam resposta ficam destacadas no topo da lista.
+2. **Minhas e sem responsável** — Filtre as conversas que são suas ou as que ainda não têm ninguém cuidando. "Assumir" coloca a conversa no seu nome.
+3. **Lista de conversas** — Cada conversa mostra o canal, a etapa da venda e as etiquetas. O número em destaque são mensagens não lidas.
+
+## Clientes e pós-venda
+
+### Expedição
+
+**O que é.** Cada peça é paga na hora. Aqui os pedidos pagos da mesma cliente e do mesmo endereço viram um envio só. Você define o frete (ou marca grátis): o frete vira uma cobrança separada. Quando o frete estiver pago, o envio sai com o código de rastreio.
+
+**Caso de uso.** A cliente comprou três peças na live, cada uma paga no Pix na hora. No fim do dia, “A montar” mostra a cliente com 3 pedidos. Você clica em Montar envio, informa o frete do SEDEX e a cliente recebe a cobrança do frete. Com o frete pago, você embala, informa o rastreio e o pedido passa para Enviado.
+
+**Dicas**
+
+- Para treinar o time, clique em Simular: abre clientes e pedidos fictícios com um roteiro de passos que se marcam sozinhos. Nada é gravado, cobrado ou enviado.
+- Se a cliente ainda tem peças reservadas, o aviso sugere esperar: o que ela pagar depois entra no mesmo envio aberto.
+- Cliente VIP aparece com o selo VIP: ela paga o acumulado no fim do dia ou da live (configure em Parceiros > Regras).
+- Frete grátis deixa o envio pronto na hora, sem cobrança.
+- “Frete pago” é para quando a cliente pagou fora do link (dinheiro, Pix direto); informe como conferiu.
+- Desfazer envio devolve os pedidos para “A montar”. Não dá para desfazer depois do frete pago ou do envio.
+
+**Tutorial guiado**
+
+1. **Expedição** — Junte as peças pagas, cobre o frete e registre o rastreio.
+2. **A montar** — Clientes com pedidos pagos agrupados por endereço. Clique em Montar envio.
 
 ## Financeiro
 
@@ -271,21 +304,26 @@ Documentação v0.9.5 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.
 
 ### Parceiros
 
-**O que é.** Fornecedores, consignantes e demais parceiros, com documento (CPF/CNPJ), contatos e histórico de notas. Fornecedor criado pela importação do XML da NF-e já traz CNPJ completo, inscrição, telefone e endereço (aba Cadastro). O histórico de notas reúne as notas de compra (NF-e importadas) e as lidas do Bling.
+**O que é.** Cadastro único de pessoas e empresas: clientes, fornecedores, transportadoras e funcionários, com um ID por CPF/CNPJ. O mesmo parceiro pode ter vários papéis. Cada parceiro reúne os seus contatos (vários @ do Instagram, WhatsApp e e-mail), os dados fiscais para a NF-e, as notas, as compras e, como cliente, reservas, fila, cancelamentos e devoluções. Quem chega só pelo Instagram, WhatsApp ou vitrine fica como pré-cadastro até informar o CPF no link de pagamento. Substitui a antiga tela Clientes.
 
-**Caso de uso.** Ao importar o XML de um fornecedor novo, o cadastro nasce completo. Depois você confere o endereço, vê todas as notas de compra dele no histórico e valida o documento.
+**Caso de uso.** A filha comenta na live pelo próprio @ e paga com o CPF da mãe, que já é cliente: a nota sai no nome da mãe e, com o pagamento aprovado, o @ da filha passa a aparecer em Contatos da mãe como familiar, sem criar cadastro duplicado.
 
 **Dicas**
 
-- A aba Cadastro mostra de onde veio o endereço: Correios (padronizado pelo CEP) ou XML (quando o CEP não é confiável, fica o endereço da nota).
-- Em “Atualizar a partir de um XML” você completa um fornecedor antigo com os dados de qualquer nota dele; o CNPJ do XML precisa ser o do parceiro.
+- Abra o parceiro pela aba Resumo: ela mostra os papéis, o que falta para emitir NF-e e os números de cliente, fornecedor e financeiro.
+- Em Contatos você define o @ principal, o vínculo (titular, familiar, terceiro) e move um contato para outro parceiro, com motivo registrado.
+- Use o filtro “Pré-cadastro (sem CPF/CNPJ)” para achar quem ainda não informou documento; “Juntar a outro parceiro” une um pré-cadastro ao cadastro certo.
+- A aba Cadastro fiscal mostra de onde veio o endereço: Correios (padronizado pelo CEP) ou XML. A aba Origem Bling é só para auditoria dos contatos repetidos do Bling.
 - A aba Documento valida CPF/CNPJ e consulta a Receita para o CNPJ.
-- Use os filtros de repetidos e contato principal para manter o cadastro limpo.
+- O link de pagamento atualiza o cadastro: nome civil, CPF (guardado cifrado), e-mail e endereço conferido pelo CEP dos Correios aparecem no Resumo.
+- Aba Regras: marque a cliente como VIP (acumula peças e paga no fim do dia ou da live, com limite de peças e de valor) ou coloque na lista de bloqueio (ignorada na live, vitrine e mensagens; as tentativas ficam contadas).
+- O botão “Bloquear @ ou WhatsApp” bloqueia direto pelo contato, mesmo sem cadastro. Os filtros VIP e Lista de bloqueio mostram quem está em cada regra.
 
 **Tutorial guiado**
 
-1. **Parceiros** — Fornecedores e consignantes, com documento, contatos e notas.
-2. **Buscar parceiro** — Filtre por nome, papel, tipo ou documento.
+1. **Parceiros** — Clientes, fornecedores, transportadoras e funcionários num cadastro só.
+2. **Buscar parceiro** — Busque por nome, @, WhatsApp, últimos dígitos do CPF/CNPJ ou ID do Bling, e filtre por papel.
+3. **Abrir o parceiro** — Clique numa linha para ver o resumo, os contatos, o cadastro fiscal e as notas.
 
 ### Grades e atributos
 
@@ -368,6 +406,24 @@ Documentação v0.9.5 · atualizada em 25/11/2026. Gerado de src/ajuda/conteudo.
 1. **Notas Bling** — As notas fiscais emitidas, lidas do Bling, com itens e valores.
 2. **Período e busca** — Filtre por período ou busque por número/cliente para achar a nota.
 3. **Notas** — Clique numa nota para ver os itens, os valores e o link do DANFE.
+
+### Respostas prontas
+
+**O que é.** Biblioteca de mensagens padrão com variáveis, como {{cliente.primeiro_nome}}, {{reserva.link}}, {{cobranca.valor}} e {{envio.codigo_rastreio}}. Na Caixa de entrada, as variáveis são trocadas pelos dados reais da cliente na hora de enviar.
+
+**Caso de uso.** A administradora cria a resposta /rastreio: "Seu pedido {{pedido.numero}} foi enviado pela {{envio.transportadora}}. Código: {{envio.codigo_rastreio}}". A equipe responde a dúvida de entrega em segundos, sem copiar código de outro sistema.
+
+**Dicas**
+
+- Só o administrador cria e edita; a equipe usa todas pela Caixa de entrada.
+- Clique numa variável para inseri-la onde está o cursor. A prévia mostra como a mensagem sai, com dados fictícios.
+- Use atalhos curtos e fáceis de lembrar (pix, link, prazo, rastreio). O contador de usos mostra quais respostas a equipe mais usa.
+- Desative em vez de apagar: a resposta some da equipe, mas o histórico das conversas continua mostrando qual foi usada.
+
+**Tutorial guiado**
+
+1. **Respostas prontas** — Aqui ficam os modelos de mensagem da equipe, organizados por categoria.
+2. **Variáveis** — Veja quais dados podem entrar nas mensagens e de onde cada um vem (reserva, fila, Pix, pedido, envio).
 
 ### Base de conhecimento
 

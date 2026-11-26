@@ -33,7 +33,7 @@ const SeloCanal = ({ canal }: { canal: string | null | undefined }) => {
   return <span className="v-canal" style={{ background: c.cor }} title={c.rotulo}>{c.curto}</span>
 }
 
-export default function Vendas({ ctx }: { ctx: Contexto }) {
+export default function Vendas({ ctx, abrir }: { ctx: Contexto; abrir?: (id: string, q?: string) => void }) {
   const podeOperar = ctx.perm === null
     ? ctx.papeis.some((p) => ['superadmin', 'admin', 'gestor', 'suporte', 'apresentadora'].includes(p))
     : ctx.perm.vendas === 'editar'
@@ -118,7 +118,7 @@ export default function Vendas({ ctx }: { ctx: Contexto }) {
             {visao === 'peca' && selPeca && <DetalhePeca ctx={ctx} item={selPeca} versao={versao} agora={agora} podeOperar={podeOperar}
                                                          onFechar={() => setSelPeca(null)} onMudou={atualizar} onAbrirCliente={abrirCliente} onMontar={() => setMontando(selPeca)} />}
             {visao === 'cliente' && selCli && <DetalheCli ctx={ctx} cliente={selCli} versao={versao} agora={agora}
-                                                          onFechar={() => setSelCli(null)} onAbrirPeca={abrirPeca} />}
+                                                          onFechar={() => setSelCli(null)} onAbrirPeca={abrirPeca} abrir={abrir} />}
           </div>
         )}
       </div>
@@ -237,7 +237,7 @@ function DetalhePeca({ ctx, item, versao, agora, podeOperar, onFechar, onMudou, 
   onFechar: () => void; onMudou: () => void; onAbrirCliente: (id: string) => void; onMontar: () => void
 }) {
   const d = useCarregar(() => apiVendas.oferta(ctx.empresa, item), [ctx.empresa, item, versao])
-  const [acao, setAcao] = useState<'estender' | 'passar' | null>(null)
+  const [acao, setAcao] = useState<'estender' | 'passar' | 'pago' | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [copiado, setCopiado] = useState<string | null>(null)
   if (d.erro) return <div className="painel"><div className="erro">{d.erro}</div></div>
@@ -299,6 +299,7 @@ function DetalhePeca({ ctx, item, versao, agora, podeOperar, onFechar, onMudou, 
           {podeOperar && <div className="v-linha">
             <button className="sec mini" onClick={() => setAcao('estender')}>Estender prazo</button>
             <button className="sec mini" onClick={() => setAcao('passar')}>Passar ao próximo</button>
+            <button className="sec mini" onClick={() => setAcao('pago')}>Marcar pago</button>
           </div>}
         </div>
       )}
@@ -333,10 +334,28 @@ function DetalhePeca({ ctx, item, versao, agora, podeOperar, onFechar, onMudou, 
 }
 
 function AcaoReserva({ ctx, tipo, reserva, cliente, onFechar, onFeito }: {
-  ctx: Contexto; tipo: 'estender' | 'passar'; reserva: string; cliente: string | null; onFechar: () => void; onFeito: () => void
+  ctx: Contexto; tipo: 'estender' | 'passar' | 'pago'; reserva: string; cliente: string | null; onFechar: () => void; onFeito: () => void
 }) {
   const [min, setMin] = useState('5')
   const [motivo, setMotivo] = useState('')
+  const [metodo, setMetodo] = useState<'pix' | 'cartao' | 'manual' | 'outro'>('pix')
+  const [frete, setFrete] = useState('')
+  if (tipo === 'pago') return (
+    <Modal titulo="Marcar a reserva como paga" onFechar={onFechar}>
+      <Formulario enviarRotulo="Confirmar pagamento" onCancelar={onFechar} onEnviar={async () => {
+        const r = await apiVendas.marcarPago(ctx.empresa, reserva, metodo, motivo, frete ? Number(frete.replace(',', '.')) : 0)
+        if (r.resultado === 'revisao_manual') throw new Error('O valor não bateu com a cobrança: foi aberta uma revisão na Central de governança.')
+        onFeito()
+      }}>
+        <p className="sub">Use quando o pagamento de {cliente ?? 'cliente'} foi conferido fora do link (Pix no extrato, pagamento na loja). A peça vira vendida, o pedido é criado no nome de quem pagou (CPF informado no link) e a fila é avisada.</p>
+        <div className="grade2">
+          <Campo rotulo="Forma"><select value={metodo} onChange={(e) => setMetodo(e.target.value as typeof metodo)}><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="manual">Dinheiro / loja</option><option value="outro">Outro</option></select></Campo>
+          <Campo rotulo="Frete (R$)" dica="Só se ainda não houver cobrança."><input value={frete} onChange={(e) => setFrete(e.target.value)} inputMode="decimal" placeholder="0,00" /></Campo>
+        </div>
+        <Campo rotulo="Como foi conferido" dica="Obrigatório. Ex.: Pix conferido no extrato às 21h10."><input value={motivo} onChange={(e) => setMotivo(e.target.value)} required minLength={3} autoFocus /></Campo>
+      </Formulario>
+    </Modal>
+  )
   return (
     <Modal titulo={tipo === 'estender' ? 'Estender o prazo da reserva' : 'Passar a vez para a próxima da fila'} onFechar={onFechar}>
       <Formulario enviarRotulo={tipo === 'estender' ? 'Estender' : 'Passar a vez'} onCancelar={onFechar} onEnviar={async () => {
@@ -354,8 +373,9 @@ function AcaoReserva({ ctx, tipo, reserva, cliente, onFechar, onFeito }: {
   )
 }
 
-function DetalheCli({ ctx, cliente, versao, agora, onFechar, onAbrirPeca }: {
+function DetalheCli({ ctx, cliente, versao, agora, onFechar, onAbrirPeca, abrir }: {
   ctx: Contexto; cliente: string; versao: number; agora: number; onFechar: () => void; onAbrirPeca: (item: string) => void
+  abrir?: (id: string, q?: string) => void
 }) {
   const d = useCarregar(() => apiVendas.cliente(ctx.empresa, cliente), [ctx.empresa, cliente, versao])
   if (d.erro) return <div className="painel"><div className="erro">{d.erro}</div></div>
@@ -391,8 +411,10 @@ function DetalheCli({ ctx, cliente, versao, agora, onFechar, onAbrirPeca }: {
       </div>}
 
       <h3>Falar com a cliente</h3>
-      <p className="sub">Responda pelo canal de onde ela veio ({viaWhatsapp ? 'WhatsApp' : 'Instagram'}). As mensagens automáticas ficam bloqueadas até a liberação de cada canal.</p>
+      <p className="sub">Responda pelo canal de onde ela veio ({viaWhatsapp ? 'WhatsApp' : 'Instagram'}). Pela Caixa de entrada a conversa fica registrada, com respostas prontas e o contexto da venda.</p>
       <div className="v-linha">
+        {abrir && c.cliente.tem_igsid && <button onClick={() => abrir('atendimento', `cliente:${c.cliente.id}:instagram`)}>Caixa de entrada · Instagram</button>}
+        {abrir && c.canais.some((x) => x.canal === 'whatsapp') && <button onClick={() => abrir('atendimento', `cliente:${c.cliente.id}:whatsapp`)}>Caixa de entrada · WhatsApp</button>}
         {wa && <a className={viaWhatsapp ? 'botao' : 'botao sec'} href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer">WhatsApp{viaWhatsapp ? ' (origem)' : ''}</a>}
         {c.cliente.instagram && <a className={!viaWhatsapp ? 'botao' : 'botao sec'} href={`https://ig.me/m/${c.cliente.instagram}`} target="_blank" rel="noreferrer">Instagram Direct{!viaWhatsapp ? ' (origem)' : ''}</a>}
       </div>

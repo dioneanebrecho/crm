@@ -29,3 +29,5 @@ export const IFaisca = () => <Svg><path d="M12 3l1.800 5.200L19 10l-5.200 1.800L
 
 export const IGestao = () => <Svg><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></Svg>
 export const IBusca = () => <Svg><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></Svg>
+export const IConversa = () => <Svg><path d="M4 5h16v11H9l-5 4V5z" /><path d="M8 9.5h8M8 12.5h5" /></Svg>
+export const IResposta = () => <Svg><path d="M4 5h16v11H9l-5 4V5z" /><path d="M10 8l-2 2.5 2 2.5M14 8l2 2.5-2 2.5" /></Svg>

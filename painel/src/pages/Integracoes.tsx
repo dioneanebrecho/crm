@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { apiIntegracoes as api, apiAssistente, type ConfigAssistente, type Integracao, type ModoIntegracao, type TesteLinha } from '../api'
 import { Abas, Campo, Modal, Vazio, useCarregar, Titulo } from '../ui'
 import type { Contexto } from '../App'
+import { apiVendas } from '../apiVendas'
 
 interface CampoDef { chave: string; rotulo: string; dica?: string; numerico?: boolean; opcoes?: { valor: string; rotulo: string }[]; padrao?: string }
 interface SegDef { nome: string; rotulo: string; dica?: string }
@@ -17,15 +18,21 @@ const DEFS: Record<string, Def> = {
   meta_live: { id: 'meta_live', titulo: 'Instagram: lives e comentários', descricao: 'Leitura de comentários das lives (lances e interesse).',
     params: [{ chave: 'app_id', rotulo: 'App ID (Meta)' }, { chave: 'instagram_user_id', rotulo: 'ID da conta do Instagram', numerico: true }, VERSAO],
     segredos: [{ nome: 'app_secret', rotulo: 'App Secret' }, { nome: 'access_token', rotulo: 'Token de acesso' }, VERIFY] },
-  meta_dm: { id: 'meta_dm', titulo: 'Instagram: mensagens diretas', descricao: 'Recebimento de DMs. Envio continua bloqueado.',
+  meta_dm: { id: 'meta_dm', titulo: 'Instagram: mensagens diretas', descricao: 'DMs da Caixa de entrada: recebe e responde (respeita modo, lista de teste e janela de 24 h).',
     params: [{ chave: 'app_id', rotulo: 'App ID (Meta)' }, { chave: 'instagram_user_id', rotulo: 'ID da conta do Instagram', numerico: true }, VERSAO],
     segredos: [{ nome: 'app_secret', rotulo: 'App Secret' }, { nome: 'access_token', rotulo: 'Token de acesso' }, VERIFY] },
-  whatsapp: { id: 'whatsapp', titulo: 'WhatsApp Business (Cloud API)', descricao: 'Número oficial para atendimento.',
+  whatsapp: { id: 'whatsapp', titulo: 'WhatsApp Business (Cloud API)', descricao: 'Número oficial (Cloud API direta, sem provedor). Mensagens e status de entrega chegam pelo mesmo webhook da Meta; respostas da Caixa de entrada saem por aqui.',
     params: [{ chave: 'waba_id', rotulo: 'ID da conta WhatsApp Business', numerico: true }, { chave: 'phone_number_id', rotulo: 'ID do número (Phone Number ID)', numerico: true }, VERSAO],
     segredos: [{ nome: 'access_token', rotulo: 'Token de acesso' }, { nome: 'app_secret', rotulo: 'App Secret' }, VERIFY] },
   facebook: { id: 'facebook', titulo: 'Facebook (página)', descricao: 'Página vinculada ao Instagram/Meta.',
     params: [{ chave: 'app_id', rotulo: 'App ID (Meta)' }, { chave: 'page_id', rotulo: 'ID da página', numerico: true }, VERSAO],
     segredos: [{ nome: 'app_secret', rotulo: 'App Secret' }, { nome: 'page_token', rotulo: 'Token da página' }, VERIFY] },
+  gateway: { id: 'gateway', titulo: 'Getnet (Pix e cartão)', descricao: 'Pix dinâmico e link de cartão (com Apple Pay e Google Pay na página da Getnet) a partir do link da reserva. Credenciais em Getnet > Plataforma Digital > Chaves de autenticação. URL de notificação a cadastrar na Getnet: <URL do projeto>/functions/v1/getnet-notificacao?k=<segredo do webhook abaixo>.',
+    params: [{ chave: 'provedor', rotulo: 'Provedor', opcoes: [{ valor: 'getnet', rotulo: 'Getnet' }], padrao: 'getnet' },
+             { chave: 'ambiente', rotulo: 'Ambiente', opcoes: [{ valor: 'homologacao', rotulo: 'Homologação' }, { valor: 'sandbox', rotulo: 'Sandbox' }, { valor: 'producao', rotulo: 'Produção' }], padrao: 'homologacao' },
+             { chave: 'client_id', rotulo: 'Client ID' }, { chave: 'seller_id', rotulo: 'Seller ID' },
+             { chave: 'base_url', rotulo: 'URL base (opcional)', dica: 'Em branco usa a do ambiente escolhido.' }],
+    segredos: [{ nome: 'client_secret', rotulo: 'Client Secret' }, { nome: 'webhook_secret', rotulo: 'Segredo da URL de notificação', dica: 'Texto que você inventa (longo) e coloca no final da URL de notificação cadastrada na Getnet.' }] },
   ia_chat: { id: 'ia_chat', titulo: 'IA de resposta (Gemini)', descricao: 'Modelo que redige as respostas do assistente. Conta pessoal do Google AI Studio serve; a chave fica só no cofre.',
     params: [{ chave: 'provedor', rotulo: 'Plataforma de IA', opcoes: [{ valor: 'google_gemini', rotulo: 'Google Gemini' }], padrao: 'google_gemini' },
              { chave: 'base_url', rotulo: 'URL base do endpoint', dica: 'Google AI Studio: https://generativelanguage.googleapis.com/v1beta. Google Vertex (chave do projeto): https://aiplatform.googleapis.com/v1/publishers/google. Em branco usa o AI Studio.' },
@@ -42,8 +49,10 @@ const ABAS = [
   { id: 'instagram', rotulo: 'Instagram', itens: ['meta_live', 'meta_dm'] },
   { id: 'whatsapp', rotulo: 'WhatsApp', itens: ['whatsapp'] },
   { id: 'facebook', rotulo: 'Facebook', itens: ['facebook'] },
+  { id: 'pagamentos', rotulo: 'Pagamentos', itens: ['gateway'] },
   { id: 'ia', rotulo: 'IA', itens: ['ia_chat', 'ia_embedding'] },
   { id: 'assistente', rotulo: 'Assistente', itens: [] as string[] },
+  { id: 'vitrine', rotulo: 'Vitrine pública', itens: [] as string[] },
 ]
 const STATUS: Record<string, { rotulo: string; tom: string }> = {
   nao_configurada: { rotulo: 'Não configurada', tom: 'mudo' }, configurada: { rotulo: 'Configurada, não testada', tom: 'aviso' },
@@ -54,7 +63,7 @@ const MODOS: Record<ModoIntegracao, { rotulo: string; ajuda: string }> = {
   simulado: { rotulo: 'Simulado', ajuda: 'Roda o fluxo sem tocar no sistema real.' },
   real: { rotulo: 'Real', ajuda: 'Conversa com o serviço de verdade. Escrita externa continua bloqueada até você liberar caso a caso.' },
 }
-const OPCIONAIS = ['api_version', 'empresa_id_bling', 'base_url']
+const OPCIONAIS = ['api_version', 'empresa_id_bling', 'base_url', 'provedor', 'ambiente']
 const fmt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const URL_CALLBACK = `${(import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? ''}/functions/v1/bling-oauth-callback`
 
@@ -83,6 +92,7 @@ export default function Integracoes({ ctx }: { ctx: Contexto }) {
       {carregando && !dados && <p className="sub">Carregando…</p>}
       <Abas abas={ABAS.map((a) => ({ id: a.id, rotulo: a.rotulo + pontos(a.itens) }))} ativa={aba} onMudar={setAba} />
       {aba === 'assistente' && <ConfigAssistenteCartao ctx={ctx} />}
+      {aba === 'vitrine' && <VitrinePublicaCartao ctx={ctx} />}
       {dados && atual.itens.map((id) => {
         const i = dados.find((x) => x.integracao === id)
         return i ? <Cartao key={id} def={DEFS[id]} item={i} ctx={ctx} onMudou={recarregar} />
@@ -297,6 +307,43 @@ function ConfigAssistenteCartao({ ctx }: { ctx: Contexto }) {
       {msg && <div className={msg.tipo === 'ok' ? 'info' : 'erro'} role="status">{msg.texto}</div>}
       {admin ? <div className="barra-acoes"><button onClick={salvar} disabled={ocupado || !sujo}>{ocupado ? 'Salvando…' : 'Salvar'}</button>{sujo && !ocupado && <span className="sujo">Alterações não salvas</span>}</div>
              : <p className="sub">Só administradores alteram esta configuração.</p>}
+    </div>
+  )
+}
+
+// Domínio da vitrine pública (araras). Guarda venda.cfg_vitrine.url_base = <domínio>/vitrine/p/ — o mesmo campo que gera os links das peças.
+const dominioDe = (urlBase: string | null) => (urlBase ?? '').replace(/\/vitrine\/p\/?$/, '').replace(/\/p\/?$/, '').replace(/\/+$/, '')
+function VitrinePublicaCartao({ ctx }: { ctx: Contexto }) {
+  const { dados, erro, recarregar } = useCarregar(() => apiVendas.preferencias(ctx.empresa), [ctx.empresa])
+  const [dom, setDom] = useState<string | null>(null)
+  const [msg, setMsg] = useState<Msg | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+  useEffect(() => { if (dados) setDom(dominioDe(dados.valores?.url_base ?? null)) }, [dados])
+  if (erro) return <div className="erro">{erro}</div>
+  if (!dados || dom === null) return <p className="sub">Carregando…</p>
+  const pode = dados.pode_editar
+  const atual = dominioDe(dados.valores?.url_base ?? null)
+  const efetivo = (dom.trim() || location.origin).replace(/\/+$/, '')
+  async function salvar() {
+    setMsg(null)
+    const d = (dom ?? '').trim().replace(/\/+$/, '')
+    if (d && !/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}$/i.test(d)) return setMsg({ tipo: 'erro', texto: 'Informe só o domínio com https://, por exemplo https://loja.anebrecho.com.br (sem caminho no final).' })
+    setOcupado(true)
+    try { await apiVendas.salvarPreferencias(ctx.empresa, { url_base: d ? `${d}/vitrine/p/` : '' }); recarregar(); setMsg({ tipo: 'ok', texto: d ? 'Domínio salvo. Os links novos das peças já usam este endereço.' : 'Voltou a usar o endereço deste painel.' }) }
+    catch (e) { setMsg({ tipo: 'erro', texto: (e as Error).message }) } finally { setOcupado(false) }
+  }
+  return (
+    <div className="int-cartao">
+      <div className="int-topo"><div><h2>Vitrine pública</h2><p className="sub">Página das araras que a cliente abre pelo link da peça, sem login. Em branco, usa o endereço deste painel.</p></div></div>
+      <div className="form">
+        <Campo rotulo="Domínio da loja" dica="Quando a loja liberar o domínio próprio, aponte-o (DNS) para este painel e informe aqui. Ex.: https://loja.anebrecho.com.br">
+          <input value={dom} disabled={!pode} onChange={(e) => setDom(e.target.value)} placeholder={location.origin} inputMode="url" autoCapitalize="none" />
+        </Campo>
+        <p className="sub">Arara: <a href={`${efetivo}/vitrine`} target="_blank" rel="noopener noreferrer">{efetivo}/vitrine</a> · Peça: {efetivo}/vitrine/p/&lt;código&gt;</p>
+      </div>
+      {msg && <div className={msg.tipo === 'ok' ? 'info' : 'erro'} role="status">{msg.texto}</div>}
+      {pode ? <div className="barra-acoes"><button onClick={salvar} disabled={ocupado || dom.trim().replace(/\/+$/, '') === atual}>{ocupado ? 'Salvando…' : 'Salvar'}</button></div>
+            : <p className="sub">Só gestor e administrador alteram.</p>}
     </div>
   )
 }

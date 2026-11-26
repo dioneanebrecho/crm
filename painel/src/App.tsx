@@ -6,7 +6,6 @@ import { useCarregar } from './ui'
 import TelaEntrada from './TelaEntrada'
 import Pecas from './pages/Pecas'
 import Unidades from './pages/Unidades'
-import Clientes from './pages/Clientes'
 import Locais from './pages/Locais'
 import Grades from './pages/Grades'
 import Integracoes from './pages/Integracoes'
@@ -21,6 +20,9 @@ import Conhecimento from './pages/Conhecimento'
 import Assistente, { esquecerAssistente } from './pages/Assistente'
 import Etiquetas from './pages/Etiquetas'
 import Vendas from './pages/Vendas'
+import Expedicao from './pages/Expedicao'
+import Atendimento from './pages/Atendimento'
+import RespostasProntas from './pages/RespostasProntas'
 import PreferenciasVitrine from './pages/PreferenciasVitrine'
 import Governanca from './pages/Governanca'
 import Gestao from './pages/Gestao'
@@ -33,7 +35,7 @@ import FaixaConfig from './pages/FaixaConfig'
 import BuscaRapida, { ATALHO_BUSCA } from './busca'
 import BotaoAjuda from './ajuda/Ajuda'
 import { TourProvider } from './ajuda/Tour'
-import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca, IGov, IGestao, IBusca } from './icones'
+import { IPecas, IEstoque, IClientes, IAgenda, ILocais, IIntegracoes, ILua, ITema, IMenu, ISair, IMarca, IBaixo, IEtiqueta, IProdutos, INota, IParceiros, IGrade, IAjustes, ILivro, IEscudo, IFaisca, IGov, IGestao, IBusca, IConversa, IResposta } from './icones'
 import { lerTema, aplicarTema, type Tema } from './tema'
 import { lerDensidade, aplicarDensidade, type Densidade } from './densidade'
 import { AbaContexto, MINUTOS_PARA_ATUALIZAR, definirEmpresaEstado } from './abas'
@@ -70,7 +72,8 @@ const ITENS = [
   { id: 'etiquetas', rotulo: 'Etiquetas', grupo: 'Preparar live', icone: <IEtiqueta /> },
   { id: 'preferencias_vitrine', rotulo: 'Preferências da vitrine', grupo: 'Preparar live', icone: <IAjustes /> },
   { id: 'vendas', rotulo: 'Central de vendas', grupo: 'Live e vendas', icone: <IMarca /> },
-  { id: 'clientes', rotulo: 'Clientes', grupo: 'Clientes e pós-venda', icone: <IClientes /> },
+  { id: 'atendimento', rotulo: 'Caixa de entrada', grupo: 'Live e vendas', icone: <IConversa /> },
+  { id: 'envios', rotulo: 'Expedição', grupo: 'Clientes e pós-venda', icone: <IEstoque /> },
   { id: 'naturezas', rotulo: 'Natureza financeira', grupo: 'Financeiro', icone: <IGestao /> },
   { id: 'centros_resultado', rotulo: 'Centro de resultado', grupo: 'Financeiro', icone: <ILocais /> },
   { id: 'parceiros', rotulo: 'Parceiros', grupo: 'Cadastros', icone: <IParceiros /> },
@@ -79,6 +82,7 @@ const ITENS = [
   { id: 'integracoes', rotulo: 'Integrações', grupo: 'Configuração', icone: <IIntegracoes /> },
   { id: 'saneamento', rotulo: 'Produtos Bling', grupo: 'Configuração', icone: <IProdutos /> },
   { id: 'fiscal', rotulo: 'Notas Bling', grupo: 'Configuração', icone: <INota /> },
+  { id: 'respostas_prontas', rotulo: 'Respostas prontas', grupo: 'Configuração', icone: <IResposta /> },
   { id: 'conhecimento', rotulo: 'Base de conhecimento', grupo: 'Configuração', icone: <ILivro /> },
   { id: 'usuarios', rotulo: 'Usuários e acessos', grupo: 'Configuração', icone: <IClientes /> },
   { id: 'permissoes', rotulo: 'Permissões', grupo: 'Configuração', icone: <IEscudo /> },
@@ -232,7 +236,8 @@ function Painel() {
     return () => window.removeEventListener('keydown', h)
   }, [])
   useEffect(() => { if (atalho && atalho.aba !== aba) setAtalho(null) }, [aba, atalho])
-  const abrir = (id: string, q?: string) => { setAtalho(q ? { aba: id, q, n: Date.now() } : null); ativar(id as Aba) }
+  // a antiga tela Clientes virou Parceiros (pedido 046): atalhos antigos para "clientes" abrem Parceiros
+  const abrir = (id: string, q?: string) => { const alvo = id === 'clientes' ? 'parceiros' : id; setAtalho(q ? { aba: alvo, q, n: Date.now() } : null); ativar(alvo as Aba) }
   const [permMapa, setPermMapa] = useState<{ empresa: string; perm: Record<string, NivelTela> | null } | null>(null)
   const [versaoPerm, setVersaoPerm] = useState(0)
   const empresaAtualId = me.dados ? (me.dados.empresas.find((e) => e.id === empresaId) ?? me.dados.empresas[0])?.id : undefined
@@ -318,12 +323,14 @@ function Painel() {
       case 'etiquetas': return <Etiquetas ctx={ctx} />
       case 'saneamento': return <ProdutosBling ctx={ctx} />
       case 'fiscal': return <NotasBling key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'fiscal' ? atalho.q : undefined} />
-      case 'clientes': return <Clientes key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'clientes' ? atalho.q : undefined} />
       case 'parceiros': return <Parceiros key={atalho?.n ?? 0} ctx={ctx} inicial={atalho?.aba === 'parceiros' ? atalho.q : undefined} />
       case 'locais': return <Locais ctx={ctx} />
       case 'grades': return <Grades ctx={ctx} />
       case 'integracoes': return <Integracoes ctx={ctx} />
-      case 'vendas': return <Vendas ctx={ctx} />
+      case 'vendas': return <Vendas ctx={ctx} abrir={abrir} />
+      case 'envios': return <Expedicao ctx={ctx} abrir={abrir} />
+      case 'atendimento': return <Atendimento key={atalho?.n ?? 0} ctx={ctx} abrir={abrir} inicial={atalho?.aba === 'atendimento' ? atalho.q : undefined} />
+      case 'respostas_prontas': return <RespostasProntas ctx={ctx} />
       case 'preferencias_vitrine': return <PreferenciasVitrine ctx={ctx} />
       case 'agenda': return <Agenda ctx={ctx} inicial={atalho?.aba === 'agenda' ? atalho : undefined} />
       case 'dashboards': return <Gestao ctx={ctx} />

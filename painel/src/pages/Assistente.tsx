@@ -212,7 +212,7 @@ export default function Assistente({ ctx, abrir }: { ctx: Contexto; abrir: (aba:
       if (it.tipo === 'cliente') {
         const v = await apiAssistenteDados.vendasCliente(ctx.empresa, it.termo)
         void apiAssistenteDados.registrar(ctx.empresa, t).then(() => hist.recarregar()).catch(() => undefined)
-        const refs = v.clientes.length === 0 ? [{ aba: 'clientes' as const, busca: it.termo, rotulo: `Cliente ${it.termo}` }].filter((x) => podeAbrir(x.aba)) : []
+        const refs = v.clientes.length === 0 ? [{ aba: 'parceiros' as const, busca: it.termo, rotulo: `Cliente ${it.termo}` }].filter((x) => podeAbrir(x.aba)) : []
         setResp({ ...extra, pergunta: t, resultados: [], aviso: null, refs, vendas: v, termo: it.termo })
         setOcupado(false); return
       }

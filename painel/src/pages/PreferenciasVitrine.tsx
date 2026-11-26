@@ -9,7 +9,7 @@ const ROTULO: Record<Chave, string> = {
   tema: 'tema', animacao: 'balanço dos cabides', etiqueta_codigo: 'código na etiqueta', etiqueta_preco: 'preço na etiqueta',
   ordem_midias: 'ordem da galeria', video_auto: 'vídeo automático', prazo_reserva_min: 'prazo da reserva', carencia_pix_min: 'tolerância do Pix',
   fila_visibilidade: 'o que a cliente vê na fila', limite_reservas: 'reservas por cliente', regra_horario: 'reserva fora do horário',
-  avisar_fila: 'aviso à fila', qtd_parecidas: 'peças parecidas', aviseme: 'botão Avise-me', url_base: 'endereço público',
+  avisar_fila: 'aviso à fila', qtd_parecidas: 'peças parecidas', aviseme: 'botão Avise-me', url_base: 'endereço público', whatsapp_loja: 'WhatsApp da loja',
 }
 const MIDIA: Record<string, string> = { frente: 'Frente', costas: 'Costas', tecido: 'Detalhe do tecido', video: 'Vídeo' }
 const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
@@ -27,11 +27,12 @@ export default function PreferenciasVitrine({ ctx }: { ctx: Contexto }) {
   const [erro, setErro] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
-  useEffect(() => { if (p.dados) { setDados(p.dados); setCfg(p.dados.valores) } }, [p.dados])
+  useEffect(() => { if (p.dados) { setDados(p.dados); setCfg(p.dados.valores ?? (p.dados.recomendados as PrefVitrine)) } }, [p.dados])
   if (p.erro) return <section><Titulo>Preferências da vitrine</Titulo><div className="erro">{p.erro}</div></section>
   if (!dados || !cfg) return <p className="sub">Carregando…</p>
   const rec = dados.recomendados as Partial<PrefVitrine>
-  const salvo = dados.valores
+  // sem linha em cfg_vitrine a função devolve valores nulos: usa os recomendados em vez de travar em "Carregando…"
+  const salvo = dados.valores ?? (dados.recomendados as PrefVitrine)
   const pode = dados.pode_editar
   const chaves = Object.keys(ROTULO) as Chave[]
   const pendentes = chaves.filter((k) => !igual(cfg[k] ?? null, salvo[k] ?? null))
@@ -42,9 +43,9 @@ export default function PreferenciasVitrine({ ctx }: { ctx: Contexto }) {
     setSalvando(true); setErro(null); setMsg(null)
     try {
       const envio: Partial<PrefVitrine> = {}
-      pendentes.forEach((k) => { (envio as Record<string, unknown>)[k] = k === 'url_base' ? (cfg!.url_base?.trim() || '') : cfg![k] })
+      pendentes.forEach((k) => { (envio as Record<string, unknown>)[k] = k === 'url_base' ? (cfg!.url_base?.trim() || '') : k === 'whatsapp_loja' ? (cfg!.whatsapp_loja?.trim() || '') : cfg![k] })
       const r = await apiVendas.salvarPreferencias(ctx.empresa, envio)
-      setDados(r); setCfg(r.valores)
+      setDados(r); setCfg(r.valores ?? (r.recomendados as PrefVitrine))
       setMsg('Preferências salvas. Valem para novas reservas; as que já estão correndo mantêm o prazo.')
     } catch (e) { setErro((e as Error).message) } finally { setSalvando(false) }
   }
@@ -130,9 +131,10 @@ export default function PreferenciasVitrine({ ctx }: { ctx: Contexto }) {
       </div>
 
       <div className="painel v-prefs">
-        <h2>Endereço público</h2>
-        <Linha titulo="Endereço da página da peça" desc="Ex.: https://vitrine.evoconecta.io/p/ (termina com /). Em branco, usa o endereço deste painel.">
-          <input disabled={!pode} value={cfg.url_base ?? ''} onChange={(e) => set('url_base', e.target.value)} placeholder="https://…/p/" /></Linha>
+        <h2>Atendimento</h2>
+        <Linha titulo="WhatsApp da loja" desc="Abre nos botões “Pagar pelo WhatsApp” e “Continuar no WhatsApp” da vitrine. Com DDD. Em branco, a página avisa que a loja vai chamar a cliente.">
+          <input disabled={!pode} value={cfg.whatsapp_loja ?? ''} onChange={(e) => set('whatsapp_loja', e.target.value)} inputMode="tel" placeholder="(34) 9 0000-0000" /></Linha>
+        <p className="sub">O domínio da vitrine pública fica em Configuração › Integrações › Vitrine pública.</p>
       </div>
 
       <div className="painel v-prefs">

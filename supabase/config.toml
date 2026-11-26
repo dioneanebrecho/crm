@@ -33,3 +33,11 @@ verify_jwt = false
 # Webhook da Meta/Instagram: sem JWT de usuário; a proteção é a assinatura X-Hub-Signature-256 e o verify token.
 [functions.meta-webhook]
 verify_jwt = false
+
+# Pagamento (pedido 048): chamado pela página pública do link; a autorização é o token pessoal da reserva. NÃO PUBLICADA ainda.
+[functions.pagamento]
+verify_jwt = false
+
+# Notificação da Getnet: sem JWT; a proteção é o segredo "k" na URL (Integrações > Pagamentos). NÃO PUBLICADA ainda.
+[functions.getnet-notificacao]
+verify_jwt = false

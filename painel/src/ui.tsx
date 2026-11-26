@@ -81,7 +81,15 @@ export function Paginacao({ total, offset, limite, onMudar }: { total: number; o
 export function Busca({ valor, onMudar, placeholder }: { valor: string; onMudar: (v: string) => void; placeholder: string }) {
   const [local, setLocal] = useState(valor)
   const emitido = useRef(valor)
-  useEffect(() => { const t = setTimeout(() => { emitido.current = local; onMudar(local) }, 300); return () => clearTimeout(t) }, [local, onMudar])
+  // onMudar costuma ser uma função nova a cada render; guardá-la em ref evita que o efeito
+  // reagende a emissão a cada render (isso gerava busca em loop, ~3 chamadas/s, na tela Parceiros)
+  const avisar = useRef(onMudar)
+  avisar.current = onMudar
+  useEffect(() => {
+    if (local === emitido.current) return // nada novo digitado: não emite
+    const t = setTimeout(() => { emitido.current = local; avisar.current(local) }, 300)
+    return () => clearTimeout(t)
+  }, [local])
   // mudança vinda de fora (ex.: "Limpar filtros") reescreve o campo; o eco do que o próprio usuário digitou é ignorado
   useEffect(() => { if (valor !== emitido.current) { emitido.current = valor; setLocal(valor) } }, [valor])
   return <input className="busca" type="search" value={local} onChange={(e) => setLocal(e.target.value)} placeholder={placeholder} />

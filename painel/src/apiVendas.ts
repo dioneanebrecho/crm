@@ -68,11 +68,11 @@ export interface PrefVitrine {
   tema: 'claro' | 'escuro' | 'auto'; animacao: 'nenhuma' | 'suave' | 'medio' | 'forte'; etiqueta_codigo: boolean; etiqueta_preco: boolean
   ordem_midias: string[]; video_auto: boolean; prazo_reserva_min: number; carencia_pix_min: number
   fila_visibilidade: 'posicao' | 'total' | 'nomes'; limite_reservas: number; regra_horario: 'normal' | 'manha'
-  avisar_fila: boolean; qtd_parecidas: number; aviseme: boolean; url_base: string | null
+  avisar_fila: boolean; qtd_parecidas: number; aviseme: boolean; url_base: string | null; whatsapp_loja: string | null
   atualizado_em?: string; atualizado_por?: string | null
 }
 export interface Preferencias {
-  valores: PrefVitrine; recomendados: Omit<PrefVitrine, 'url_base'>; pode_editar: boolean
+  valores: PrefVitrine; recomendados: Omit<PrefVitrine, 'url_base' | 'whatsapp_loja'>; pode_editar: boolean
   historico: { em: string; usuario: string; alteracoes: Record<string, { antes: unknown; depois: unknown }> }[]
 }
 
@@ -88,6 +88,9 @@ export const apiVendas = {
     rpc<string>('estender_reserva', { p_empresa: empresa, p_reserva: reserva, p_minutos: minutos, p_motivo: motivo }),
   passarVez: (empresa: string, reserva: string, motivo: string) =>
     rpc<string | null>('passar_vez', { p_empresa: empresa, p_reserva: reserva, p_motivo: motivo }),
+  // Pagamento conferido fora do gateway (Pix no extrato, loja): cria a cobrança se faltar, confirma, gera o pedido e define o pagador (pedido 047)
+  marcarPago: (empresa: string, reserva: string, metodo: 'pix' | 'cartao' | 'manual' | 'outro', motivo: string, frete = 0) =>
+    rpc<{ resultado: string; cobranca_id: string; valor: number; pedido_id: string | null }>('marcar_pago', { p_empresa: empresa, p_reserva: reserva, p_metodo: metodo, p_motivo: motivo, p_frete: frete }),
   clientes: (empresa: string, filtro: string, busca: string) =>
     rpc<ListaClientes>('listar_clientes_vendas', { p_empresa: empresa, p_filtro: filtro, p_busca: busca || null, p_limite: 300 }),
   cliente: (empresa: string, cliente: string) => rpc<DetalheCliente>('detalhe_cliente_vendas', { p_empresa: empresa, p_cliente: cliente }),
@@ -96,10 +99,10 @@ export const apiVendas = {
     rpc<Preferencias>('salvar_preferencias_vitrine', { p_empresa: empresa, p_valores: valores }),
 }
 
-// Endereço público da peça: url_base das Preferências; sem ela, VITE_URL_PUBLICA_PECA; sem as duas, /p/ deste painel.
+// Endereço público da peça: url_base (Integrações › Vitrine pública); sem ela, VITE_URL_PUBLICA_PECA; sem as duas, /vitrine/p/ deste painel.
 const BASE_ENV = (import.meta.env.VITE_URL_PUBLICA_PECA as string | undefined)?.replace(/\/+$/, '')
 export function urlPublica(codigo: string, canal?: Canal, urlBase?: string | null): string {
-  const base = (urlBase?.replace(/\/+$/, '')) || BASE_ENV || `${location.origin}/p`
+  const base = (urlBase?.replace(/\/+$/, '')) || BASE_ENV || `${location.origin}/vitrine/p`
   return `${base}/${codigo}${canal ? `?c=${canal}` : ''}`
 }
 

@@ -28,8 +28,8 @@ export function acharReferencias(textos: string[], max = 6): Referencia[] {
       if (n > 0) add({ aba: 'fiscal', busca: String(n), rotulo: `Nota ${n}` })
     }
     for (const m of t.matchAll(RE_NOTA)) add({ aba: 'fiscal', busca: String(parseInt(m[1], 10)), rotulo: `Nota ${parseInt(m[1], 10)}` })
-    for (const m of t.matchAll(RE_ARROBA)) add({ aba: 'clientes', busca: m[1], rotulo: `Cliente @${m[1]}` })
-    for (const m of t.matchAll(RE_CLIENTE)) { const n = limpaNome(m[1]); if (n.length > 2) add({ aba: 'clientes', busca: n, rotulo: `Cliente ${n}` }) }
+    for (const m of t.matchAll(RE_ARROBA)) add({ aba: 'parceiros', busca: m[1], rotulo: `Cliente @${m[1]}` })
+    for (const m of t.matchAll(RE_CLIENTE)) { const n = limpaNome(m[1]); if (n.length > 2) add({ aba: 'parceiros', busca: n, rotulo: `Cliente ${n}` }) }
     for (const m of t.matchAll(RE_PARCEIRO)) { const n = limpaNome(m[1]); if (n.length > 2) add({ aba: 'parceiros', busca: n, rotulo: `Parceiro ${n}` }) }
   }
   return out

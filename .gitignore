@@ -15,3 +15,8 @@ vite.config.ts.timestamp-*
 # Gerados pelo ambiente local (não versionar)
 graphify-out/
 .claude/
+
+# Cópias de segurança locais e artefatos de build (não versionar)
+*.bak-*
+.tmp/
+*.tsbuildinfo

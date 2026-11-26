@@ -280,7 +280,47 @@ export const apiEnderecoCliente = {
     return rpc<ResultadoEndereco & { id: string }>('cliente_endereco_salvar', { p_empresa: empresa, p_cliente: cliente, p_dados: e })
   },
 }
+export interface ResumoParceiro {
+  id: string; nome: string; tipo_pessoa: string | null; ativo: boolean; origem: string; observacao: string | null; criado_em: string
+  pre_cadastro: boolean; papeis: string[]; documentos: string[]
+  contatos: { instagram: number; whatsapp: number; email: number; arrobas: string[] }
+  pronto_nfe: boolean; faltas_nfe: string[]
+  bling: { contatos: number; ativos: number }
+  notas: { qtd: number; valor: number; primeira: string | null; ultima: string | null }
+  receber: { qtd: number }; pagar: { qtd: number }; compras: { qtd: number; ultima: string | null }
+  cliente: { perfis: number; reservas_ativas: number; reservas_pagas: number; reservas_expiradas: number; na_fila: number
+    pagou_para_terceiros: number; cancelamentos: number; devolucoes: number; bloqueado_ate: string | null }
+}
+/** Contato do cadastro (detalhe do parceiro): vários @, WhatsApp e e-mail ligados ao mesmo CPF/CNPJ. */
+export interface ContatoCadastro {
+  id: string; tipo: 'instagram' | 'whatsapp' | 'email' | 'telefone'; valor: string | null; tem_igsid: boolean; nome_exibicao: string | null
+  vinculo: 'titular' | 'familiar' | 'terceiro' | 'nao_informado'; situacao: 'confirmado' | 'pendente' | 'inativo'; principal: boolean
+  origem: string; criado_em: string; ultimo_uso_em: string | null; perfis_cliente: number
+}
+export interface EnderecoParceiro {
+  id: string; tipo: string; apelido: string | null; principal: boolean; origem: string; cep_situacao: string | null; cep: string; logradouro: string; numero: string
+  complemento: string | null; bairro: string | null; municipio: string; uf: string; codigo_municipio: string | null; ultimo_uso_em: string | null; criado_em: string
+}
+export interface ParceiroEntrada {
+  id?: string; nome: string; tipo_pessoa?: string; papeis: string[]; documento?: string; instagram?: string; whatsapp?: string; observacao?: string; ativo?: boolean
+}
 export interface FiltroParceiro { busca: string; papel: string; ativo: string; tipo: string; minContatos: string; soRevisao: boolean }
+// pedido 048: regras por parceiro (VIP paga o acumulado depois; lista de bloqueio fica fora da live, vitrine e mensagens)
+export interface RegraParceiro {
+  vip: boolean; vip_max_pecas: number | null; vip_max_valor: number | null; vip_prazo: 'fim_do_dia' | 'fim_da_live'; vip_horas_pos_live: number; vip_obs: string | null
+  bloqueado: boolean; bloqueio_motivo: string | null; bloqueado_em: string | null; bloqueado_por: string | null
+  acumulado: { pecas: number; valor: number; vence_em: string | null }
+  tentativas: { total: number; ultima: string | null; d30: number }
+}
+export const apiRegras = {
+  obter: (empresa: string, parceiro: string) => rpc<RegraParceiro>('parceiro_regra_obter', { p_empresa: empresa, p_parceiro: parceiro }),
+  salvar: (empresa: string, parceiro: string, d: Partial<RegraParceiro>) => rpc<unknown>('parceiro_regra_salvar', { p_empresa: empresa, p_parceiro: parceiro, p_dados: d }),
+  bloquearContato: (empresa: string, contato: string, motivo: string) => rpc<string>('lista_bloqueio_incluir', { p_empresa: empresa, p_contato: contato, p_motivo: motivo }),
+  fecharAcumulado: (empresa: string, parceiro: string, metodo: string | null, motivo: string | null) =>
+    rpc<{ cobranca_id: string; valor: number; resultado: string; pecas: number }>('vip_fechar_acumulado', { p_empresa: empresa, p_parceiro: parceiro, p_metodo: metodo, p_motivo: motivo }),
+  anonimizar: (empresa: string, parceiro: string, motivo: string) => rpc<unknown>('parceiro_anonimizar', { p_empresa: empresa, p_parceiro: parceiro, p_motivo: motivo }),
+}
+
 export const apiParceiros = {
   listar: (empresa: string, f: FiltroParceiro, offset: number, limite = 50) =>
     rpc<ParceiroLinha[]>('listar_parceiros', { p_empresa: empresa, p_busca: nulo(f.busca), p_papel: nulo(f.papel),
@@ -327,6 +367,17 @@ export const apiParceiros = {
     rpc<HistoricoNota[]>('historico_notas_parceiro', { p_empresa: empresa, p_parceiro: parceiro, p_limite: limite, p_offset: offset }),
   resumoCompras: async (empresa: string, parceiro: string) =>
     (await rpc<ResumoCompras[]>('resumo_compras_parceiro', { p_empresa: empresa, p_parceiro: parceiro }))[0] ?? null,
+  // Cadastro único (pedido 046): resumo, contatos do cadastro, criar/editar, mover contato e juntar pré-cadastro.
+  resumo: (empresa: string, parceiro: string) => rpc<ResumoParceiro>('parceiro_resumo', { p_empresa: empresa, p_parceiro: parceiro }),
+  contatosCadastro: (empresa: string, parceiro: string) => rpc<ContatoCadastro[]>('parceiro_contatos', { p_empresa: empresa, p_parceiro: parceiro }),
+  salvarContato: (empresa: string, parceiro: string, d: { id?: string; tipo?: string; valor?: string; vinculo?: string; situacao?: string; principal?: boolean }) =>
+    rpc<string>('parceiro_contato_salvar', { p_empresa: empresa, p_parceiro: parceiro, p_dados: d }),
+  moverContato: (empresa: string, contato: string, destino: string, motivo: string) =>
+    rpc<null>('parceiro_contato_mover', { p_empresa: empresa, p_contato: contato, p_destino: destino, p_motivo: motivo }),
+  absorver: (empresa: string, origem: string, destino: string, motivo: string) =>
+    rpc<Record<string, number>>('parceiro_absorver', { p_empresa: empresa, p_origem: origem, p_destino: destino, p_motivo: motivo }),
+  salvar: (empresa: string, d: ParceiroEntrada) => rpc<string>('parceiro_salvar', { p_empresa: empresa, p_dados: d }),
+  enderecos: (empresa: string, parceiro: string) => rpc<EnderecoParceiro[]>('parceiro_enderecos', { p_empresa: empresa, p_parceiro: parceiro }),
   pendentes: (empresa: string, status: string, busca: string, offset: number, limite = 50) =>
     rpc<PendenteLinha[]>('listar_amarracoes_pendentes', { p_empresa: empresa, p_status: status, p_busca: nulo(busca), p_limite: limite, p_offset: offset }),
 }
