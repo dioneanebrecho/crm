@@ -25,6 +25,7 @@ import Atendimento from './pages/Atendimento'
 import RespostasProntas from './pages/RespostasProntas'
 import PreferenciasVitrine from './pages/PreferenciasVitrine'
 import Governanca from './pages/Governanca'
+import Fluxo from './pages/Fluxo'
 import Gestao from './pages/Gestao'
 import GruposProduto from './pages/GruposProduto'
 import EntradaCompra from './pages/EntradaCompra'
@@ -68,6 +69,7 @@ const GRUPOS = [{ rotulo: 'Início' }, { rotulo: 'Compras e estoque' }, { rotulo
 const ITENS = [
   { id: 'dashboards', rotulo: 'Painel de Gestão', grupo: 'Início', icone: <IGestao /> },
   { id: 'assistente', rotulo: 'Assistente', grupo: 'Início', icone: <IFaisca /> },
+  { id: 'fluxo', rotulo: 'Fluxo do processo', grupo: 'Início', icone: <IGrade /> },
   { id: 'entrada_compra', rotulo: 'Entrada de mercadoria', grupo: 'Compras e estoque', icone: <INota /> },
   { id: 'pecas', rotulo: 'Peças', grupo: 'Compras e estoque', icone: <IPecas /> },
   { id: 'estoque', rotulo: 'Estoque', grupo: 'Compras e estoque', icone: <IEstoque /> },
@@ -353,6 +355,7 @@ function Painel() {
       case 'usuarios': return <Usuarios ctx={ctx} />
       case 'permissoes': return <Permissoes ctx={ctx} onSalvo={() => setVersaoPerm((v) => v + 1)} />
       case 'governanca': return <Governanca ctx={ctx} />
+      case 'fluxo': return <Fluxo ctx={ctx} />
       case 'faixa': return <FaixaConfig ctx={ctx} />
     }
   }
@@ -360,7 +363,7 @@ function Painel() {
   return (
     <div className="quadro">
       <aside className={menu ? 'lateral aberta' : 'lateral'}>
-        <div className="lateral-marca"><span className="marca-icone"><IMarca /></span><span><strong>Ane Brechó</strong><small>CRM</small></span></div>
+        <div className="lateral-marca"><img className="marca-logo" src="/logo-anebrecho.jpg" alt="Ane Brechó" width={36} height={36} /><span><strong>Ane Brechó</strong><small>CRM</small></span></div>
         <nav className="lateral-nav" aria-label="Navegação principal" data-ajuda="menu">
           <button type="button" className="item busca-item" data-ajuda="busca" title={`Buscar tela ou funcionalidade (${ATALHO_BUSCA})`} onClick={() => { setBuscando(true); setMenu(false) }}><IBusca /><span>Buscar <kbd>{ATALHO_BUSCA}</kbd></span></button>
           {GRUPOS.map((g) => {

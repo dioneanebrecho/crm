@@ -822,3 +822,6 @@ button.perigo { color: var(--erro); border-color: var(--erro); }
 .roteiro-passos li.agora { font-weight: 600; }
 .roteiro-fim { margin: .4rem 0 0; color: var(--ok); font-weight: 600; }
 .roteiro .acoes { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .4rem; }
+
+/* logo da loja no topo do menu lateral */
+.marca-logo { width: 36px; height: 36px; flex: none; border-radius: 50%; object-fit: cover; border: 2px solid #C9A15F; box-shadow: 0 2px 6px rgba(0,0,0,.25); }

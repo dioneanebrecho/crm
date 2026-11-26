@@ -1,0 +1,122 @@
+/* Fluxo do processo (pedido 050). Raias por área; a cor de cada área vem em --fx-c. Usa as variáveis do tema do painel. */
+.fx-filtros { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; margin: .4rem 0 .6rem; }
+.fx-chips { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.fx-chip { background: var(--card); color: var(--txt); border: 1px solid var(--borda); border-radius: 999px; padding: .3rem .75rem; font-size: .82rem; min-height: 32px; display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; }
+.fx-chip.on { background: var(--marca); color: var(--on-marca); border-color: var(--marca); }
+.fx-chip small { opacity: .7; }
+.fx-check { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; }
+.fx-link { background: none; border: 0; padding: .15rem 0; color: var(--marca); text-decoration: underline; cursor: pointer; font-size: .82rem; text-align: left; }
+
+/* situação */
+.fx-st { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 2px solid currentColor; vertical-align: -1px; }
+.fx-st-uso { color: var(--ok); background: var(--ok); }
+.fx-st-impl { color: var(--aviso); background: linear-gradient(90deg, var(--aviso) 50%, transparent 50%); }
+.fx-st-plan { color: var(--mudo); }
+.fx-st-man { color: #6f8cff; border-style: dashed; }
+
+/* mapa */
+.fx-raias { display: grid; grid-template-columns: 34px repeat(8, minmax(0, 1fr)); gap: 0 6px; }
+.fx-raias-topo { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: .45rem 0 .35rem; border-bottom: 1px solid var(--borda); }
+.fx-raias-topo span { font-size: .72rem; font-weight: 700; line-height: 1.2; border-top: 4px solid var(--fx-c); padding-top: .3rem; }
+.fx-raias-topo span:first-child { border: 0; }
+.fx-fase { margin-top: 1.1rem; }
+.fx-fase > header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .15rem .6rem; align-items: baseline; margin-bottom: .2rem; }
+.fx-fase > header h3 { margin: 0; font-size: 1rem; }
+.fx-fase > header p { grid-column: 2; margin: 0; color: var(--mudo); font-size: .82rem; }
+.fx-fn { font-size: .72rem; font-weight: 700; background: var(--card2); border-radius: 5px; padding: .1rem .45rem; white-space: nowrap; }
+.fx-pista { position: relative; padding: .2rem 0 .4rem; }
+.fx-fundo { position: absolute; inset: 0; pointer-events: none; }
+.fx-fundo span { background: color-mix(in srgb, var(--fx-c) 7%, transparent); border-radius: 6px; }
+.fx-fundo span:first-child { background: none; }
+.fx-linhas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.fx-linhas path { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.fx-linha { position: relative; padding: .35rem 0; }
+.fx-num { grid-column: 1; align-self: center; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .78rem; background: var(--txt); color: var(--bg); }
+.fx-card { position: relative; text-align: left; background: var(--card); color: var(--txt); border: 2px solid var(--fx-c); border-radius: 9px; padding: .45rem .55rem; display: flex; flex-direction: column; gap: .15rem; cursor: pointer; box-shadow: 0 2px 0 color-mix(in srgb, var(--fx-c) 35%, transparent); transition: transform .12s; }
+.fx-card:hover { transform: translateY(-1px); }
+.fx-card b { font-size: .8rem; line-height: 1.25; }
+.fx-card small { font-size: .72rem; color: var(--mudo); }
+.fx-card .fx-sit { font-size: .7rem; color: var(--mudo); display: inline-flex; gap: .3rem; align-items: center; }
+.fx-card .fx-area { display: none; font-size: .72rem; font-weight: 700; color: var(--fx-c); }
+.fx-card.apagado { opacity: .22; }
+.fx-card.inativa { border-style: dashed; opacity: .6; }
+.fx-cc { position: absolute; top: -8px; right: -6px; background: var(--erro); color: #fff; border-radius: 999px; font-size: .68rem; font-weight: 800; padding: 0 .4rem; line-height: 18px; }
+@media (max-width: 900px) {
+  .fx-raias-topo, .fx-fundo { display: none; }
+  .fx-raias.fx-linha { grid-template-columns: 34px minmax(0, 1fr); }
+  .fx-card { grid-column: 2 !important; }
+  .fx-card .fx-area { display: block; }
+}
+@media (prefers-reduced-motion: reduce) { .fx-card { transition: none; } .fx-card:hover { transform: none; } }
+
+/* gaveta da etapa */
+.fx-overlay { display: flex; justify-content: flex-end; align-items: stretch; padding: 0; }
+.fx-gaveta { width: min(560px, 100%); height: 100%; overflow-y: auto; background: var(--bg); border-left: 5px solid var(--fx-c); padding: 1rem 1.2rem 2rem; box-shadow: -10px 0 40px rgba(0, 0, 0, .25); }
+.fx-gaveta-topo { display: flex; justify-content: space-between; gap: .6rem; align-items: flex-start; }
+.fx-gaveta-topo h2 { margin: .1rem 0 0; font-size: 1.3rem; line-height: 1.2; }
+.fx-gaveta h3 { font-size: .95rem; margin: 1rem 0 .35rem; }
+.fx-kv { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: .3rem .7rem; margin: .9rem 0; font-size: .88rem; }
+.fx-kv dt { color: var(--mudo); }
+.fx-kv dd { margin: 0; }
+.fx-cor { color: var(--fx-c); font-weight: 700; }
+.fx-pap { display: inline-block; border: 1px solid var(--borda); border-radius: 999px; padding: .05rem .55rem; font-size: .76rem; margin: 0 .3rem .25rem 0; }
+.fx-pap.r { border-color: var(--txt); font-weight: 700; }
+.fx-proc { margin: 0; padding-left: 1.3rem; font-size: .88rem; }
+.fx-proc li { margin: .15rem 0; }
+.fx-caixa { border-radius: 8px; padding: .5rem .7rem; margin-top: .5rem; font-size: .86rem; }
+.fx-caixa.imp { background: var(--erro-bg); }
+.fx-caixa.reg { background: var(--card2); }
+.fx-vizinhas { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .9rem; }
+.fx-vizinhas button { text-align: left; font-size: .8rem; }
+.fx-vizinhas small { display: block; color: var(--mudo); }
+.fx-com { border-top: 1px solid var(--borda); padding: .5rem 0; font-size: .87rem; }
+.fx-com header { display: flex; flex-wrap: wrap; gap: .2rem .6rem; align-items: center; font-size: .76rem; color: var(--mudo); }
+.fx-com header strong { color: var(--txt); }
+.fx-com p { margin: .25rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fx-com.ok p { color: var(--mudo); text-decoration: line-through; }
+.fx-com-pe { display: flex; flex-wrap: wrap; gap: .3rem .8rem; align-items: center; }
+.fx-tag { font-size: .7rem; font-weight: 700; border-radius: 4px; padding: .05rem .4rem; background: var(--card2); color: var(--txt); }
+.fx-tag.ajuste { background: color-mix(in srgb, var(--aviso) 28%, transparent); }
+.fx-tag.duvida { background: color-mix(in srgb, #4f8fd8 25%, transparent); }
+.fx-novo { margin-top: .6rem; }
+.fx-novo textarea, .fx-novo select { width: 100%; }
+
+/* editor */
+.fx-grade3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 .8rem; }
+@media (max-width: 700px) { .fx-grade3 { grid-template-columns: 1fr; } .fx-vizinhas { grid-template-columns: 1fr; } .fx-kv { grid-template-columns: 1fr; } }
+
+/* por pessoa */
+.fx-papeis { margin: .5rem 0 1rem; }
+.fx-pessoa-topo { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .6rem 1.2rem; align-items: flex-end; border-bottom: 3px solid var(--txt); padding-bottom: .7rem; }
+.fx-pessoa-topo h3 { margin: 0 0 .2rem; font-size: 1.3rem; }
+.fx-pessoa-topo p { margin: .1rem 0; }
+.fx-lista { list-style: none; margin: 0; padding: 0; }
+.fx-lista > li { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: .7rem; padding: .9rem 0; border-bottom: 1px solid var(--borda); }
+.fx-lista .fx-num { width: 34px; height: 34px; background: var(--fx-c); color: #fff; font-size: .85rem; }
+.fx-lista h4 { margin: 0; font-size: 1rem; }
+.fx-meta { display: flex; flex-wrap: wrap; gap: .2rem .9rem; font-size: .8rem; color: var(--mudo); margin: .2rem 0 .5rem; }
+.fx-meta strong { color: var(--txt); }
+.fx-maos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; font-size: .82rem; }
+.fx-maos div { background: var(--card2); border-radius: 7px; padding: .4rem .55rem; }
+.fx-maos small { display: block; color: var(--mudo); font-weight: 700; }
+.fx-lista details { margin-top: .4rem; font-size: .86rem; }
+.fx-lista summary { cursor: pointer; font-weight: 600; }
+@media (max-width: 700px) { .fx-maos { grid-template-columns: 1fr; } }
+
+/* revisões */
+.fx-rev { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 1.6rem; margin-top: .4rem; }
+@media (max-width: 1000px) { .fx-rev { grid-template-columns: 1fr; } }
+.fx-rev h3 { margin: .2rem 0; }
+.fx-rev-topo { display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
+.fx-revisao { border-left: 3px solid var(--txt); padding: .25rem 0 .25rem .75rem; margin: .8rem 0; font-size: .87rem; }
+.fx-revisao header { display: flex; flex-wrap: wrap; gap: .2rem .7rem; align-items: baseline; }
+.fx-revisao header span { font-size: .76rem; color: var(--mudo); }
+.fx-revisao p { margin: .2rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fx-esq { justify-content: flex-start; gap: 1rem; margin-top: .2rem; }
+.fx-dif { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .82rem; }
+.fx .fx-link:hover:not(:disabled), .fx .fx-link:focus, .fx .fx-link:active { background: none; color: var(--marca); box-shadow: none; }
+.fx-lista .fx-num { align-self: start; }
+/* o hover global dos botões pinta o fundo de dourado: aqui cartões e chips mantêm a própria cor */
+.fx .fx-card:hover:not(:disabled) { background: var(--card); }
+.fx .fx-chip:hover:not(:disabled) { background: var(--card2); }
+.fx .fx-chip.on:hover:not(:disabled) { background: var(--marca); }

@@ -62,6 +62,14 @@ begin
   assert v_n = 2, 'os dois pedidos no mesmo envio: ' || v_n;
   begin perform api.expedicao_enviar(v_emp, v_exp, 'BR123456789BR'); assert false, 'enviou sem frete';
   exception when sqlstate '22023' then null; end;
+  -- 0094a: sem conferência fechada não se cobra o frete
+  begin perform api.expedicao_definir_frete(v_emp, v_exp, 24.90, 'PAC', 7, false); assert false, 'cobrou frete sem conferir';
+  exception when sqlstate '22023' then null; end;
+  perform api.expedicao_conferir_peca(v_emp, v_exp, u.codigo)
+    from venda.rel_expedicao_pedido rp join venda.mov_pedido_item pi on pi.pedido_id = rp.pedido_id
+    join catalogo.cad_unidade u on u.id = pi.unidade_id where rp.expedicao_id = v_exp;
+  perform api.expedicao_fechar_conferencia(v_emp, v_exp, 700);
+  assert (select estado from venda.mov_expedicao where id = v_exp) = 'conferida', 'conferida';
   r := api.expedicao_definir_frete(v_emp, v_exp, 24.90, 'PAC', 7, false);
   assert r ->> 'estado' = 'frete_cobrado', 'frete cobrado';
   v_cob := (r ->> 'cobranca_id')::uuid;

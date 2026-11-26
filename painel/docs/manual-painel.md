@@ -43,6 +43,26 @@ Documentação v0.13.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo
 1. **Assistente** — Pergunte em português sobre vendas, estoque, fila e regras. Ele responde com dados e cita as fontes.
 2. **Converse** — Digite a pergunta. Use o histórico e os atalhos para abrir o que foi citado.
 
+### Fluxo do processo
+
+**O que é.** Mapa das etapas da operação, da nota do fornecedor ao fechamento do mês, em raias por área. Cada etapa mostra quem executa e quem apoia, a tela do painel, o procedimento, o que entrega, o impacto de errar e as regras. A equipe comenta cada etapa; gestão e administração alteram as etapas, e toda alteração vira uma revisão com a cópia completa do fluxo.
+
+**Caso de uso.** Uma pessoa nova acumula Conferente e Expedição. Em Por pessoa ela marca os dois papéis e vê, em ordem, as etapas que executa e apoia, de quem recebe e para quem entrega, e copia o checklist. Se algo não bate com a prática, ela comenta na etapa; o gestor ajusta e a revisão fica registrada.
+
+**Dicas**
+
+- Uma pessoa pode exercer vários papéis: marque todos em Por pessoa para ver a sequência combinada.
+- Use a busca e o filtro de situação para achar etapas em implantação ou planejadas.
+- Comentário de ajuste: diga o que acontece na prática. CPF, telefone e e-mail são mascarados.
+- Quem edita precisa descrever o que mudou e por quê: isso vira a revisão. "Comparar com a atual" mostra o que mudou desde uma versão; "Restaurar" volta sem apagar nada.
+- Quem vê e quem edita esta tela é definido em Permissões, como nas outras telas.
+
+**Tutorial guiado**
+
+1. **Fluxo do processo** — As etapas da operação em ordem, por área e por papel, com comentários e revisões.
+2. **Mapa em raias** — Cada coluna é uma área e a linha liga as etapas na ordem. Clique numa etapa para ver o detalhe e comentar.
+3. **Por pessoa e revisões** — Em Por pessoa, marque um ou mais papéis. Em Revisões e comentários, veja o histórico e o que está em aberto.
+
 ## Compras e estoque
 
 ### Entrada de mercadoria (NF-e)
