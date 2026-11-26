@@ -1,6 +1,17 @@
 # Pedido de mudança 049: expedição completa — conferência por código de barras, cotação de frete, financeiro dos dois lados e rastreio automático
 
-Data: 26/11/2026 · Situação: **desenho, nada implementado**. Continuação do pedido 048 (expedição consolidada).
+Data: 26/11/2026 · Situação: **fases 1 a 3 implementadas e testadas** (migrations 0094a, 0094d e 0094e aplicadas; painel com `tsc` e `build` ok). Fases 4 a 7 (Melhor Envio, webhook, aviso de WhatsApp, Correios) seguem como desenho. Continuação do pedido 048 (expedição consolidada).
+
+> **Feito nesta rodada (26/11/2026)**
+> - **0094a — conferência por código de barras.** `venda.rel_expedicao_item_conferido`, peso e medidas em `venda.mov_expedicao`, situações `aguardando_conferencia` e `conferida` no lugar de `aguardando_frete`, e `venda.cfg_expedicao`. APIs `expedicao_por_codigo`, `expedicao_conferencia`, `expedicao_conferir_peca`, `expedicao_fechar_conferencia`, `expedicao_reabrir_conferencia`, `expedicao_cfg_obter/salvar`. `expedicao_montar` devolve o envio à bancada quando entra peça nova depois da conferência; `expedicao_definir_frete` recusa envio não conferido.
+> - **0094d — rastreio unificado.** `expedicao_enviar` passa a gravar `venda.mov_envio` (uma linha por pedido, com link da transportadora) e `venda.mov_evento_rastreio`. **Conserta a resposta pronta `/rastreio`.** Novas `expedicao_entregue` e `expedicao_rastreio`.
+> - **0094e — financeiro do frete.** Título a receber nasce com a cobrança do frete e é baixado quando a Getnet confirma; `expedicao_registrar_custo` lança o título a pagar da postagem (com baixa opcional). `api.expedicoes` devolve os dois títulos e o resultado do frete. Naturezas semeadas do plano de contas: `1.01.02.001` e `4.01.01.001`.
+> - **Painel:** aba **Conferência** com bipagem, aba **Em andamento** com situação dos títulos, custo da postagem, rastreio e entrega; simulação e roteiro de treino refeitos; ajuda e manual v0.15.0.
+> - **Testes:** `sql/testes/94_testes_expedicao_conferencia_frete.sql` passou; a regressão `92` foi ajustada e passou.
+> - **0094g — Melhor Envio em Integrações → Fretes.** `melhor_envio` (e `correios`) liberados nos CHECKs de `engine.cfg_integracao` e `engine.mov_outbox`; parâmetros `ambiente`, `client_id` e `user_agent` (o `User-Agent` que a API exige) e o segredo `client_secret`. Só o cadastro: a cotação e a compra ainda não chamam a API.
+> - **Simulação:** a Expedição demonstra a cotação comparativa (PAC, SEDEX, Jadlog, com Correios direto recusado por falta dos serviços 38202/38210), o Pix do frete pela Getnet com "cliente pagou" e a compra de etiqueta com PDF, rastreio e custo em contas a pagar — tudo fictício.
+> - **Leitura por câmera:** a Conferência tem "Ler com a câmera" para celular e coletor Android, sem aplicativo. Usa a `BarcodeDetector` nativa do Chrome no Android e, onde ela não existe (iPhone), baixa sob demanda um leitor em WebAssembly servido pelo próprio painel (chunk separado de 946 KB: quem está no Android nunca baixa). Exige https.
+> - **Não feito:** cotação, compra de etiqueta, webhook e aviso automático no WhatsApp (fases 4 a 6) — e a conferência visual da tela no navegador, que ficou para a Ane.
 
 ---
 
@@ -106,6 +117,8 @@ Nada avança sem a etapa anterior. Em especial: **não cota sem conferir** (o pe
 ---
 
 ## 5. Banco — migrations 0094a a 0094g
+
+> 0094a, 0094d e 0094e estão **aplicadas**; o SQL de cada uma está em `sql/`. As demais continuam como desenho.
 
 ### 0094a — conferência por código de barras
 ```sql
@@ -325,15 +338,15 @@ Ajuda e manual: verbetes de Conferência, Cotação de frete, Etiqueta e Avisos 
 
 | Fase | Entrega | Depende de |
 |---|---|---|
-| **1** | 0094a conferência + tela de bipagem | nada — dá para usar já, com frete digitado |
-| **2** | 0094d rastreio unificado (`mov_envio`) | nada — **conserta o `/rastreio` quebrado hoje** |
-| **3** | 0094e financeiro do frete | naturezas e conta cadastradas |
+| **1 ✅** | 0094a conferência + tela de bipagem | — (entregue) |
+| **2 ✅** | 0094d rastreio unificado (`mov_envio`) | — (entregue; o `/rastreio` voltou a funcionar) |
+| **3 ✅** | 0094e financeiro do frete | — (entregue; naturezas semeadas do plano de contas) |
 | **4** | 0094b + 0094c + worker + OAuth Melhor Envio | conta e app no Melhor Envio (sandbox primeiro) |
 | **5** | webhook de rastreio | app publicado com URL pública |
 | **6** | 0094f aviso de WhatsApp | **template aprovado pela Meta** |
 | **7** | Correios como segunda cotação | contrato + 38202/38210 no cartão |
 
-As fases 1, 2 e 3 não dependem de nada externo e podem começar hoje.
+As fases 1, 2 e 3 estão entregues. A 4 começa assim que a conta e o aplicativo do Melhor Envio existirem (item 1 da seção 9).
 
 ---
 

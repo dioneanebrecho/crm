@@ -214,18 +214,25 @@ begin
   assert not exists (select 1 from venda.mov_pedido where id = v_pedA and estado <> 'entregue'), 'pedido entregue';
 
   -- ============================================================ frete grátis e desfazer
+  -- envio B: frete cobrado e depois desfeito — o título a receber é cancelado junto
   perform api.expedicao_conferir_peca(v_emp, v_expB, c3);
   perform api.expedicao_fechar_conferencia(v_emp, v_expB, 400);
-  r := api.expedicao_definir_frete(v_emp, v_expB, 0, 'retirada', null, true);
-  assert r ->> 'estado' = 'pronta', 'frete grátis deixa pronta';
-  assert (select titulo_receber_id is null from venda.mov_expedicao where id = v_expB), 'frete grátis não gera título a receber';
-
   r := api.expedicao_definir_frete(v_emp, v_expB, 12.00, 'PAC', 5, false);
   v_tit := (r ->> 'titulo_id')::uuid;
+  assert (select situacao from financeiro.mov_titulo where id = v_tit) = 'aberto', 'título do frete aberto';
   perform api.expedicao_cancelar(v_emp, v_expB, 'teste de desfazer');
   assert (select estado from venda.mov_expedicao where id = v_expB) = 'cancelada', 'envio desfeito';
   assert (select situacao from financeiro.mov_titulo where id = v_tit) = 'cancelado', 'título a receber cancelado junto';
   assert not exists (select 1 from venda.rel_expedicao_item_conferido where expedicao_id = v_expB), 'bipagens apagadas ao desfazer';
+
+  -- envio C: frete grátis fica pronto na hora e não gera título
+  perform api.expedicao_conferir_peca(v_emp, v_expC, c5);
+  perform api.expedicao_fechar_conferencia(v_emp, v_expC, 600);
+  r := api.expedicao_definir_frete(v_emp, v_expC, 0, 'retirada', null, true);
+  assert r ->> 'estado' = 'pronta', 'frete grátis deixa pronta';
+  assert (select titulo_receber_id is null from venda.mov_expedicao where id = v_expC), 'frete grátis não gera título a receber';
+  begin perform api.expedicao_definir_frete(v_emp, v_expC, 12.00, 'PAC', 5, false); assert false, 'mudou o frete de um envio pronto';
+  exception when sqlstate '22023' then null; end;
 
   -- ============================================================ permissões
   assert not has_function_privilege('anon', 'api.expedicao_conferir_peca(uuid,uuid,text)', 'execute'), 'anon bipando';

@@ -1,6 +1,6 @@
 # Manual do painel Ane Brechó
 
-Documentação v0.14.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
+Documentação v0.15.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo.ts; não edite este arquivo à mão.
 
 ## Início
 
@@ -262,23 +262,33 @@ Documentação v0.14.0 · atualizada em 26/11/2026. Gerado de src/ajuda/conteudo
 
 ### Expedição
 
-**O que é.** Cada peça é paga na hora. Aqui os pedidos pagos da mesma cliente e do mesmo endereço viram um envio só. Você define o frete (ou marca grátis): o frete vira uma cobrança separada. Quando o frete estiver pago, o envio sai com o código de rastreio.
+**O que é.** Cada peça é paga na hora. Aqui os pedidos pagos da mesma cliente e do mesmo endereço viram um envio só. Você confere as peças bipando o código de barras da etiqueta e pesa a caixa; depois define o frete (ou marca grátis), que vira uma cobrança separada. Com o frete pago, o envio sai com o código de rastreio, e o custo da postagem é lançado no contas a pagar.
 
-**Caso de uso.** A cliente comprou três peças na live, cada uma paga no Pix na hora. No fim do dia, “A montar” mostra a cliente com 3 pedidos. Você clica em Montar envio, informa o frete do SEDEX e a cliente recebe a cobrança do frete. Com o frete pago, você embala, informa o rastreio e o pedido passa para Enviado.
+**Caso de uso.** A cliente comprou três peças na live, cada uma paga no Pix na hora. No fim do dia, “A montar” mostra a cliente com 3 pedidos. Você clica em Montar envio, bipa as três peças na aba Conferência, pesa a caixa e informa o frete do SEDEX: a cliente recebe a cobrança. Com o frete pago, você posta, lança os R$ 18,40 que pagou nos Correios e informa o rastreio.
 
 **Dicas**
 
-- Para treinar o time, clique em Simular: abre clientes e pedidos fictícios com um roteiro de passos que se marcam sozinhos. Nada é gravado, cobrado ou enviado.
+- Para treinar o time, clique em Simular: abre clientes, peças e pedidos fictícios com um roteiro de passos que se marcam sozinhos. Nada é gravado, cobrado ou enviado.
+- Na Conferência você bipa qualquer peça e o envio dela abre sozinho: não precisa procurar a cliente na lista.
+- Serve para três jeitos de bipar: digitar, coletor Android com leitor laser (ele digita e manda Enter sozinho) e "Ler com a câmera" no celular. Não precisa instalar aplicativo.
+- A câmera só abre em endereço seguro (https): use o painel publicado no celular, não o endereço de teste do computador. Aponte para o QR da etiqueta, que lê melhor que o código de barras.
+- Peça de outro envio é recusada com o número do envio certo, para não trocar as caixas.
+- O frete só pode ser cobrado com todas as peças bipadas e o peso da caixa confirmado.
+- Com o Melhor Envio conectado (Integrações > Fretes), "Cotar frete" compara Correios, Jadlog e Loggi com prazo e custo, e você escolhe quanto cobrar da cliente. Sem a conta conectada, o valor continua sendo digitado.
+- Com a Getnet conectada (Integrações > Pagamentos), a cliente recebe o Pix do frete e a confirmação solta o envio sozinha, sem ninguém lançar "Frete pago".
+- Se a cliente pagar outra peça depois da conferência, o envio volta para a bancada: a caixa muda de peso.
 - Se a cliente ainda tem peças reservadas, o aviso sugere esperar: o que ela pagar depois entra no mesmo envio aberto.
 - Cliente VIP aparece com o selo VIP: ela paga o acumulado no fim do dia ou da live (configure em Parceiros > Regras).
 - Frete grátis deixa o envio pronto na hora, sem cobrança.
 - “Frete pago” é para quando a cliente pagou fora do link (dinheiro, Pix direto); informe como conferiu.
-- Desfazer envio devolve os pedidos para “A montar”. Não dá para desfazer depois do frete pago ou do envio.
+- “Custo da postagem” é o que a loja paga à transportadora: vira um título a pagar. A diferença para o frete cobrado aparece como Resultado do frete.
+- Desfazer envio devolve os pedidos para “A montar” e cancela os títulos do frete que ainda não foram baixados. Não dá para desfazer depois do frete pago ou do envio.
 
 **Tutorial guiado**
 
-1. **Expedição** — Junte as peças pagas, cobre o frete e registre o rastreio.
+1. **Expedição** — Junte as peças pagas, confira bipando, cobre o frete e registre o rastreio.
 2. **A montar** — Clientes com pedidos pagos agrupados por endereço. Clique em Montar envio.
+3. **Conferência** — Bipe o código de barras das peças. Qualquer peça do envio serve para localizá-lo.
 
 ## Financeiro
 
